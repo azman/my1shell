@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# packthis
+# - written by azman@my1matrix.net
+# - to pack current working directory into a tar.bz2 archive
+
+CURRPATH=$(pwd)
+WORKPATH=$(dirname $CURRPATH)
+BALLPATH=$HOME/temp
+BALLNAME=$(basename $CURRPATH)
+BALLSUFX=${BALLSUFX:=""}
+DATE_FMT=${DATE_FMT:="+%Y%m%d"}
+CHECKGIT=${CHECKGIT:="YES"}
+
+while [[ "$1" != "" ]]; do
+	case $1 in
+		--time)
+			DATE_FMT="+%Y%m%d%H%M"
+			;;
+		--ignore-git)
+			CHECKGIT="NO"
+			;;
+		* )
+			echo "Unknown parameter ($1)!" && exit 1
+			;;
+	esac
+	shift
+done
+
+[[ "$CHECKGIT" == "YES" ]] && [[ -d "$CURRPATH/.git" ]] && BALLSUFX="_git"
+
+[[ ! -d $BALLPATH ]] && mkdir -pv $BALLPATH
+
+if [[ -d $WORKPATH ]]; then
+	cd $WORKPATH
+	tar cjvf ${BALLPATH}/${BALLNAME}${BALLSUFX}-$(date ${DATE_FMT}).tar.bz2 ${BALLNAME}
+fi

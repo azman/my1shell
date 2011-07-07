@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# chkscreen
+# - written by azman@my1matrix.net
+# - simple display manager based on xrandr
+
+# example using xrandr tool
+# xrandr --output LVDS1 --auto --output VGA1 --mode 1024x768 --right-of LVDS1
+
+SAVE_IFS=$IFS
+IFS='
+'
+DISP_STATS=($(xrandr -q | grep " connected"))
+IFS=$SAVE_IFS
+
+echo -n "We have ${#DISP_STATS[@]} connected display(s) ==>"
+for (( a=0;a<${#DISP_STATS[@]};a++ )); do
+	DISP_NAME[$a]=${DISP_STATS[$a]%% *}
+	DISP_TEMP=${DISP_STATS[$a]#${DISP_NAME[$a]} }
+	DISP_STAT[$a]=${DISP_TEMP%% *}
+	echo -n " [${DISP_NAME[$a]}]"
+done
+echo "."
+
+[[ "$1" == "" ]] && exit 0
+
+
+if [[ ${#DISP_STATS[@]} -gt 1 ]] ; then
+	DISP1="--output ${DISP_NAME[1]} --auto"
+	DISP0="--output ${DISP_NAME[0]} --auto"
+	PLACE="--same-as"
+	if [[ "$1" == "dual" ]] ; then
+		case "$2" in
+			left)
+				PLACE="--left-of"
+				;;
+			right)
+				PLACE="--right-of"
+				;;
+			*)
+				PLACE="--left-of" # default placement
+				[[ "$2" != "" ]] && echo "Unknown option '$2'!" && exit 1
+		esac
+		echo -n "Applying dual-head configuration..."
+		xrandr $DISP1 $DISP0 $PLACE ${DISP_NAME[1]}
+		echo "done."
+	elif [[ "$1" == "twin" ]] ; then
+		echo -n "Applying twin-view configuration..."
+		xrandr $DISP1 $DISP0 $PLACE ${DISP_NAME[1]}
+		echo "done."
+	elif [[ "$1" == "single" ]] ; then
+		# set only for the first one on?
+		for (( a=0;a<${#DISP_STATS[@]};a++ )); do
+			DISP1="--off"
+			[[ "$2" -eq $a ]] && DISP1="--auto"
+			DISP0="--output ${DISP_NAME[$a]} $DISP1 $DISP0"
+		done
+		echo -n "Aplying single view configuration..."
+		xrandr $DISP0
+		echo "done."
+	else
+		echo "Command '$1' unknown!"
+		exit 1
+	fi
+fi
+
+exit 0

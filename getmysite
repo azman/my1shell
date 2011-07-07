@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# getmysite
+# - written by azman@my1matrix.net
+# - a getslack-like script for my workplace website
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+# look for config file
+for conffile in "$HOME/.$MY1TOOL" \
+		"$HOME/.$MY1TOOL.conf" "$MY1PATH/$MY1TOOL.conf"; do
+	[[ ! -f $conffile ]] && continue
+	source $conffile ; break
+done
+
+# tool & env setupq
+RSYNC=${RSYNC:="/usr/bin/rsync"}
+RSYNCURL=${RSYNCURL:="server.url:/path/to/public_html/"}
+RSYNCOPT=${RSYNCOPT:="-e ssh --partial -rlptD --progress"}
+LOCALURL=${LOCALURL:="."}
+
+# check target & source
+RSYNCSRC="${RSYNCURL}"
+RSYNCTGT="${LOCALURL}"
+
+# customized sync list
+EXCLUDES=${EXCLUDES:="--exclude=dokuwiki/data/attic/* --exclude=dokuwiki/data/cache/* --exclude=dokuwiki/data/locks/* --exclude=dokuwiki/data/tmp/*"}
+INCLUDES=${INCLUDES:="--include=dokuwiki/data/index --include=dokuwiki/data/media --include=dokuwiki/data/meta --include=dokuwiki/data/pages"}
+[[ -r "$EXCLUDEFILE" ]] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
+[[ -r "$INCLUDEFILE" ]] && INCLUDES="--include-from=$INCLUDEFILE"
+
+# check parameters
+while  [[ "$1" != "" ]]; do
+	case $1 in
+		--upload)
+			RSYNCTMP="${RSYNCSRC}"
+			RSYNCSRC="${RSYNCTGT}"
+			RSYNCTGT="${RSYNCTMP}"
+			RSYNCOPT="${RSYNCOPT} --delete"
+			;;
+		--reload)
+			RSYNCOPT="${RSYNCOPT} --delete --delete-excluded"
+			;;
+		*)
+			echo "Unknown parameter '$1'"
+			exit 1
+	esac
+	shift
+done
+
+# start actual mirroring process
+echo "*** From ${RSYNCSRC} To ${RSYNCTGT} ***"
+$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCSRC} ${RSYNCTGT}
+echo "*** From ${RSYNCSRC} To ${RSYNCTGT} - (2nd Run) ***"
+$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCSRC} ${RSYNCTGT}
+echo "$(date) [$$]: Done mirroring (exit code $?)."
+
+exit 0

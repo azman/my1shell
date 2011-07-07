@@ -1,0 +1,341 @@
+#!/bin/bash
+
+# slackpatch
+# - written by azman@my1matrix.net
+# - slackware patch manager
+
+# standard tool info
+TOOL_THISFUNC="Slackware Patch Tool"
+TOOL_THISVERS="2010.04.00"
+# standard tool conf
+TOOL_CHECKCMD="$@"
+TOOL_COMMANDS=${TOOL_CHECKCMD:="help"}
+TOOL_THISFILE=$(basename $0 .sh)
+TOOL_LOCATION=$(cd $(dirname $0);pwd)
+TOOL_CONFFILE="$TOOL_THISFILE.conf"
+TOOL_MY1SLACK="libmy1slack"
+# look for config file
+for conf_path in  $(pwd) $TOOL_LOCATION ; do
+	config_file="${conf_path}/${TOOL_CONFFILE}"
+	[[ -r $config_file ]] && source $config_file && break
+done
+# look for my1slack library
+[[ -r "$TOOL_LOCATION/$TOOL_MY1SLACK" ]] && source $TOOL_LOCATION/$TOOL_MY1SLACK
+# my1slack tool specific
+TOOL_SLACKDIR=${TOOL_SLACKDIR:="${SLACKROOTDIR}/${SLACKRELEASE}"}
+TOOL_PATCHDIR=${TOOL_PATCHDIR:="${TOOL_SLACKDIR}/patches/packages"}
+TOOL_LOGFILE=${TOOL_LOGFILE:="/tmp/${TOOL_THISFILE%%.*}.log"}
+# patch lists (global params)
+list_update=""
+list_unknown=""
+list_done=""
+# global options & settings
+OPT_FULLINFO="NO"
+OPT_AUTOPATCH="YES"
+MSG_THISHELP=$(cat <<SETHELPMSG
+Usage:
+  $TOOL_THISFILE <command> [options]
+Commands:
+  check : Check patch status
+  nlist : List patches NOT in update list
+  patch : Apply updates/patches
+  help  : Show this help message
+Options:
+  --short  : Short Info
+  --full   : Full Info
+  --prompt : Prompt Before Patching
+  --auto   : Auto-Patch
+  --path <path_name> : Specify additional patch path
+  --pkg <package_name> : Auto-Patch Implied!
+Mirror Source:
+  ${SLACKROOTDIR}/${SLACKRELEASE}
+Log File:
+  $TOOL_LOGFILE
+SETHELPMSG
+)
+
+function find_patches()
+{
+	local curr_dir=$(pwd)
+	for pat_file in *.t[gx]z; do
+		# check extension first
+		pat_exts="${pat_file##*.}"
+		# get particulars
+		pat_name="${pat_file%-*-*-*.${pat_exts}}"
+		temp="${pat_file##${pat_name}-}"
+		pat_vers="${temp%-*-*.${pat_exts}}"
+		temp="${temp##${pat_vers}-}"
+		pat_arch="${temp%-*.${pat_exts}}"
+		temp="${temp##${pat_arch}-}"
+		pat_extd="${temp%.${pat_exts}}"
+		# find installed
+		pkg_file=""
+		for tfile in $(ls /var/log/packages|grep "$pat_name"); do
+			pkg_name="${tfile%-*-*-*}"
+			if [[ "$pkg_name" == "$pat_name" ]]; then
+				pkg_file="$tfile"
+				break;
+			fi
+		done
+		if [[ "$pkg_file" != "" ]]; then
+			pkg_name="${pkg_file%-*-*-*}"
+			temp="${pkg_file##${pkg_name}-}"
+			pkg_vers="${temp%-*-*}"
+			temp="${temp##${pkg_vers}-}"
+			pkg_arch="${temp%-*}"
+			temp="${temp##${pkg_arch}-}"
+			pkg_extd="${temp}"
+			if [[ "$pkg_vers" == "$pat_vers" ]] &&
+				[[ "$pkg_extd" == "$pat_extd" ]]; then
+				list_done="$pat_name $list_done"
+				eval patchinfo_${pat_name//[-.]/_}=[${pkg_vers}/${pkg_extd}]-to-[${pat_vers}/${pat_extd}]
+			else
+				list_update="$pat_name $list_update"
+				eval patchfile_${pat_name//[-.]/_}=${curr_dir}/${pat_file}
+				eval patchvers_${pat_name//[-.]/_}=[${pkg_vers}/${pkg_extd}]-to-[${pat_vers}/${pat_extd}]
+			fi
+			#echo "Patch: $pat_file"
+			#echo "Install: $pkg_file"
+		else
+			list_unknown="$pat_name $list_unknown"
+			eval patchinfo_${pat_name//[-.]/_}=${pat_file}
+		fi
+	done
+	cd $curr_dir
+	#echo -n "--done $list_done --update $list_update --unknown $list_unknkown"
+}
+
+function check_patches()
+{
+	local curr_dir=$(pwd)
+	[[ ! -d $TOOL_PATCHDIR ]] &&
+		echo -e "Path '$TOOL_PATCHDIR' not found! Aborting!\n" && exit 1
+	cd $TOOL_PATCHDIR
+	TOOL_PATCHDIR=$(pwd)
+	find_patches
+	KERNEL_PATPATH=$(find . -name "linux-*" -type d -maxdepth 1)
+	for path in $KERNEL_PATPATH; do
+		cd $path
+		find_patches
+	done
+	while [[ "$1" != "" ]]; do
+		if [[ -d "$1" ]]; then
+			cd $1
+			find_patches
+		fi
+		shift
+	done
+	cd $curr_dir
+}
+
+function must_be_root()
+{
+	[[ $UID -ne 0 ]] && echo -e "Abort: must run as root!\n" && exit 1
+}
+
+function execute_patches()
+{
+	local tempfile=""
+	local patchfile=""
+	local patchvers=""
+	local pkg_temp=""
+
+	must_be_root
+
+	# update specific requested package
+	if [[ "$1" != "" ]]; then
+		while [[ "$1" != "" ]]; do
+			pkg_temp=$1
+			tempfile="patchfile_${pkg_temp//-/_}"
+			patchfile=${!tempfile}
+			tempfile="patchvers_${pkg_temp//-/_}"
+			patchvers=${!tempfile}
+			echo -n "Auto-updating single package '$pkg_temp'... "
+			/sbin/upgradepkg ${patchfile} >>$TOOL_LOGFILE
+			echo -e "done.\n"
+			shift
+		done
+		return
+	fi
+
+	if [[ ! -z "$list_update" ]]; then
+		echo -e "$TOOL_THISFILE - $TOOL_THISFUNC ($TOOL_THISVERS)\n$(date)\n" >$TOOL_LOGFILE
+		echo "Packages need updating:"
+		for pkg in $list_update ; do
+			tempfile="patchfile_${pkg//-/_}"
+			patchfile=${!tempfile}
+			tempfile="patchvers_${pkg//-/_}"
+			patchvers=${!tempfile}
+			if [[ "$OPT_AUTOPATCH" == "NO" ]] ; then
+				read -n 1 -p "Update package '$pkg' ? [y]/[*]/[q] : " do_update ; echo
+				if [[ "$do_update" == "y" ]]; then
+					echo -n "Updating '$pkg'... "
+					/sbin/upgradepkg ${patchfile} >>$TOOL_LOGFILE
+					echo "done."
+				elif [[ "$do_update" == "q" ]]; then
+					echo "Aborting on '$pkg'!"
+					exit 1
+				fi
+			elif [[ "$OPT_AUTOPATCH" == "YES" ]] ; then
+				echo -n "Auto-updating '$pkg'... "
+				/sbin/upgradepkg ${patchfile} >>$TOOL_LOGFILE
+				echo "done."
+			fi
+		done
+	else
+		echo "Nothing to patch/upgrade!"
+	fi
+	echo
+}
+
+function update_patches()
+{
+	local tempfile=""
+	local patchfile=""
+	local patchvers=""
+
+	if [[ ! -z "$list_update" ]]; then
+		echo "Packages need updating:"
+		for pkg in $list_update ; do
+			tempfile="patchfile_${pkg//-/_}"
+			patchfile=${!tempfile}
+			tempfile="patchvers_${pkg//-/_}"
+			patchvers=${!tempfile}
+			if [[ "$OPT_FULLINFO" == "NO" ]] ; then
+				echo -n "$pkg "
+			elif [[ "$OPT_FULLINFO" == "YES" ]] ; then
+				echo "$pkg : ${patchvers}"
+			fi
+		done
+		[[ "$OPT_FULLINFO" != "YES" ]] && echo
+	else
+		echo "Nothing to patch/upgrade!"
+	fi
+	echo
+}
+
+function done_patches()
+{
+	local tempfile=""
+	local patchinfo=""
+
+	if [[ ! -z "$list_done" ]]; then
+		echo "Packages already up-to-date:"
+		for pkg in $list_done ; do
+			tempfile="patchinfo_${pkg//-/_}"
+			patchinfo=${!tempfile}
+			if [[ "$OPT_FULLINFO" == "NO" ]] ; then
+				echo -n "$pkg "
+			elif [[ "$OPT_FULLINFO" == "YES" ]] ; then
+				echo "$pkg : ${patchinfo}"
+			fi
+		done
+		[[ "$OPT_FULLINFO" != "YES" ]] && echo
+	else
+		echo "No updated patches! Check your patches!"
+	fi
+	echo
+}
+
+function unknown_patches()
+{
+	local tempfile=""
+	local patchinfo=""
+	local patch_opt="$1"
+
+	if [ ! -z "$list_unknown" ]; then
+		echo "Patches for packages NOT in installation:"
+		for pkg in $list_unknown ; do
+			tempfile="patchinfo_${pkg//-/_}"
+			patchinfo=${!tempfile}
+			if [[ "$OPT_FULLINFO" == "YES" ]] ; then
+				echo "$pkg : ${patchinfo}"
+			else
+				echo -n "$pkg "
+			fi
+		done
+		[[ "$OPT_FULLINFO" != "YES" ]] && echo
+	else
+		echo "No unknown patches!"
+	fi
+	echo
+}
+
+function process_command()
+{
+	local go_commands="check nlist patch"
+	local do_command=""
+	local list_pkgs=""
+	local list_path=""
+	local pkg_temp
+
+	while [[ "$1" != "" ]]; do
+		case "$1" in
+			--short)
+				OPT_FULLINFO="NO"
+				;;
+			--full)
+				OPT_FULLINFO="YES"
+				;;
+			--prompt)
+				OPT_AUTOPATCH="NO"
+				;;
+			--auto)
+				OPT_AUTOPATCH="YES"
+				;;
+			--path)
+				shift
+				# check additional path
+				[[ ! -d "$1" ]] &&
+					echo -e "Cannot find path '$1'!\n" && exit 1
+				list_path="${list_path} $(cd $1;pwd)"
+				;;
+			--pkg)
+				shift
+				# check discrete package name
+				pkg_temp=""
+				for tfile in $(ls /var/log/packages|grep "$1"); do
+					if [[ "${tfile%-*-*-*}" == "$1" ]]; then
+						pkg_temp=$tfile
+						break;
+					fi
+				done
+				[[ "$pkg_temp" == "" ]] &&
+					echo -e "Unknown package '$1'!\n" && exit 1
+				list_pkgs="${list_pkgs} $pkg_temp"
+				;;
+			--help|-h|help)
+				echo -e "$MSG_THISHELP\n"
+				exit 0
+				;;
+			-*)
+				echo -e "Unknown option '$1'!\n" && exit 1
+				;;
+			*)
+				[[ "$do_command" != "" ]] &&
+					echo -e "Multiple commands '$1' & '$do_command'\n" && exit 1
+				for tcommand in $go_commands; do
+					[[ "$1" == "$tcommand" ]] && do_command=$1 && break
+				done
+				[[ "$do_command" == "" ]] &&
+					echo -e "Unknown command '$1'!\n" && exit 1
+				;;
+		esac
+		shift
+	done
+
+	[[ "$do_command" == "" ]] && echo -e "No command given!\n" && exit 1
+
+	check_patches $list_path
+	[[ "$do_command" == "check" ]] && update_patches
+	[[ "$do_command" == "nlist" ]] && done_patches
+	[[ "$do_command" == "nlist" ]] && unknown_patches
+	[[ "$do_command" == "patch" ]] && execute_patches $list_pkgs
+}
+
+# BEGIN MAIN SCRIPT
+
+echo -e "\n$TOOL_THISFILE - $TOOL_THISFUNC ($TOOL_THISVERS)\n"
+process_command $TOOL_COMMANDS
+
+# END MAIN SCRIPT

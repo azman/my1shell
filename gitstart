@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# gitstart
+# - written by azman@my1matrix.net
+# - write basic git config setup
+
+GIT_NAME=${GIT_NAME:="Azman M. Yusof"}
+GIT_MAIL=${GIT_MAIL:="azman@my1matrix.net"}
+
+git config --global user.name "$GIT_NAME"
+git config --global user.email "$GIT_MAIL"
+git config --global color.diff auto
+git config --global color.status auto
+git config --global color.branch auto
+git config --global color.ui auto
+if [ -f /etc/slackware-version ]; then 
+	# only on slackware?
+	git config --global core.pager "less -FXRS"
+fi
+

@@ -1,0 +1,15 @@
+#!/usr/bin/kermit +
+kermit -l /dev/ttyS0
+set speed 9600
+set reliable
+fast
+set carrier-watch off
+set flow-control none
+set prefixing all
+set file type bin
+set rec pack 4096
+set send pack 4096
+set window 5
+set transmit linefeed on
+set transmit prompt 0
+connect

@@ -1,0 +1,159 @@
+#!/bin/bash
+
+# NEED TO RE-CHECK THIS... HAVE BEEN MODIFIED FROM SIMPLE SCRIPT!
+
+# getwifi
+# - written by azman@my1matrix.net
+# - simple wifi connect script based on wpa utilities
+
+WIFI_DEV=${WIFI_DEV:="wlan0"}
+WIFI_ADD=${WIFI_ADD:="192.168.1.100"}
+WIFI_MSK=${WIFI_MSK:="255.255.255.0"}
+WIFI_SSID=${WIFI_SSID:=""}
+WIFI_ENC=${WIFI_ENC:=""}
+
+WIFI_WPA_CONF=${WIFI_WPA_CONF:="/etc/wpa_supplicant.conf"}
+WIFI_WPA_SUPP="" # do not use wpa by default
+WIFI_RUN_DHCP="yes" # use dhcp by default
+
+WIFI_DO_STOP=""
+MSG_NO_WPA_SUPPLICANT="Failed to connect to wpa_supplicant"
+
+function must_be_root()
+{
+	[[ $UID -ne 0 ]] && echo -e "Abort: must run as root!\n" && exit 1
+}
+
+while [ "$1" != "" ]; do
+	case $1 in
+		-h|--help)
+			echo "Usage:"
+			echo "  $0 [parameters] ..."
+			echo "The script's parameters are:"
+			echo "  -h            This help."
+			exit
+			;;
+		--ssid)
+			shift
+			[[ "$1" == "" ]] && echo "No SSID given? Aborting..." && exit 1
+			WIFI_SSID="$1"
+			;;
+		--wep)
+			shift
+			[[ "$1" == "" ]] && echo "No WEP key given? Aborting..." && exit 1
+			WIFI_ENC="$1"
+			;;
+		--wpa)
+			#shift
+			#[[ "$1" == "" ]] && echo "No WPA key given? Aborting..." && exit 1
+			#WIFI_ENC="$1"
+			WIFI_WPA_SUPP="yes"
+			;;
+		--device)
+			shift
+			[[ "$1" == "" ]] && echo "No device given? Aborting..." && exit 1
+			WIFI_DEV="$1"
+			;;
+		--static)
+			shift
+			[[ "$1" == "" ]] && echo "No address given? Aborting..." && exit 1
+			WIFI_ADD="$1"
+			WIFI_RUN_DHCP=""
+			;;
+		--netmask)
+			shift
+			[[ "$1" == "" ]] && echo "No netmask given? Aborting..." && exit 1
+			WIFI_MSK="$1"
+			;;
+		-s|--stop)
+			WIFI_DO_STOP="yes"
+			;;
+		*)
+			echo "You passed an illegal switch to the program!"
+			echo "Run '$0 -h' for more help."
+			exit
+			;;
+	esac
+	shift
+done
+
+# now we start!
+must_be_root
+
+if [[ "$WIFI_DO_STOP" == "yes" ]]; then
+	# check if wpa is running?
+	if [[ "$(wpa_cli status 2>/dev/null | grep "$MSG_NO_WPA_SUPPLICANT")" == "" ]] ; then
+		if [[ "$(wpa_cli status 2>/dev/null | grep "$WIFI_DEV")" == "" ]] ; then
+			echo "Interface '$WIFI_DEV' NOT up?!"
+		else
+			echo -n "Terminating wpa_supplicant... "
+			if [[ "$(wpa_cli -i$WIFI_DEV terminate | grep OK)" == "" ]]; then
+				echo "wpa_cli ERROR!"
+			else
+				echo "done."
+			fi
+		fi
+	fi
+SAVE_IFS=$IFS
+IFS='
+'
+	tmp_lines=($(ps -ef | grep $(which dhcpcd)))
+IFS=$SAVE_IFS
+GO_FISH=""
+	# check currently running dhcpcd process
+	for (( a=0;a<${#tmp_lines[@]};a++ )); do
+		[[ "$(echo ${tmp_lines[$a]} | grep $WIFI_DEV)" == "" ]] && continue
+		GO_FISH="yes"
+	done
+	if [[ "$GO_FISH" == "" ]]; then
+		echo "No running dhcpcd on $WIFI_DEV!"
+	else
+		echo -n "Terminating dhcp daemon on $WIFI_DEV... "
+		dhcpcd -k $WIFI_DEV 2>/dev/null
+		retval=$?
+		[[ $retval -ne 0 ]] && echo -n "(dhcpcd) Return Error [$retval]? "
+		echo "done."
+	fi
+	exit 0
+fi
+
+# look for WIFI_DEV, in case it's NOT plugged in
+echo -n "Looking for $WIFI_DEV..."
+[[ "$(iwconfig 2>/dev/null | grep "$WIFI_DEV")" == "" ]] && echo "NOT FOUND! Exiting!" && exit 0
+echo "found."
+
+# configure for static if DHCP NOT requested
+if [[ "$WIFI_RUN_DHCP" == "yes" ]] ; then
+	WIFI_ADD=""
+	WIFI_MSK=""
+else
+	WIFI_ADD="$WIFI_ADD"
+	WIFI_MSK="netmask $WIFI_MSK"
+fi
+
+# configure for WEP key & assign ssid
+if [[ "$WIFI_WPA_SUPP" == "" ]]; then
+	[[ "$WIFI_ENC" != "" ]] && WIFI_ENC="enc $WIFI_ENC"
+fi
+[[ "$WIFI_SSID" != "" ]] && WIFI_SSID="essid $WIFI_SSID"
+
+echo -n "Configuring $WIFI_DEV..."
+iwconfig $WIFI_DEV $WIFI_SSID $WIFI_ENC
+ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD
+echo "done."
+
+if [[ "$WIFI_WPA_SUPP" == "yes" ]]; then
+	echo -n "Starting wpa_supplicant..."
+	wpa_supplicant -B -i$WIFI_DEV -c$WIFI_WPA_CONF
+	echo "done."
+fi
+
+if [[ "$WIFI_RUN_DHCP" == "yes" ]]; then
+	echo -n "Starting DHCP client daemon..."
+	dhcpcd -h $(hostname -f) $WIFI_DEV 2>/dev/null
+	retval=$?
+	[[ $retval -ne 0 ]] && echo -n "(dhcpcd) Return Error [$retval]? "
+	echo "done."
+fi
+
+exit 0

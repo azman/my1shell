@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# pppset
+# - written by azman@my1matrix.net
+# - to get connected using ppp protocol
+
+VPN_SRV=${VPN_SRV:="192.168.1.1"}
+VPN_USR=${VPN_USR:="username"}
+VPN_PWD=${VPN_PWD:="password"}
+VPN_REM=${VPN_REM:="PPTP"}
+VPN_TUN=${VPN_TUN:="my1vpn"}
+
+
+if [[ "$1" == "stop" ]] ; then
+	PPP_DEV=$(find /var/run -name ppp*.pid)
+	PPP_DEV=${PPP_DEV%.pid}
+	PPP_DEV=${PPP_DEV#/var/run/}
+	if [[ "$PPP_DEV" == "" ]] ; then
+		echo "No pppd running!"
+	else
+		echo -n "Terminating pppd (${PPP_DEV}.pid)... "
+		kill -s SIGKILL $(cat /var/run/${PPP_DEV}.pid)
+		echo "done [$?]."
+	fi
+	exit 0
+fi
+
+MY1_PPP_CONF=$(cat <<MY1CONF
+pty "pptp $VPN_SRV --nolaunchpppd"
+name $VPN_USR
+remotename $VPN_REM
+mtu 1490
+mru 1490
+require-mppe-128
+lock
+auth
+require-mschap
+require-mschap-v2
+ipparam $VPN_TUN
+MY1CONF
+)
+echo "$MY1_PPP_CONF" >/etc/ppp/peers/$VPN_TUN
+
+if [[ "$(cat /etc/ppp/chap-secrets | grep "$VPN_REM" | grep "$VPN_PWD")" == "" ]] ; then
+		echo -e "$VPN_REM\t$VPN_USR\t$VPN_PWD\t*" >> /etc/ppp/chap-secrets
+fi
+
+echo -n "Setting up ppp tunnel '$VPN_TUN' "
+pppd call $VPN_TUN
+
+# sleep a bit so pppd can finish its job
+while [ "$(/sbin/ifconfig | grep ppp)" == "" ]; do
+	echo -n "."
+	if [ "$(tail /var/log/messages | grep "Call disconnect")" != "" ] ; then
+		echo "Call disconnected!"
+		exit 1
+	elif [ "$(tail /var/log/messages | grep "Connection terminated.")" != "" ] ; then
+		echo "Connection terminated!"
+		exit 1
+	fi
+	sleep 1
+done
+echo " done!"
+ETH_DEV=$(/sbin/ifconfig | grep eth)
+ETH_DEV=${ETH_DEV%% *}
+PPP_DEV=$(/sbin/ifconfig | grep ppp)
+PPP_DEV=${PPP_DEV%% *}
+PREV_GW=$(route -n | grep UG)
+PREV_GW=${PREV_GW#*.0 }
+PREV_GW=${PREV_GW%% 0.*}
+
+if [ "$(/sbin/route -n | grep "${VPN_SRV}")" == "" ]; then
+echo "Modify route to VPN '$VPN_SRV' through ETH '$ETH_DEV'"
+route add -host $VPN_SRV gw $PREV_GW dev $ETH_DEV
+fi
+echo "Add default route using this PPP device '$PPP_DEV'"
+route add default dev $PPP_DEV
+#route del default $ETH_DEV
+
+exit 0

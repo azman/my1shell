@@ -1,0 +1,272 @@
+#!/bin/bash
+
+# slackview
+# - written by azman@my1matrix.net
+# - slackware package viewer/selector
+
+# standard tool info
+TOOL_THISFUNC="my1 Slackware Package Tool"
+TOOL_THISVERS="2010.06.00"
+# standard tool conf
+TOOL_CHECKCMD="$@"
+TOOL_COMMANDS=${TOOL_CHECKCMD:="--help"}
+TOOL_THISFILE=$(basename $0 .sh)
+TOOL_LOCATION=$(cd $(dirname $0);pwd)
+TOOL_CONFFILE="$TOOL_THISFILE.conf"
+TOOL_MY1SLACK="libmy1slack"
+# look for config file
+for conf_path in  $(pwd) $TOOL_LOCATION ; do
+	config_file="${conf_path}/${TOOL_CONFFILE}"
+	[[ -r $config_file ]] && source $config_file && break
+done
+# look for my1slack library
+[[ -r "$TOOL_LOCATION/$TOOL_MY1SLACK" ]] && source $TOOL_LOCATION/$TOOL_MY1SLACK
+# my1slack tool specific
+
+function process_command()
+{
+	local ignore_list=""
+	local pkgs_file=""
+	local pkgs_list=""
+	local temp_list=""
+	local pkgs_flag_all=""
+	local do_repair=""
+	local do_write=""
+	local do_error=""
+	local do_invert=""
+	local do_sort=""
+	local tool_cmd
+	local pkg_temp
+	local pkg_test
+
+	[ ! -f $SLACKPKGFILE ] &&
+		echo -e "File '$SLACKPKGFILE' not found! Aborting!\n" && exit 1
+
+	tool_cmd=$1; shift
+	case "$tool_cmd" in
+		find)
+			if [[ "$1" == "" ]]; then
+				echo -e "No argument given for '$tool_cmd'!\n"
+				exit 1
+			fi
+			while [[ "$1" != "" ]]; do
+				case "$1" in
+					--alien)
+						ignore_list="YES"
+						;;
+					*)
+						pkgs_list="$pkgs_list $1"
+						;;
+				esac
+				shift
+			done
+			if [[ "$ignore_list" == "YES" ]]; then
+				find_alien_pkgs
+			else
+				for tpack in $pkgs_list; do
+					if [[ "$(find_install "$tpack")" != "" ]]; then
+						info_install "$tpack"
+					elif [[ "$(find_package "$tpack")" != "" ]]; then
+						info_package "$tpack"
+					else
+						echo -e "Package '$tpack' not found!\n"
+					fi
+				done
+			fi
+			;;
+		select)
+			if [[ "$1" == "" ]]; then
+				echo -e "No argument given for '$tool_cmd'!\n"
+				exit 1
+			fi
+			while [[ "$1" != "" ]]; do
+				case "$1" in
+					-f | --file )
+						shift
+						pkgs_file="$1"
+						;;
+					-u | --unselect )
+						do_invert="YES"
+						;;
+					-s | --sort )
+						do_sort="YES"
+						;;
+					*)
+						pkgs_list="$pkgs_list $1"
+						;;
+				esac
+				shift
+			done
+			[[ "$pkgs_file" == "" ]] &&
+				echo -e "File name for package list NOT given! Aborting!\n" && exit 1
+			[[ ! -f "$pkgs_file" ]] &&
+				touch "$pkgs_file"
+			[[ ! -r "$pkgs_file" ]] &&
+				echo -e "Cannot read file '$pkgs_file'!\n" && exit 1
+			if [[ "$pkgs_list" != "" ]]; then
+				# check the given package list
+				temp_list=$pkgs_list
+				pkgs_list=""
+				for tpack in $temp_list; do
+					pkg_temp=$(find_package $tpack)
+					[[ "$pkg_temp" == "" ]] && echo -e "Cannot find package '$tpack'!\n" && continue
+					pkgs_list="$pkgs_list $tpack"
+				done
+				for tpack in $pkgs_list; do
+					pkg_temp=$(find_infile $pkgs_file $tpack)
+					if [[ "$pkg_temp" == "" ]]; then
+						if [[ "$do_invert" == "YES" ]]; then
+							echo "Package '$tpack' not in file!"
+						else
+							# add new
+							pkg_temp=$(find_package $tpack)
+							echo $pkg_temp >>$pkgs_file
+							echo "Package '$pkg_temp' added to $pkgs_file."
+						fi
+					else
+						if [[ "$do_invert" == "YES" ]]; then
+							# remove?
+							sed -i -e "\|^$tpack|d" $pkgs_file
+							if [[ $? -ne 0 ]]; then
+								echo "Error deleting package '$pkg_temp'! [$tpack]"
+							else
+								echo "Package '$pkg_temp' deleted from $pkgs_file."
+							fi
+						else
+							# replace in case old version!
+							pkg_temp=$(find_package $tpack)
+							sed -i -e "\|^$tpack|c\\$pkg_temp" $pkgs_file
+							if [[ $? -ne 0 ]]; then
+								echo "Error replacing package '$pkg_temp'! [$tpack]"
+							else
+								echo "Package '$pkg_temp' updated in $pkgs_file."
+							fi
+						fi
+					fi
+				done
+			fi
+			if [[ "$do_sort" == "YES" ]]; then
+				echo -n "Sorting (with uniq) $pkgs_file..."
+				cat $pkgs_file | uniq | sort -o $pkgs_file
+				echo " done!"
+			else
+				[[ "$pkgs_list" == "" ]] && echo "No package selected? Nothing to do!"
+			fi
+			echo
+			;;
+		check)
+			if [[ "$1" == "" ]]; then
+				echo -e "No argument given for '$tool_cmd'!\n"
+				exit 1
+			fi
+			while [[ "$1" != "" ]]; do
+				case "$1" in
+					-f | --file )
+						shift
+						pkgs_file="$1"
+						;;
+					-w | --write ) # only if all OK?
+						do_write="YES"
+						;;
+					-r | --repair )
+						do_repair="YES"
+						;;
+					-a | --all )
+						pkgs_flag_all="YES"
+						;;
+					*)
+						pkgs_list="$pkgs_list $1"
+						;;
+				esac
+				shift
+			done
+			[[ "$pkgs_file" == "" ]] &&
+				echo -e "File name for package list NOT given! Aborting!\n" && exit 1
+			[[ ! -r "$pkgs_file" ]] &&
+				echo -e "Cannot read file '$pkgs_file'!\n" && exit 1
+			if [[ "$pkgs_flag_all" == "YES" ]]; then
+				pkgs_list=""
+				for tpack in $(cat $pkgs_file); do
+					pkg_temp=$tpack
+					pkg_test="${tpack%-*-*-*}"
+					if [[ "$pkg_test" == "$tpack" ]]; then # not a package???
+						pkg_test=""
+						if [[ "$do_repair" == "YES" ]]; then
+							pkg_test=$(find_package $tpack)
+						fi
+						[[ "$pkg_test" == "" ]] && continue
+						pkg_temp=$pkg_test
+					fi
+					pkgs_list="$pkgs_list $pkg_temp"
+				done
+			else
+				temp_list=$pkgs_list
+				pkgs_list=""
+				for tpack in $temp_list; do
+					pkg_temp=$(find_infile $pkgs_file $tpack)
+					[[ "$pkg_temp" == "" ]] && echo -e "Cannot find package '$tpack' in '$pkgs_file'!\n" && continue
+					pkgs_list="$pkgs_list $pkg_temp"
+				done
+			fi
+			for tpack in $pkgs_list; do
+				pkg_test="${tpack%-*-*-*}"
+				pkg_temp=$(find_package "$pkg_test")
+				if [[ "$pkg_temp" == "" ]] ; then
+					echo "Package '$tpack': NOT FOUND!"
+					do_error="FOUND"
+				else
+					comp_package $tpack $pkg_temp
+					pkg_test=$?
+					if [[ $pkg_test -eq 1 ]]; then
+						echo "Package '$tpack': Version mis-matched? [$pkg_temp]"
+						do_error="FOUND"
+					else
+						echo "Package '$tpack': OK!"
+					fi
+				fi
+			done
+			[[ "$pkgs_list" == "" ]] && echo "Nothing to do?!" && do_error="MAYBE"
+			if [[ "$do_write" == "YES" ]] && [[ "$do_error" == "" ]]; then
+				echo -n "" >$pkgs_file
+				for tpack in $pkgs_list; do
+					echo $tpack >>$pkgs_file
+				done
+				echo "$pkgs_file re-written!"
+			fi
+			echo
+			;;
+		help|-h|--help)
+			echo "Usage:"
+			echo "  $TOOL_THISFILE <command> [parameter]"
+			echo "Available commands:"
+			echo "  find   : Find package(s)"
+			echo "         > --alien    : Alien Package"
+			echo "         > {pkg_name} : Find & Display Package Info"
+			echo "  select : Update Package File"
+			echo "         > -f | --file     : Specify Package File"
+			echo "         > -u | --unselect : Delete instead of Insert"
+			echo "         > -s | --sort     : Sort Package File"
+			echo "  check  : Check Package File"
+			echo "         > -f | --file    : Specify Package File"
+			echo "         > -w | --write   : Rewrite Package File (only if everything checks out!)"
+			echo "         > -r | --repair  : If package name not in full, find it!"
+			echo "         > -a | --all     : Check ALL packages in Package File"
+			echo "  help   : Show this help message"
+			echo "Mirror Source:"
+			echo "  ${SLACKROOTDIR}/${SLACKRELEASE}"
+			echo
+			exit 0
+			;;
+		*)
+			echo -e "Unknown command!\n"
+			exit 1
+			;;
+	esac
+}
+
+# BEGIN MAIN SCRIPT
+
+echo -e "\n$TOOL_THISFILE - $TOOL_THISFUNC ($TOOL_THISVERS)\n"
+process_command $TOOL_COMMANDS
+
+# END MAIN SCRIPT

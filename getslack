@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# getslack
+# - written by azman@my1matrix.net
+# - a 'lightweight' version of alien_bob's mirror_slackware_current.sh
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+# look for config file
+for conffile in "$HOME/.$MY1TOOL" \
+		"$HOME/.$MY1TOOL.conf" "$MY1PATH/$MY1TOOL.conf"; do
+	[[ ! -f $conffile ]] && continue
+	source $conffile ; break
+done
+
+MY1_GETSLACK_CONF=$(cat <<MY1CONF
+# checkout release & arch
+RSYNCURLROOT=\${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
+RELEASE="13.37"
+SLACKARCH=\${SLACKARCH:="\$(uname -m)"}
+SLACKFULL=\${SLACKFULL:="slackware"}
+[[ "\$SLACKARCH" == "x86_64" ]] && SLACKFULL="slackware64"
+# kde option?
+NO_KDE=\${NO_KDE:="no"}
+# include some wanted software in excluded path
+#INCLUDES="\$INCLUDES --include=extra/wicd/"
+#INCLUDES="\$INCLUDES --include=extra/jdk-6/"
+#INCLUDES="\$INCLUDES --include=extra/kde3-compat"
+#INCLUDES="\$INCLUDES --include=extra/source/"
+#INCLUDES="\$INCLUDES --include=extra/source/flashplayer-plugin/"
+# exclude non-essentials
+EXCLUDES="\$EXCLUDES --exclude=extra/"
+#EXCLUDES="\$EXCLUDES --exclude=extra/*"
+#EXCLUDES="\$EXCLUDES --exclude=extra/source/*"
+# exclude non-standard
+EXCLUDES="\$EXCLUDES --exclude=pasture/ --exclude=testing/"
+# exclude extra installers
+EXCLUDES="\$EXCLUDES --exclude=usb-and-pxe-installers/"
+# exclude source
+EXCLUDES="\$EXCLUDES --exclude=source/"
+# exclude unwanted packages
+EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/e/ --exclude=\${SLACKFULL}/f/"
+EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/kdei/ --exclude=\${SLACKFULL}/y/"
+# exclude source for unwanted packages - in case source is included
+EXCLUDES="\$EXCLUDES --exclude=source/e/ --exclude=source/f/"
+EXCLUDES="\$EXCLUDES --exclude=source/kdei/ --exclude=source/y/"
+# if we don't need kde
+[[ "\$NO_KDE" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/kde/"
+[[ "\$NO_KDE" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=source/kde/"
+MY1CONF
+)
+if [[ "$1" == "--write" ]]; then
+	echo "$MY1_GETSLACK_CONF" >$HOME/.$MY1TOOL
+	echo "New config file ($HOME/.$MY1TOOL) written!"
+	exit 0
+fi
+
+# tool & env setup
+RSYNC=${RSYNC:="$(chk_rsync=$(which rsync 2>&1); [[ $? -eq 0 ]] && echo "$chk_rsync")"}
+[[ "$RSYNC" == "" ]] && echo "'rsync' not found! Aborting!" && exit 1
+SLACKROOT=${SLACKROOT:="$(pwd)"}
+SLACKARCH=${SLACKARCH:="$(uname -m)"}
+SLACKSUFX=${SLACKSUFX:=""}
+[[ "$SLACKARCH" == "x86_64" ]] && SLACKSUFX="64"
+SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
+RELEASE=${RELEASE:="13.37"}
+SLACKRELEASE="${SLACKFULL}-${RELEASE}"
+SLACKPATH="${SLACKROOT}/${SLACKRELEASE}"
+RSYNCURLROOT=${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
+RSYNCURL=${RSYNCURL:="${RSYNCURLROOT}${SLACKRELEASE}"}
+RSYNCOPT=${RSYNCOPT:="--delete --delete-excluded --partial -rlptD --progress"}
+
+# customized sync list
+EXCLUDES=${EXCLUDES:="--exclude pasture"}
+INCLUDES=${INCLUDES:=""}
+[[ -r "$EXCLUDEFILE" ]] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
+[[ -r "$INCLUDEFILE" ]] && INCLUDES="--include-from=$INCLUDEFILE"
+
+# start actual mirroring process - reduced version of alien_bob's script
+
+echo -e "#\n# Checking and changing to $SLACKPATH ...\n#"
+[[ ! -d $SLACKPATH ]] && mkdir -pv $SLACKPATH
+cd $SLACKPATH
+umask 022
+
+echo "*** Using ${RSYNCURL} ***"
+$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ .
+echo "*** Using ${RSYNCURL} - (2nd Run) ***"
+$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ .
+echo "$(date) [$$]: Done mirroring ${SLACKRELEASE} (exit code $?)."
+
+exit 0

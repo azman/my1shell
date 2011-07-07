@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# bash-setup
+# - written by azman@my1matrix.net
+# - create useful bash startup file
+
+MY1_BASH_PROFILE=$(cat <<SETVAR1
+# ~/.bash_profile - login shells
+
+umask 022
+export PATH=\$HOME/slackware/slackstuff:\$HOME/slackbin:\$PATH
+export PATH=/usr/sbin:/sbin:\$PATH
+export VISUAL=/usr/bin/vim
+
+[[ -f ~/.bashrc ]] && source ~/.bashrc
+[[ -n "\$SSH_CLIENT" ]] && export PS1="(SSH) \$PS1"
+SETVAR1
+)
+MY1_FILE_BASH_PROFILE="$HOME/.bash_profile"
+
+MY1_BASHRC=$(cat <<SETVAR2
+# ~/.bashrc: non-login shells
+
+MY1PROMPT="\u@\h:\w$ "
+[[ "\$PS1" =~ "\$MY1PROMPT" ]] || export PS1="\$MY1PROMPT"
+
+export LS_OPTIONS="-F -b -T 0 --color=auto"
+alias ls='ls \$LS_OPTIONS'
+SETVAR2
+)
+MY1_FILE_BASHRC="$HOME/.bashrc"
+
+GO_WRITE=""
+while [[ "$1" != "" ]]; do
+	case $1 in
+		--write)
+			GO_WRITE=$1;
+			;;
+		*)
+			echo "Unknown PARAMETER ($1)!" && exit 1
+			;;
+	esac
+	shift
+done
+
+echo
+if [[ "$GO_WRITE" == "--write" ]] ; then
+	echo -n "Writing to $MY1_FILE_BASH_PROFILE..."
+	echo "$MY1_BASH_PROFILE" >$MY1_FILE_BASH_PROFILE
+	echo "done."
+else
+	echo "-------------"
+	echo "BASH_PROFILE:"
+	echo "-------------"
+	echo "$MY1_BASH_PROFILE"
+fi
+echo
+if [[ "$GO_WRITE" == "--write" ]] ; then
+	echo -n "Writing to $MY1_FILE_BASHRC..."
+	echo "$MY1_BASHRC" >$MY1_FILE_BASHRC
+	echo "done."
+else
+	echo "-------"
+	echo "BASHRC:"
+	echo "-------"
+	echo "$MY1_BASHRC"
+fi
+echo
+
+exit 0

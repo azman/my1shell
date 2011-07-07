@@ -1,0 +1,339 @@
+#!/bin/bash
+
+# libmy1slack (by azman@my1matrix.net)
+# -> library function for my1slack system management
+
+MY1_LIBNAME="libmy1slack"
+MY1_LIBVERS="2010.06.00"
+MY1_LIBCALL="$(basename $0 .sh)"
+
+# determine slackware architecture, NOT machine's!
+SLACKARCH=""
+[[ "$(find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null)" == "/lib64" ]] && SLACKARCH="64"
+SLACKNAME="slackware$SLACKARCH"
+# get slackware release version - not sure if current is supported!
+SLACKVERS=${SLACKVERS:=""}
+if [[ "$SLACKVERS" == "" ]]; then
+	SLACKVERS=$(cat /etc/slackware-version) # always in the form of "Slackware x.x.x"?
+	SLACKVERS=${SLACKVERS#Slackware }
+	SLACKVERS=${SLACKVERS//${SLACKVERS#*.*.}/}
+	SLACKVERS=${SLACKVERS:0:${#SLACKVERS}-1}
+fi
+# default path to look for
+SLACKFIND=${SLACKFIND:="/home"}
+# find slackware tree
+SLACKRELEASE="$SLACKNAME-$SLACKVERS"
+SLACKROOTDIR=${SLACKROOTDIR:=""}
+if [[ "$SLACKROOTDIR" == "" ]]; then
+	SLACKROOTDIR=$(find $SLACKFIND -maxdepth 3 -name "$SLACKRELEASE" -type d 2>/dev/null)
+	SLACKROOTDIR=${SLACKROOTDIR%"/$SLACKRELEASE"}
+fi
+SLACKRELPATH=${SLACKRELPATH:="${SLACKROOTDIR}/${SLACKRELEASE}"}
+SLACKPKGPATH=${SLACKPKGPATH:="${SLACKRELPATH}/slackware$SLACKARCH"}
+SLACKPKGFILE=${SLACKPKGFILE:="${SLACKPKGPATH}/PACKAGES.TXT"}
+SLACKINSTLOG="/var/log/packages"
+
+if [[ "$MY1_DEBUG" == "YES" ]]; then
+	echo
+	echo "[DEBUG-$$] ==> my1slack Library Name is $MY1_LIBNAME"
+	echo "[DEBUG-$$] ==> my1slack Library Version is $MY1_LIBVERS"
+	echo "[DEBUG-$$] ==> Slack Release is $SLACKRELEASE"
+	echo "[DEBUG-$$] ==> Slack Tree is at $SLACKROOTDIR"
+	echo "[DEBUG-$$] ==> Command Call '$MY1_LIBCALL'"
+fi
+
+function comp_package()
+{
+	local pkg1_file="$1"
+	local pkg2_file="$2"
+	local temp
+
+	local pkg1_name pkg1_vers pkg1_arch pkg1_extd
+	pkg1_name="${pkg1_file%-*-*-*}"
+	temp="${pkg1_file#${pkg1_name}-}"
+	pkg1_vers="${temp%-*-*}"
+	temp="${temp#${pkg1_vers}-}"
+	pkg1_arch="${temp%-*}"
+	pkg1_extd="${temp#${pkg1_arch}-}"
+
+	local pkg2_name pkg2_vers pkg2_arch pkg2_extd
+	pkg2_name="${pkg2_file%-*-*-*}"
+	temp="${pkg2_file#${pkg2_name}-}"
+	pkg2_vers="${temp%-*-*}"
+	temp="${temp#${pkg2_vers}-}"
+	pkg2_arch="${temp%-*}"
+	pkg2_extd="${temp#${pkg2_arch}-}"
+
+	[[ "$pkg1_name" == "$pkg2_name" ]] || return 1
+	[[ "$pkg1_vers" == "$pkg2_vers" ]] || return 2
+	[[ "$pkg1_arch" == "$pkg2_arch" ]] || return 3
+	[[ "$pkg1_extd" == "$pkg2_extd" ]] || return 4
+
+	return 0
+}
+
+function find_infile()
+{
+	local pkg_base="$1"
+	local pkg_test="$2"
+	local pkg_file=""
+	local temp="\<${pkg_test}-[^-]*-[^-]*-[^-]*$"
+	local test=$(cat $pkg_base | grep -e"$temp")
+
+	pkg_file="${test}"
+
+	echo -n "$pkg_file"
+}
+
+function find_install()
+{
+	local pkg_test="$1"
+	local pkg_file=""
+	local temp="\<${pkg_test}-[^-]*-[^-]*-[^-]*$"
+	local test=$(ls $SLACKINSTLOG | grep -e"$temp")
+
+	pkg_file="${test}"
+
+	echo -n "$pkg_file"
+}
+
+function find_package()
+{
+	local pkg_test="$1"
+	local pkg_file=""
+	local temp="\<PACKAGE NAME:  ${pkg_test}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
+	local test=$(grep -e"$temp" $SLACKPKGFILE)
+
+	pkg_file="${test##* }"
+	[[ "$pkg_file" != "" ]] && pkg_file="${pkg_file%.t[gx]z}"
+
+	echo -n "$pkg_file"
+}
+
+function info_install()
+{
+	local pkg_test="$1"
+	local pkg_flex pkg_path pkg_file pkg_size pkg_full
+	local pkg_stat=""
+	local pkg_flag=""
+	local temp="\<${pkg_test}-[^-]*-[^-]*-[^-]*$"
+	local test=$(ls $SLACKINSTLOG | grep -e"$temp")
+	local pkg_info
+
+	[[ "$test" = "" ]] &&
+		echo -e "Package '$pkg_test' not found!\n" && return 1
+
+	pkg_info="$SLACKINSTLOG/$test"
+	test=$(grep "$temp" $pkg_info -A3)
+
+	pkg_flex=$(echo "$test" | grep 'PACKAGE NAME')
+	pkg_flex="${pkg_flex##* }"
+	pkg_file=$(echo "$test" | grep 'PACKAGE LOCATION')
+	pkg_file="${pkg_file##* }"
+	pkg_path=${pkg_file%${pkg_flex}.t[gx]z}
+	[[ "$pkg_path" == "" ]] || pkg_file=${pkg_file##${pkg_path}}
+	pkg_size=$(echo "$test" | grep -e "^COMPRESSED PACKAGE SIZE")
+	pkg_size="${pkg_size%K*}"
+	pkg_size="${pkg_size##* }"
+	pkg_full=$(echo "$test" | grep -e "^UNCOMPRESSED PACKAGE SIZE")
+	pkg_full="${pkg_full%K*}"
+	pkg_full="${pkg_full##* }"
+
+	# check if this is an alien package
+	[[ "$(find_package "$pkg_test")" == "" ]] && pkg_stat="(ALIEN!)"
+
+	local pkg_exts pkg_name pkg_vers pkg_arch pkg_extd pkg_desc
+	pkg_exts="${pkg_file##*.}"
+	pkg_name="${pkg_file%-*-*-*.${pkg_exts}}"
+	temp="${pkg_file##${pkg_name}-}"
+	pkg_vers="${temp%-*-*.${pkg_exts}}"
+	temp="${temp##${pkg_vers}-}"
+	pkg_arch="${temp%-*.${pkg_exts}}"
+	temp="${temp##${pkg_arch}-}"
+	pkg_extd="${temp%.${pkg_exts}}"
+	pkg_desc=$(grep "$pkg_name:" $pkg_info)
+	pkg_flag=$pkg_stat
+
+	local title="PACKAGE <$pkg_name> - BEGIN"
+	local trail="PACKAGE <$pkg_name> - END"
+	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
+	echo "$title"
+	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
+	echo "FILE               : ${pkg_file} ${pkg_stat}"
+	echo "INSTALL PATH       : $pkg_path"
+	echo "VERSION            : $pkg_vers"
+	echo "ARCHITECTURE       : $pkg_arch"
+	echo "BUILD TAG          : $pkg_extd"
+	echo "SIZE (Compressed)  : $pkg_size K"
+	echo "SIZE (Uncompressed): $pkg_full K"
+	echo "INSTALL STATUS     : INSTALLED ${pkg_flag}"
+	echo "DESCRIPTION        :"
+	echo -e "$pkg_desc"
+	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
+	echo "$trail"
+	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo ; echo
+
+	return 0
+}
+
+function info_package()
+{
+	local pkg_test="$1"
+	local pkg_file pkg_path pkg_size pkg_full
+	local pkg_stat=""
+	local pkg_flag=""
+	local temp="\<PACKAGE NAME:  ${pkg_test}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
+	local test=$(grep -e"$temp" $SLACKPKGFILE -A3)
+
+	[[ "$test" = "" ]] &&
+		echo -e "Package '$pkg_test' not found!\n" && return 1
+
+	pkg_file=$(echo "$test" | grep 'PACKAGE NAME')
+	pkg_file="${pkg_file##* }"
+	pkg_path=$(echo "$test" | grep 'PACKAGE LOCATION')
+	pkg_path="${pkg_path##*./}"
+	pkg_size=$(echo "$test" | grep 'PACKAGE SIZE (compressed)')
+	pkg_size="${pkg_size%% K*}"
+	pkg_size="${pkg_size##* }"
+	pkg_full=$(echo "$test" | grep 'PACKAGE SIZE (uncompressed)')
+	pkg_full="${pkg_full%% K*}"
+	pkg_full="${pkg_full##* }"
+	# check if the physical file actually exists
+	[[ ! -f ${SLACKRELPATH}/${pkg_path}/${pkg_file} ]] &&
+		pkg_stat="(NOT FOUND!)"
+
+	local pkg_exts pkg_name pkg_vers pkg_arch pkg_extd pkg_desc
+	pkg_exts="${pkg_file##*.}"
+	pkg_name="${pkg_file%-*-*-*.${pkg_exts}}"
+	temp="${pkg_file##${pkg_name}-}"
+	pkg_vers="${temp%-*-*.${pkg_exts}}"
+	temp="${temp##${pkg_vers}-}"
+	pkg_arch="${temp%-*.${pkg_exts}}"
+	temp="${temp##${pkg_arch}-}"
+	pkg_extd="${temp%.${pkg_exts}}"
+	pkg_desc=$(grep "$pkg_name:" $SLACKPKGFILE)
+	[[ "$(find_install "$pkg_name")" == "" ]] && pkg_flag="NOT "
+
+	local title="PACKAGE <$pkg_name> - BEGIN"
+	local trail="PACKAGE <$pkg_name> - END"
+	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
+	echo "$title"
+	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
+	echo "FILE               : ${pkg_file} ${pkg_stat}"
+	echo "PATH               : $pkg_path"
+	echo "VERSION            : $pkg_vers"
+	echo "ARCHITECTURE       : $pkg_arch"
+	echo "BUILD TAG          : $pkg_extd"
+	echo "SIZE (Compressed)  : $pkg_size K"
+	echo "SIZE (Uncompressed): $pkg_full K"
+	echo "INSTALL STATUS     : ${pkg_flag}INSTALLED"
+	echo "DESCRIPTION        :"
+	echo -e "$pkg_desc"
+	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
+	echo "$trail"
+	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo ; echo
+
+	return 0
+}
+
+function find_alien_pkgs()
+{
+	local pkg_name
+	local do_echo=""
+
+	# find installed
+	for pkg_file in $(ls $SLACKINSTLOG); do
+		pkg_name="${pkg_file%-*-*-*}"
+		# find if alien
+		[[ "$(find_package "$pkg_name")" != "" ]] && continue
+		echo "Alien package: $pkg_name ($pkg_file)"
+		do_echo="YES"
+	done
+
+	[[ "$do_echo"=="YES" ]] && echo
+}
+
+function find_slack_pkgs()
+{
+	local target_dir=$1
+	local file_pkgs=""
+	local name_pkgs=""
+	local pkg_exts pkg_flex
+
+	for pkg_file in $(find $target_dir -name *.t[gx]z); do
+		pkg_exts="${pkg_file##*.}"
+		pkg_flex="${pkg_file%.${pat_exts}}"
+	done
+}
+
+function format_text()
+{
+	local begin="\033[0m"
+	local end="\033[0m"
+	local bold="\033[1m"
+	local uline="\033[4m"
+	local blink="\033[5m"
+	local inverse="\033[7m"
+	local concealed="\033[8m"
+	local color=""
+	local black="\033[30m"
+	local red="\033[31m"
+	local green="\033[32m"
+	local yellow="\033[33m"
+	local blue="\033[34m"
+	local magenta="\033[35m"
+	local cyan="\033[36m"
+	local white="\033[37m"
+	local text=""
+
+#case "$Keypress" in
+#	[[:lower:]]) echo "Lowercase letter";;
+#	[[:upper:]]) echo "Uppercase letter";;
+#	[0-9]) echo "Digit";;
+#	*) echo "Punctuation, whitespace, or other";;
+#esac
+
+	while [ "$1" != "" ]; do
+		case "$1" in
+		--bold) begin="${begin}${bold}" ;;
+		--blink) begin="${begin}${blink}" ;;
+		--color)
+			shift; color="$1"
+			case "$color" in
+				black) color="$black" ;;
+				red) color="$red" ;;
+				green) color="$green" ;;
+				yellow) color="$yellow" ;;
+				blue) color="$blue" ;;
+				magenta) color="$magenta" ;;
+				cyan) color="$cyan" ;;
+				white) color="$white" ;;
+				*) color="$black" ;;
+			esac
+			begin="${begin}${color}";;
+		--text)
+			shift; text="$1";;
+		esac
+		shift
+	done	
+	echo -e "$begin""$text""$end"
+	return 0
+}
+
+function test_param()
+{
+	local test="$1"
+	echo "Param @ is $@"
+	echo "Param * is $*"
+	echo "Param 1 is $1"
+	echo "Param test is $test"
+	shift
+	echo "Params shifted by 1!"
+	test="$1"
+	echo "Param @ is $@"
+	echo "Param * is $*"
+	echo "Param 1 is $1"
+	echo "Param test is $test"
+	shift
+	echo "Param \$ is $$"
+}

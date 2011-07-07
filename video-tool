@@ -1,0 +1,275 @@
+#!/bin/bash
+
+# video-tool
+# - written by azman@my1matrix.net
+# - a front-end script for mencoder/ffmpeg tools
+
+DVD_RIP_TITLE=${DVD_RIP_TITLE:="dvd-rip"}
+MOVIE_SUFFIX=${MOVIE_SUFFIX:="conv"}
+VF_CROP_SEC=${VF_CROP_SEC:="600"}
+VF_CROP=${VF_CROP:=""}
+
+VF_SCALE=${VF_SCALE:=""}
+ASPECT_RATIO=${ASPECT_RATIO:=""}
+AVI_BITRATE=${AVI_BITRATE:=""}
+
+DVD_TITLE=${DVD_TITLE:="1"}
+DVD_DEVICE=${DVD_DEVICE:="/dev/dvd"}
+DVD_AUDIO_ID=${DVD_AUDIO_ID:=""}
+DVD_SUBT_ID=${DVD_SUBT_ID:=""}
+DVD_SUBT_OPT=""
+DVD_RIP_OPT=""
+
+VIDEO_INPUT=""
+VIDEO_OUTPUT=""
+VIDEO_OUTTMP=""
+RUN_TESTCODE=""
+RUN_QUIET="-quiet"
+SINGLE_PASS_OPT=""
+
+AVIGAIN_DB_VALUE="100"
+DO_AVIGAIN=""
+
+VFILTER_OPT=""
+AFILTER_OPT=""
+
+CROPDETECT_MSG="vf crop="
+CROPDETECT_END=")."
+CROPDETECT_OPT=""
+
+#
+# This function is from http://forum.videohelp.com/threads/255147-Mini-Guide-Normalizing-Audio-for-Multiple-AVI-files
+# - I just converted the batch file into shell script :p
+# - the audio file is out-of-sync if using mencoder, using ffmpeg instead
+#
+
+function avigain()
+{
+	local AVI_FILE=$1
+	local OUT_FILE=$2
+	local AVI_TEMP="/tmp/temp-video-$$.avi"
+	local MP3_TEMP="/tmp/temp-audio-$$.mp3"
+
+	mencoder $RUN_QUIET -o $OUT_FILE -forceidx -oac copy -ovc copy $AVI_FILE
+	ffmpeg -i $OUT_FILE -vcodec copy -an -y $AVI_TEMP
+	ffmpeg -i $OUT_FILE -vn -acodec copy -y $MP3_TEMP
+	mp3gain -f -s s -d $AVIGAIN_DB_VALUE -k -r $MP3_TEMP
+	ffmpeg -i $AVI_TEMP -i $MP3_TEMP -vcodec copy -acodec copy -y $OUT_FILE
+}
+
+#
+# This is from alien_bob's reply on LQ forum
+#
+
+function avi23gp()
+{
+	local AVI_FILE=$1
+	local OUT_FILE=$2
+
+	ffmpeg -i $AVI_FILE -s cif -vcodec h263 -acodec libfaac -ac 1 -ar 8000 -r 25 -ab 12200 -y $OUT_FILE
+}
+
+while [[ "$1" != "" ]]; do
+	case $1 in
+		-h | --help )
+			cat $0 | sed -n -e '/^## show help - begin ##/,/^## show help - end ##/p' | less
+			exit 0
+			;;
+## show help - begin ##
+		--testcode )
+			RUN_TESTCODE="YES"
+			;;
+		--silent )
+			RUN_QUIET="-really-quiet"
+			;;
+		--cropdetect )
+			CROPDETECT_OPT="YES"
+			;;
+		--cropcheck )
+			CROPDETECT_OPT="ONLY"
+			;;
+		--croptime )
+			shift
+			VF_CROP_SEC="$1"
+			;;
+		--no-af )
+			AFILTER_OPT="NAY"
+			;;
+		--no-vf )
+			VFILTER_OPT="NAY"
+			;;
+		--dvd-rip )
+			DVD_RIP_OPT="YES"
+			;;
+		--dvd-title )
+			shift
+			DVD_TITLE="$1"
+			;;
+		--dvd-device )
+			shift
+			DVD_DEVICE="$1"
+			;;
+		--dvd-aid )
+			shift
+			DVD_AUDIO_ID="-aid $1"
+			;;
+		--dvd-sid )
+			shift
+			DVD_SUBT_ID="-sid $1"
+			;;
+		--avigain-dbvalue )
+			shift
+			AVIGAIN_DB_VALUE=$1
+			;;
+		--do-avigain )
+			DO_AVIGAIN="YES"
+			;;
+		--cut-frame )
+			shift
+			if [[ "$1" == "" ]] || [[ "$2" == "" ]]; then
+				echo "Missing params [$1] for (-ss) and [$2] for (-endpos)!"
+				exit 1
+			fi;
+			SINGLE_PASS_OPT="-ss $1 -endpos $2 -ovc copy -oac copy"
+			shift
+			;;
+		--output )
+			shift
+			VIDEO_OUTPUT=$1
+			;;
+		--hdtv )
+			VF_SCALE=${VF_SCALE:="640:352"}
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="380"}
+			echo "HDTV SETTINGS!"
+			;;
+		-m | --movie )
+			VF_SCALE=${VF_SCALE:="704:304"}
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="400"}
+			echo "MOVIE SETTINGS!"
+			;;
+		-t | --tv )
+			VF_SCALE=${VF_SCALE:="512:384"}
+			ASPECT_RATIO=${ASPECT_RATIO:="4:3"}
+			AVI_BITRATE=${AVI_BITRATE:="350"}
+			echo "TV SETTINGS!"
+			;;
+		-p | --personal )
+			VF_SCALE=${VF_SCALE:="640:480"}
+			ASPECT_RATIO=${ASPECT_RATIO:="4:3"}
+			AVI_BITRATE=${AVI_BITRATE:="400"}
+			echo "PERSONAL SETTINGS!"
+			;;
+## show help - end ##
+		* )
+			if [[ "$MOVIE_FILE" != "" ]] || [[ ! -r "$1" ]]; then
+				echo "Unknown command '$1'! [$MOVIE_FILE]"
+				exit 1
+			fi
+			MOVIE_FILE="$1"
+			;;
+	esac
+	shift
+done
+
+if [[ -r "$MOVIE_FILE" ]]; then
+	# MOVIE_FILE=${MOVIE_FILE:="$1"}
+	MOVIE_PATH=$(dirname $MOVIE_FILE)
+	MOVIE_PATH=$(cd $MOVIE_PATH;pwd)
+	MOVIE_FILE=$(basename $MOVIE_FILE)
+	MOVIE_TYPE=${MOVIE_FILE##*.}
+	MOVIE_TITLE=${MOVIE_FILE%%.$MOVIE_TYPE}
+	VIDEO_INPUT=$MOVIE_PATH/$MOVIE_TITLE.$MOVIE_TYPE
+elif [[ "$DVD_RIP_OPT" == "YES" ]]; then
+	if [[ "$DVD_SUBT_ID" != "" ]]; then
+		DVD_SUBT_OPT="$DVD_SUBT_ID -vobsubout ${DVD_RIP_TITLE}-subs -vobsuboutindex 0 -vobsuboutid en"
+	fi
+	MOVIE_TITLE="$DVD_RIP_TITLE-$DVD_TITLE"
+	VIDEO_INPUT="-dvd-device $DVD_DEVICE dvd://$DVD_TITLE $DVD_AUDIO_ID"
+else
+	echo "No source found!"
+	exit 1
+fi
+VIDEO_OUTPUT=${VIDEO_OUTPUT:="$MOVIE_TITLE-$MOVIE_SUFFIX.avi"}
+
+if [[ "$DO_AVIGAIN" == "YES" ]]; then
+	avigain $VIDEO_INPUT $VIDEO_OUTPUT 1>/dev/null 2>/dev/null
+	echo "[AVIGAIN] ==> 'avigain $VIDEO_INPUT $VIDEO_OUTPUT'"
+	exit 0
+fi
+
+if [[ "$SINGLE_PASS_OPT" != "" ]]; then
+	mencoder $RUN_QUIET $VIDEO_INPUT $SINGLE_PASS_OPT -o $VIDEO_OUTPUT
+	echo "[FRAMECUT] ==> 'mencoder $RUN_QUIET $VIDEO_INPUT $SINGLE_PASS_OPT -o $VIDEO_OUTPUT'"
+	exit 0
+fi
+
+if [[ "$CROPDETECT_OPT" == "YES" ]] || [[ "$CROPDETECT_OPT" == "ONLY" ]]; then
+	VF_CROP_TEST="$(mplayer ${VIDEO_INPUT} -vo null -ao null -identify -ss $VF_CROP_SEC -endpos 5 -vf cropdetect)"
+	VF_CROP="$(echo "$VF_CROP_TEST" | tail -n 5 | grep -m 1 "${CROPDETECT_MSG}")"
+	VF_CROP="${VF_CROP##*${CROPDETECT_MSG}}"
+	VF_CROP="${VF_CROP%%${CROPDETECT_END}*}"
+	if [[ "$CROPDETECT_OPT" == "ONLY" ]]; then
+		echo "$VF_CROP_TEST"
+		echo "[CROPDETECT] ==> $VF_CROP"
+		exit 0
+	fi
+fi
+
+if [[ "$VF_SCALE" == "" ]] || [[ "$ASPECT_RATIO" == "" ]] || [[ "$AVI_BITRATE" == "" ]]; then
+	echo "Not enough info! (scale=$VF_SCALE, ratio=$ASPECT_RATIO, bitrate=$AVI_BITRATE)"
+	exit 1
+fi
+
+if [[ "$VFILTER_OPT" == "" ]]; then
+	if [[ "$VF_CROP" == "" ]]; then
+		VFILTER_OPT="-vf scale=${VF_SCALE}"
+	else
+		VFILTER_OPT="-vf crop=${VF_CROP},scale=${VF_SCALE}"
+	fi
+else
+	VFILTER_OPT=""
+fi
+
+if [[ "$AFILTER_OPT" == "" ]]; then
+	AFILTER_OPT="-af resample=48000:1:2"
+else
+	AFILTER_OPT=""
+fi
+
+XVID_PASS1_OPT="-ovc xvid -xvidencopts pass=1:aspect=${ASPECT_RATIO//://}:bitrate=${AVI_BITRATE}:bvhq=1:chroma_opt:quant_type=mpeg"
+XVID_PASS2_OPT="-ovc xvid -xvidencopts pass=2:aspect=${ASPECT_RATIO//://}:bitrate=${AVI_BITRATE}:bvhq=1:chroma_opt:quant_type=mpeg"
+LAME_PASS1_OPT="-nosound"
+LAME_PASS2_OPT="-oac mp3lame -lameopts br=56:cbr:mode=0"
+VIDEO_OPT="-force-avi-aspect $ASPECT_RATIO -ofps 25"
+
+PASS1_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $XVID_PASS1_OPT $AFILTER_OPT $LAME_PASS1_OPT $VIDEO_OPT -o /dev/null $DVD_SUBT_OPT"
+PASS2_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $XVID_PASS2_OPT $AFILTER_OPT $LAME_PASS2_OPT $VIDEO_OPT -o $VIDEO_OUTPUT"
+
+TEST1_OPT="$PASS1_OPT"
+TEST2_OPT="$PASS2_OPT"
+
+if [[ "$RUN_TESTCODE" == "YES" ]]; then
+	echo "[TESTCODE] - Processing ($VIDEO_INPUT)..."
+	mencoder $TEST1_OPT
+	mencoder $TEST2_OPT
+	if [[ "$RUN_QUIET"=="-really-quiet" ]]; then
+		echo "[TESTCODE] - Done."
+	else
+		echo "[TEST1_OPT] ==> $TEST1_OPT"
+		echo "[TEST2_OPT] ==> $TEST2_OPT"
+	fi
+else
+	echo "[STD_CODE] - Processing ($VIDEO_INPUT)..."
+	mencoder $PASS1_OPT
+	mencoder $PASS2_OPT
+	if [[ "$RUN_QUIET"=="-really-quiet" ]]; then
+		echo "[STD_CODE] - Done."
+	else
+		echo "[PASS1_OPT] ==> $PASS1_OPT"
+		echo "[PASS2_OPT] ==> $PASS2_OPT"
+	fi
+fi
+
+echo "[DONE] ==> $(basename $0)"

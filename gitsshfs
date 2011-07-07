@@ -1,0 +1,342 @@
+#!/bin/bash
+
+# gitsshfs
+# - written by azman@my1matrix.net
+# - update git repo on shared-hosting (with no git installed) using sshfs
+
+GIT_SSH_CFGFILE="$HOME/.$(basename $0 .sh)"
+[[ -r "$GIT_SSH_CFGFILE" ]] && source $GIT_SSH_CFGFILE
+#configs for ssh?
+GIT_SSH_NAME=${GIT_SSH_NAME:=""}
+GIT_SSH_SERVER=${GIT_SSH_SERVER:=""}
+GIT_SSH_PATH=${GIT_SSH_PATH:=""}
+GIT_SSH_PORT=${GIT_SSH_PORT:=""}
+GIT_SSH_MOUNT=${GIT_SSH_MOUNT:=""}
+#tools we use
+GIT_SSH_GIT="git"
+GIT_SSH_SSHFS="sshfs"
+GIT_SSH_UMOUNT="fusermount"
+#git messages
+GIT_MSG_CLEAN="nothing to commit (working directory clean)"
+GIT_MSG_DIRTY="Changed but not updated"
+#error messages
+THIS_ERROR_TOOL=1
+THIS_ERROR_MOUNT=2
+THIS_ERROR_CONNECT=3
+THIS_ERROR_DISCONN=4
+
+#check for tools
+TEMP_LINK="$(which $GIT_SSH_GIT 2>/dev/null)"
+[[ $? -ne 0 ]] && echo "$GIT_SSH_GIT NOT found! Aborting!" &&
+	exit $THIS_ERROR_TOOL
+GIT_SSH_GIT=$TEMP_LINK
+TEMP_LINK="$(which $GIT_SSH_SSHFS 2>/dev/null)"
+[[ $? -ne 0 ]] && echo "$GIT_SSH_SSHFS NOT found! Aborting!" &&
+	exit $THIS_ERROR_TOOL
+GIT_SSH_SSHFS=$TEMP_LINK
+TEMP_LINK="$(which $GIT_SSH_UMOUNT 2>/dev/null)"
+[[ $? -ne 0 ]] && echo "$GIT_SSH_UMOUNT NOT found! Aborting!" &&
+	exit $THIS_ERROR_TOOL
+GIT_SSH_UMOUNT=$TEMP_LINK
+
+#check this local git repo! must be in a valid git repo
+[[ "$($GIT_SSH_GIT status 2>&1 | grep "fatal")" != "" ]] &&
+	echo "Not in a git repo? Aborting!" && exit 1
+
+function check_clean()
+{
+	#check for unclean repo? must be clean to create/update?
+	#as long as NOT DIRTY!
+	[[ "$($GIT_SSH_GIT status 2>&1 | grep "$GIT_MSG_DIRTY")" == "" ]] &&
+		return
+	echo "Git repo is NOT clean! Run a commit first?!" && exit 1
+}
+
+function check_mountpoint()
+{
+	local mount_point=$1
+	local chk_result
+	local do_select
+
+	if [[ "$mount_point" == "" ]]; then
+		echo "Mount point NOT specified! Abort!"
+		exit $THIS_ERROR_MOUNT
+	fi
+
+	if [[ ! -d "$mount_point" ]]; then
+		echo "Mount point '$mount_point' NOT found!"
+		read -n 1 -p "<C>reate or <*>Abort? " do_select ; echo
+		if [[ "$do_select" == "c" ]] || [[ "$do_select" == "C" ]]; then
+			mkdir -pv $mount_point
+			chk_result=$?
+			if [[ $chk_result -ne 0 ]]; then
+				echo "Error creating mount point? [$chk_result]! Aborting!"
+				exit $THIS_ERROR_MOUNT
+			fi
+		else
+			echo "Aborting upon user request!"
+			exit $THIS_ERROR_MOUNT
+		fi
+	else
+		if [[ "$(mount | grep "$mount_point")" != "" ]]; then
+			echo "$mount_point is already mounted! Aborting!"
+			exit $THIS_ERROR_MOUNT
+		fi
+	fi
+}
+
+function check_remote_mount()
+{
+	local repo_name=$1
+	local remote_name=$2
+local SAVE_IFS=$IFS
+IFS='
+'
+	local remote_list=($($GIT_SSH_GIT remote -v 2>&1 | grep "$remote_name"))
+IFS=$SAVE_IFS
+	local push_str=" (push)"
+	local test_mount
+	local remote_mount=""
+
+	# get remote path for pushing
+	for (( a=0;a<${#remote_list[@]};a++ )); do
+		test_mount=$(echo ${remote_list[$a]} | grep "$push_str")
+		if [[ "$test_mount" != "" ]]; then
+			test_mount=${test_mount#"${remote_name} "}
+			test_mount=${test_mount%"${push_str}"}
+			if [[ "$(basename $test_mount)" == "$repo_name" ]]; then
+				remote_mount=$(dirname $test_mount)
+				break
+			fi
+		fi
+	done
+
+	echo -n "$remote_mount"
+}
+
+function connect_target()
+{
+	local ssh_target=$1
+	local ssh_mount=$2
+	local port_ssh=$3
+	local chk_result
+
+	check_mountpoint $ssh_mount
+	[[ "$port_ssh" != "" ]] && port_ssh="-p $port_ssh"
+
+	$GIT_SSH_SSHFS ${ssh_target} ${ssh_mount} ${port_ssh} -o workaround=rename
+	chk_result=$?
+	[[ "$chk_result" -ne 0 ]] &&
+		echo "SSH error ${ssh_target} ($port_ssh) [$chk_result]! Aborting!" &&
+		exit $THIS_ERROR_CONNECT
+}
+
+function disconnect_target()
+{
+	local ssh_mount=$1
+	local chk_result
+
+	$GIT_SSH_UMOUNT -u ${ssh_mount}
+	chk_result=$?
+	[[ "$chk_result" -ne 0 ]] &&
+		echo "Unmount error ${ssh_mount} [$chk_result]! Aborting!" &&
+		exit $THIS_ERROR_DISCONN
+}
+
+function relink_sshfs_repo()
+{
+	local ssh_mount=$1
+	local repo_name=$2
+	local remote_name=$3
+
+	#set for pushing
+	$GIT_SSH_GIT remote add $remote_name $ssh_mount/$repo_name
+	chk_result=$?
+	[[ $chk_result -ne 0 ]] &&
+		echo "Error running $GIT_SSH_GIT? [$chk_result]!"
+}
+
+function create_sshfs_repo()
+{
+	local ssh_mount=$1
+	local repo_name=$2
+	local remote_name=$3
+	local chk_result
+	local work_dir=$(pwd)
+
+	#create new repo
+	cd $ssh_mount
+	#clone to target
+	$GIT_SSH_GIT clone --bare $work_dir $repo_name
+	chk_result=$?
+	[[ $chk_result -ne 0 ]] &&
+		echo "Error running $GIT_SSH_GIT? [$chk_result]!"
+	#prep for http
+	cd $repo_name
+	$GIT_SSH_GIT --bare update-server-info
+	cp hooks/post-update.sample hooks/post-update
+	cd $work_dir
+}
+
+function update_sshfs_repo()
+{
+	local remote_name=$1
+	local remote_branch=$2
+	local check_tag=$3
+	local chk_result
+
+	#update target
+	$GIT_SSH_GIT push ${check_tag} ${remote_name} ${remote_branch}
+	chk_result=$?
+	[[ $chk_result -ne 0 ]] &&
+		echo "Error running $GIT_SSH_GIT? [$chk_result]!"
+}
+
+function reload_sshfs_repo()
+{
+	local remote_name=$1
+	local remote_branch=$2
+	local check_tag=$3
+	local chk_result
+
+	#update target
+	$GIT_SSH_GIT pull ${check_tag} ${remote_name} ${remote_branch}
+	chk_result=$?
+	[[ $chk_result -ne 0 ]] &&
+		echo "Error running $GIT_SSH_GIT? [$chk_result]!"
+}
+
+function write_config()
+{
+	local config_file=$1
+
+	echo -n "" >$config_file
+	echo "GIT_SSH_NAME=\"$GIT_SSH_NAME\"" >>$config_file
+	echo "GIT_SSH_SERVER=\"$GIT_SSH_SERVER\"" >>$config_file
+	echo "GIT_SSH_PATH=\"$GIT_SSH_PATH\"" >>$config_file
+	echo "GIT_SSH_PORT=\"$GIT_SSH_PORT\"" >>$config_file
+	echo "GIT_SSH_MOUNT=\"$GIT_SSH_MOUNT\"" >>$config_file
+}
+
+function check_params()
+{
+	local do_command=""
+	local go_commands="create update reload relink dummy"
+	local do_write_conf=""
+	local ssh_target=""
+	local ssh_name=$GIT_SSH_NAME
+	local ssh_server=$GIT_SSH_SERVER
+	local ssh_path=$GIT_SSH_PATH
+	local ssh_port=$GIT_SSH_PORT
+	local ssh_mount=$GIT_SSH_MOUNT
+	local ssh_repo=""
+	local remote_name=""
+	local remote_branch=""
+	local do_clean_check="YES"
+	local do_check_tag=""
+
+	while [[ "$1" != "" ]]; do
+		case "$1" in
+			--ignore-dirty)
+				do_clean_check=""
+				;;
+			--check-tag)
+				do_check_tag="--tags"
+				;;
+			--user)
+				shift
+				ssh_name=$1
+				;;
+			--server)
+				shift
+				ssh_server=$1
+				;;
+			--path)
+				shift
+				ssh_path=$1
+				;;
+			--repo)
+				shift
+				ssh_repo=$1
+				;;
+			--port)
+				shift
+				ssh_port=$1
+				;;
+			--mount)
+				shift
+				ssh_mount=$1
+				;;
+			--name)
+				shift
+				remote_name=$1
+				;;
+			--branch)
+				shift
+				remote_branch=$1
+				;;
+			*)
+				[[ "$do_command" != "" ]] &&
+					echo -e "Multiple commands '$1'&'$do_command'\n" && exit 1
+				for tcommand in $go_commands; do
+					[[ "$1" == "$tcommand" ]] && do_command=$1 && break
+				done
+				[[ "$do_command" == "" ]] &&
+					echo -e "Unknown command '$1'!\n" && exit 1
+				;;
+		esac
+		shift
+	done
+
+	[[ "$do_clean_check" == "YES" ]] && check_clean
+	[[ "$ssh_repo" == "" ]] && ssh_repo="$(basename $(pwd)).git"
+	[[ "$remote_name" == "" ]] &&
+		echo "You must specify --name <remote-name>! Aborting!" && exit 1
+	[[ "$remote_branch" == "" ]] && remote_branch="master"
+
+	[[ "$ssh_name" == "" ]] &&
+		echo "SSH user name NOT specified! Aborting!" && exit 1
+	[[ "$ssh_server" == "" ]] &&
+		echo "SSH server NOT specified! Aborting!" && exit 1
+	[[ "$ssh_path" == "" ]] && ssh_path="."
+	ssh_target=${ssh_name}@${ssh_server}:${ssh_path}
+
+	case "$do_command" in
+		create)
+			[[ "$ssh_mount" == "" ]] &&
+				echo "Mount-point NOT specified! Aborting!" && exit 1
+			connect_target ${ssh_target} ${ssh_mount} ${ssh_port}
+			create_sshfs_repo ${ssh_mount} ${ssh_repo} ${remote_name}
+			relink_sshfs_repo ${ssh_mount} ${ssh_repo} ${remote_name}
+			disconnect_target ${ssh_mount}
+			;;
+		reload)
+			ssh_mount=$(check_remote_mount ${ssh_repo} ${remote_name})
+			[[ "$ssh_mount" == "" ]] &&
+				echo "Remote point ${remote_name} NOT found! Aborting!" && exit 1
+			connect_target ${ssh_target} ${ssh_mount} ${ssh_port}
+			reload_sshfs_repo ${remote_name} ${remote_branch} ${do_check_tag}
+			disconnect_target ${ssh_mount}
+			;;
+		update)
+			ssh_mount=$(check_remote_mount ${ssh_repo} ${remote_name})
+			[[ "$ssh_mount" == "" ]] &&
+				echo "Remote point ${remote_name} NOT found! Aborting!" && exit 1
+			connect_target ${ssh_target} ${ssh_mount} ${ssh_port}
+			update_sshfs_repo ${remote_name} ${remote_branch} ${do_check_tag}
+			disconnect_target ${ssh_mount}
+			;;
+		relink)
+			[[ "$ssh_mount" == "" ]] &&
+				echo "Mount-point NOT specified! Aborting!" && exit 1
+			relink_sshfs_repo ${ssh_mount} ${ssh_repo} ${remote_name}
+			;;
+	esac
+
+	# write a new config file if no existing config found
+	[[ ! -r "$GIT_SSH_CFGFILE" ]] && write_config $GIT_SSH_CFGFILE
+}
+
+check_params "$@"
+
+exit 0

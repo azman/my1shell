@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# wwwperm
+# - written by azman@my1matrix.net
+# - change permission suitable for www server
+
+LABEL_USER=${LABEL_USER:="$USER"}
+LABEL_GROUP=${LABEL_GROUP:="apache"}
+
+if [[ "$1" == "" ]] || [[ ! -d "$1" ]]; then
+	echo "Usage: $0 [dir_name]"
+	exit 1
+fi
+
+echo "Changing ownership & permission for $1:"
+echo "Current stat:"
+ls -l "$1/.." | grep $1
+chown $LABEL_USER:$LABEL_GROUP -R $1
+chmod 775 "$1"
+echo "New stat:"
+ls -l "$1/.." | grep $1
+
+echo -n "Processing all sub-directories... "
+for a in $(find $1 -type d); do
+	if [[ -w $a ]]; then
+		chmod g+w $a
+	fi
+done
+echo "done."
+
+echo -n "Processing all files... "
+for a in $(find $1 -type f); do
+	if [[ -w $a ]]; then
+		chmod g+w $a
+	fi
+done
+echo "done."
