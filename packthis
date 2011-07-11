@@ -11,6 +11,8 @@ BALLNAME=$(basename $CURRPATH)
 BALLSUFX=${BALLSUFX:=""}
 DATE_FMT=${DATE_FMT:="+%Y%m%d"}
 CHECKGIT=${CHECKGIT:="YES"}
+CHK_VERB=${CHK_VERB:="NO"}
+TAR_OPTS=${TAR_OPTS:="cjf"}
 
 while [[ "$1" != "" ]]; do
 	case $1 in
@@ -20,6 +22,9 @@ while [[ "$1" != "" ]]; do
 		--ignore-git)
 			CHECKGIT="NO"
 			;;
+		--verbose|-v)
+			CHK_VERB="YES"
+			;;
 		* )
 			echo "Unknown parameter ($1)!" && exit 1
 			;;
@@ -27,11 +32,15 @@ while [[ "$1" != "" ]]; do
 	shift
 done
 
+[[ "$CHK_VERB" == "YES" ]] && TAR_OPTS="cjvf"
+
 [[ "$CHECKGIT" == "YES" ]] && [[ -d "$CURRPATH/.git" ]] && BALLSUFX="_git"
 
 [[ ! -d $BALLPATH ]] && mkdir -pv $BALLPATH
 
 if [[ -d $WORKPATH ]]; then
 	cd $WORKPATH
-	tar cjvf ${BALLPATH}/${BALLNAME}${BALLSUFX}-$(date ${DATE_FMT}).tar.bz2 ${BALLNAME}
+	[[ "$CHK_VERB" == "NO" ]] && echo -n "Archiving ... "
+	tar $TAR_OPTS ${BALLPATH}/${BALLNAME}${BALLSUFX}-$(date ${DATE_FMT}).tar.bz2 ${BALLNAME}
+	[[ "$CHK_VERB" == "NO" ]] && echo "done."
 fi

@@ -16,7 +16,7 @@ done
 MY1_GETSLACK_CONF=$(cat <<MY1CONF
 # checkout release & arch
 RSYNCURLROOT=\${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
-RELEASE="13.37"
+RELEASE=\${RELEASE:="13.37"}
 SLACKARCH=\${SLACKARCH:="\$(uname -m)"}
 SLACKFULL=\${SLACKFULL:="slackware"}
 [[ "\$SLACKARCH" == "x86_64" ]] && SLACKFULL="slackware64"
