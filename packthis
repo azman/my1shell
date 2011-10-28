@@ -13,9 +13,15 @@ DATE_FMT=${DATE_FMT:="+%Y%m%d"}
 CHECKGIT=${CHECKGIT:="YES"}
 CHK_VERB=${CHK_VERB:="NO"}
 TAR_OPTS=${TAR_OPTS:="cjf"}
+CHK_COPY=${CHK_COPY:=""}
+NUM_COPY=${NUM_COPY:=0}
 
 while [[ "$1" != "" ]]; do
 	case $1 in
+		--suffix)
+			shift
+			BALLSUFX="-$1"
+			;;
 		--time)
 			DATE_FMT="+%Y%m%d%H%M"
 			;;
@@ -32,15 +38,19 @@ while [[ "$1" != "" ]]; do
 	shift
 done
 
-[[ "$CHK_VERB" == "YES" ]] && TAR_OPTS="cjvf"
+[[ "$CHK_VERB" == "YES" ]] && TAR_OPTS="${TAR_OPTS}v"
 
-[[ "$CHECKGIT" == "YES" ]] && [[ -d "$CURRPATH/.git" ]] && BALLSUFX="_git"
+[[ "$CHECKGIT" == "YES" ]] && [[ -d "$CURRPATH/.git" ]] && BALLSUFX="${BALLSUFX}_git"
 
 [[ ! -d $BALLPATH ]] && mkdir -pv $BALLPATH
 
 if [[ -d $WORKPATH ]]; then
 	cd $WORKPATH
 	[[ "$CHK_VERB" == "NO" ]] && echo -n "Archiving ... "
-	tar $TAR_OPTS ${BALLPATH}/${BALLNAME}${BALLSUFX}-$(date ${DATE_FMT}).tar.bz2 ${BALLNAME}
+	while [[ -f ${BALLPATH}/${BALLNAME}${BALLSUFX}-$(date ${DATE_FMT})${CHK_COPY}.tar.bz2 ]]; do	
+		(( NUM_COPY=NUM_COPY+1 ))
+		CHK_COPY="_${NUM_COPY}"
+	done
+	tar $TAR_OPTS ${BALLPATH}/${BALLNAME}${BALLSUFX}-$(date ${DATE_FMT})${CHK_COPY}.tar.bz2 ${BALLNAME}
 	[[ "$CHK_VERB" == "NO" ]] && echo "done."
 fi

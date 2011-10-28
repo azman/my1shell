@@ -5,7 +5,7 @@
 # - start xilinx apps or xilinx-env shell
 
 XILINX_VERS=${XILINX_VERS:="12.1"}
-XILINX_PATH=${XILINX_PATH:="/home/ftp/software/xilinx-${XILINX_VERS}"}
+XILINX_PATH=${XILINX_PATH:="/home/share/application/xilinx-${XILINX_VERS}"}
 ARCH_BITS="32"
 [[ "$(uname -m)" == "x86_64" ]] && ARCH_BITS="64"
 XILINX_ARCH=${XILINX_ARCH:="$ARCH_BITS"}
@@ -50,3 +50,4 @@ else
 fi
 
 exit 0
+

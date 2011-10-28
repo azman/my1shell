@@ -2,7 +2,7 @@
 
 # getslack
 # - written by azman@my1matrix.net
-# - a 'lightweight' version of alien_bob's mirror_slackware_current.sh
+# - a 'reduced' version of alien_bob's mirror_slackware_current.sh
 
 MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(dirname $0)"
@@ -15,13 +15,14 @@ done
 
 MY1_GETSLACK_CONF=$(cat <<MY1CONF
 # checkout release & arch
-RSYNCURLROOT=\${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
+RSYNCURLROOT=\${RSYNCURLROOT:="taper.alienbase.nl::mirrors/slackware/"}
 RELEASE=\${RELEASE:="13.37"}
 SLACKARCH=\${SLACKARCH:="\$(uname -m)"}
 SLACKFULL=\${SLACKFULL:="slackware"}
 [[ "\$SLACKARCH" == "x86_64" ]] && SLACKFULL="slackware64"
 # kde option?
 NO_KDE=\${NO_KDE:="no"}
+GO_BOOTSTRAP=\${GO_BOOTSTRAP:="no"}
 # include some wanted software in excluded path
 #INCLUDES="\$INCLUDES --include=extra/wicd/"
 #INCLUDES="\$INCLUDES --include=extra/jdk-6/"
@@ -47,6 +48,13 @@ EXCLUDES="\$EXCLUDES --exclude=source/kdei/ --exclude=source/y/"
 # if we don't need kde
 [[ "\$NO_KDE" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/kde/"
 [[ "\$NO_KDE" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=source/kde/"
+# if we want to bootstrap
+[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/d/ --exclude=source/d/"
+[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/k/ --exclude=source/k/"
+[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/t/ --exclude=source/t/"
+[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/tcl/ --exclude=source/tcl/"
+[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/x/ --exclude=source/x/"
+[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/xap/ --exclude=source/xap/"
 MY1CONF
 )
 if [[ "$1" == "--write" ]]; then

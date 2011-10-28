@@ -137,6 +137,12 @@ while [[ "$1" != "" ]]; do
 			shift
 			VIDEO_OUTPUT=$1
 			;;
+		--hdmovie )
+			VF_SCALE=${VF_SCALE:="704:304"}
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="700"}
+			echo "HDMOVIE SETTINGS!"
+			;;
 		--hdtv )
 			VF_SCALE=${VF_SCALE:="640:352"}
 			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}

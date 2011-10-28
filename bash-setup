@@ -8,9 +8,8 @@ MY1_BASH_PROFILE=$(cat <<SETVAR1
 # ~/.bash_profile - login shells
 
 umask 022
-export PATH=\$HOME/slackware/slackstuff:\$HOME/slackbin:\$PATH
-export PATH=/usr/sbin:/sbin:\$PATH
-export VISUAL=/usr/bin/vim
+export PATH=\$HOME/slackware/slackstuff:\$HOME/slackstuff:\$PATH:/usr/sbin:/sbin
+export VISUAL=\$(which vi)
 
 [[ -f ~/.bashrc ]] && source ~/.bashrc
 [[ -n "\$SSH_CLIENT" ]] && export PS1="(SSH) \$PS1"
@@ -68,3 +67,4 @@ fi
 echo
 
 exit 0
+
