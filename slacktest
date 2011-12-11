@@ -6,7 +6,7 @@
 
 # standard tool info
 TOOL_THISFUNC="my1 Slackware Test Script"
-TOOL_THISVERS="2010.06.00"
+TOOL_THISVERS="2010.06.01"
 # standard tool conf
 TOOL_CHECKCMD="$@"
 TOOL_COMMANDS=${TOOL_CHECKCMD:="--help"}
@@ -28,7 +28,7 @@ echo -e "\n$TOOL_THISFILE - $TOOL_THISFUNC ($TOOL_THISVERS)\n"
 if [[ "$@" != "" ]]; then
 	echo -e "[SLACKTEST] Executing '$@'...\n"
 	$@
-	echo -e "\n\n[SLACKTEST] Done.\n"
+	echo -e "\n[SLACKTEST] Done.\n"
 fi
 
 # END MAIN SCRIPT

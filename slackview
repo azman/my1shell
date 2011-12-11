@@ -6,7 +6,7 @@
 
 # standard tool info
 TOOL_THISFUNC="my1 Slackware Package Tool"
-TOOL_THISVERS="2010.06.00"
+TOOL_THISVERS="2011.12.00"
 # standard tool conf
 TOOL_CHECKCMD="$@"
 TOOL_COMMANDS=${TOOL_CHECKCMD:="--help"}
@@ -23,6 +23,19 @@ done
 [[ -r "$TOOL_LOCATION/$TOOL_MY1SLACK" ]] && source $TOOL_LOCATION/$TOOL_MY1SLACK
 # my1slack tool specific
 
+function show_alien_pkgs()
+{
+	local do_echo=""
+
+	# find installed
+	for pkg_base in $(find_alien_pkgs); do
+		echo "Alien package: ${pkg_base%-*-*-*} ($pkg_base)"
+		do_echo="YES"
+	done
+
+	[[ "$do_echo"=="YES" ]] && echo
+}
+
 function process_command()
 {
 	local ignore_list=""
@@ -36,10 +49,9 @@ function process_command()
 	local do_invert=""
 	local do_sort=""
 	local tool_cmd
-	local pkg_temp
-	local pkg_test
+	local pkg_temp pkg_test pkg_name
 
-	[ ! -f $SLACKPKGFILE ] &&
+	[[ ! -f $SLACKPKGFILE ]] &&
 		echo -e "File '$SLACKPKGFILE' not found! Aborting!\n" && exit 1
 
 	tool_cmd=$1; shift
@@ -61,15 +73,16 @@ function process_command()
 				shift
 			done
 			if [[ "$ignore_list" == "YES" ]]; then
-				find_alien_pkgs
+				show_alien_pkgs
 			else
 				for tpack in $pkgs_list; do
-					if [[ "$(find_install "$tpack")" != "" ]]; then
-						info_install "$tpack"
-					elif [[ "$(find_package "$tpack")" != "" ]]; then
-						info_package "$tpack"
-					else
+					pkg_temp="pkgbase_${tpack//-/_}"
+					[[ -z "${!pkg_temp}" ]] && pkg_db_package $tpack --all
+					[[ -z "${!pkg_temp}" ]] && pkg_db_install $tpack --all
+					if [[ -z "${!pkg_temp}" ]]; then
 						echo -e "Package '$tpack' not found!\n"
+					else
+						show_info $tpack
 					fi
 				done
 			fi
@@ -90,6 +103,14 @@ function process_command()
 						;;
 					-s | --sort )
 						do_sort="YES"
+						;;
+					-p | --pack )
+						shift
+						pkg_test=$(get_softpack $1)
+						for tpack in $pkg_test ; do
+							pkg_name=($(get_pkg_info $tpack))
+							pkgs_list="$pkgs_list ${pkg_name[0]}"
+						done
 						;;
 					*)
 						pkgs_list="$pkgs_list $1"

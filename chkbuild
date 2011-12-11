@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# chkbuild
+# - written by azman@my1matrix.net
+# - browse my1 Slackbuilds in current path and check with given reference
+
+REF_BUILD=$1
+CURR_PATH=$(pwd)
+
+[[ ! -r "$REF_BUILD" ]] &&
+	echo "Cannot read reference build '$REF_BUILD'!" && exit 1
+
+STR_BUILD="$(sed -n '/# ONLY TEMPLATES BELOW THIS LINE/,$ p' $REF_BUILD)"
+CHECKLIST=""
+OPT_DOFIX=""
+OPT_VERBO=""
+shift
+while [[ "$1" != "" ]] ; do
+	case $1 in
+		--all )
+			CHECKLIST=""
+			for slackbuild in *.SlackBuild ; do
+				CHECKLIST="$CHECKLIST $slackbuild"
+			done
+			;;
+		--fix )
+			OPT_DOFIX="YES"
+			;;
+		--verbose )
+			OPT_VERBO="YES"
+			;;
+		* )
+			[[ ! -f "$1" ]] && echo "Unknown parameter ($1)!" && exit 1
+			CHECKLIST="$CHECKLIST $1"
+			;;
+	esac
+	shift
+done
+
+for slackbuild in $CHECKLIST ; do
+	[[ "$(basename $REF_BUILD)" == "$slackbuild" ]] && continue
+	CHK_BUILD="$(sed -n '/# ONLY TEMPLATES BELOW THIS LINE/,$ p' $slackbuild)"
+	CHK_ERROR="$(diff <(echo $STR_BUILD) <(echo $CHK_BUILD))"
+	[[ "$CHK_BUILD" == "" ]] && echo "$slackbuild: Not a my1 SlackBuild?" && continue;
+	if [[ "$CHK_ERROR" != "" ]]; then
+		[[ "$OPT_DOFIX" != "YES" ]] && echo "$slackbuild: Not up-to-date!" && continue
+		sed -i '/# ONLY TEMPLATES BELOW THIS LINE/,$ d' $slackbuild
+		echo "$STR_BUILD" >>$slackbuild
+		echo "FIXED THIS! $REF_BUILD => $slackbuild"
+	else
+		[[ "$OPT_VERBO" == "YES" ]] && echo "$slackbuild: OK!"
+	fi
+done
+
+exit 0

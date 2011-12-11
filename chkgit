@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# chkgit
+# - written by azman@my1matrix.net
+# - browse folders in current path and check git repos
+
+CLEAN_MSG="nothing to commit"
+
+CURR_PATH=$(pwd)
+
+for path in $(find * -maxdepth 0 -type d); do
+	cd $path
+	if [[ -d .git ]]; then
+		if [[ "$(git status | grep "$CLEAN_MSG")" == "" ]]; then
+			echo "Check: $(pwd)"
+		fi
+	else
+		echo "NOT: $(pwd)"
+	fi
+	cd $CURR_PATH
+done
+
+exit 0

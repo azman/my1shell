@@ -15,7 +15,10 @@ done
 
 MY1_GETSLACK_CONF=$(cat <<MY1CONF
 # checkout release & arch
+# RSYNCURLROOT=\${RSYNCURLROOT:="slackware.mirrors.tds.net::slackware/slackware-current"}
+# RSYNCURLROOT=\${RSYNCURLROOT:="rsync.osuosl.org::slackware/slackware-current"}
 RSYNCURLROOT=\${RSYNCURLROOT:="taper.alienbase.nl::mirrors/slackware/"}
+# RSYNCURLROOT=\${RSYNCURLROOT:="mirror.aarnet.edu.au::slackware/"}
 RELEASE=\${RELEASE:="13.37"}
 SLACKARCH=\${SLACKARCH:="\$(uname -m)"}
 SLACKFULL=\${SLACKFULL:="slackware"}
@@ -77,6 +80,24 @@ SLACKPATH="${SLACKROOT}/${SLACKRELEASE}"
 RSYNCURLROOT=${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
 RSYNCURL=${RSYNCURL:="${RSYNCURLROOT}${SLACKRELEASE}"}
 RSYNCOPT=${RSYNCOPT:="--delete --delete-excluded --partial -rlptD --progress"}
+
+# option to create iso - helping o-thers... local mirror must exist!
+if [[ "$1" == "--mkiso" ]]; then
+	MKISOFS=${MKISOFS:="$(chk_mkisofs=$(which mkisofs 2>&1); [[ $? -eq 0 ]] && echo "$chk_mkisofs")"}
+	[[ "$MKISOFS" == "" ]] && echo "'mkisofs' not found! Aborting!" && exit 1
+	ISOPATH=${ISOPATH:="$HOME/temp"}
+	[[ ! -d "$ISOPATH"  ]] && echo "Path '$ISOPATH' not found! Aborting!" && exit 1
+	echo -n "Creating ISO from $SLACKPATH... "
+	cd $SLACKPATH
+	$MKISOFS -o $ISOPATH/${SLACKRELEASE}-install.iso -V "${SLACKRELEASE} Install DVD" \
+		-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N \
+		-v -v -no-emul-boot -boot-load-size 32 -boot-info-table \
+		-sort isolinux/iso.sort -b isolinux/isolinux.bin -c isolinux/isolinux.boot \
+		-A "${SLACKRELEASE} Install DVD (build $(date +%Y%m%d))" . \
+		> $ISOPATH/${SLACKRELEASE}-install_build.log 2>&1
+	echo "done!"
+	exit 0
+fi
 
 # customized sync list
 EXCLUDES=${EXCLUDES:="--exclude pasture"}

@@ -190,6 +190,8 @@ if [[ -r "$MOVIE_FILE" ]]; then
 elif [[ "$DVD_RIP_OPT" == "YES" ]]; then
 	if [[ "$DVD_SUBT_ID" != "" ]]; then
 		DVD_SUBT_OPT="$DVD_SUBT_ID -vobsubout ${DVD_RIP_TITLE}-subs -vobsuboutindex 0 -vobsuboutid en"
+	else
+		DVD_SUBT_OPT="-vobsubout /dev/null"
 	fi
 	MOVIE_TITLE="$DVD_RIP_TITLE-$DVD_TITLE"
 	VIDEO_INPUT="-dvd-device $DVD_DEVICE dvd://$DVD_TITLE $DVD_AUDIO_ID"
@@ -213,7 +215,7 @@ fi
 
 if [[ "$CROPDETECT_OPT" == "YES" ]] || [[ "$CROPDETECT_OPT" == "ONLY" ]]; then
 	VF_CROP_TEST="$(mplayer ${VIDEO_INPUT} -vo null -ao null -identify -ss $VF_CROP_SEC -endpos 5 -vf cropdetect)"
-	VF_CROP="$(echo "$VF_CROP_TEST" | tail -n 5 | grep -m 1 "${CROPDETECT_MSG}")"
+	VF_CROP="$(echo "$VF_CROP_TEST" | tail -n 7 | grep -m 1 "${CROPDETECT_MSG}")"
 	VF_CROP="${VF_CROP##*${CROPDETECT_MSG}}"
 	VF_CROP="${VF_CROP%%${CROPDETECT_END}*}"
 	if [[ "$CROPDETECT_OPT" == "ONLY" ]]; then
@@ -251,19 +253,17 @@ LAME_PASS2_OPT="-oac mp3lame -lameopts br=56:cbr:mode=0"
 VIDEO_OPT="-force-avi-aspect $ASPECT_RATIO -ofps 25"
 
 PASS1_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $XVID_PASS1_OPT $AFILTER_OPT $LAME_PASS1_OPT $VIDEO_OPT -o /dev/null $DVD_SUBT_OPT"
-PASS2_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $XVID_PASS2_OPT $AFILTER_OPT $LAME_PASS2_OPT $VIDEO_OPT -o $VIDEO_OUTPUT"
+PASS2_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $XVID_PASS2_OPT $AFILTER_OPT $LAME_PASS2_OPT $VIDEO_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
 
 TEST1_OPT="$PASS1_OPT"
 TEST2_OPT="$PASS2_OPT"
 
 if [[ "$RUN_TESTCODE" == "YES" ]]; then
 	echo "[TESTCODE] - Processing ($VIDEO_INPUT)..."
-	mencoder $TEST1_OPT
 	mencoder $TEST2_OPT
 	if [[ "$RUN_QUIET"=="-really-quiet" ]]; then
 		echo "[TESTCODE] - Done."
 	else
-		echo "[TEST1_OPT] ==> $TEST1_OPT"
 		echo "[TEST2_OPT] ==> $TEST2_OPT"
 	fi
 else
@@ -279,3 +279,4 @@ else
 fi
 
 echo "[DONE] ==> $(basename $0)"
+
