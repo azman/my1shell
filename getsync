@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# getsync
+# - written by azman@my1matrix.net
+# - a getslack-like script to sync personal documents
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+CURPATH="$(pwd)"
+
+# look for config file
+for conffile in "$CURPATH/.$MY1TOOL" "$CURPATH/$MY1TOOL.conf" \
+		"$HOME/.$MY1TOOL" "$HOME/.$MY1TOOL.conf" ; do
+	[[ ! -f $conffile ]] && continue
+	source $conffile ; break
+done
+
+# enforce this!
+[[ "$RSYNCURL" == "" ]] && echo "Server URL not specified!" && exit 1
+
+# tool & env setup
+RSYNC=${RSYNC:="/usr/bin/rsync"}
+RSYNCURL=${RSYNCURL:="user@server:/path/to/home/"}
+RSYNCOPT=${RSYNCOPT:="-e ssh --partial -rlptD --update --progress --dry-run"}
+LOCALURL=${LOCALURL:="."}
+SKIP_2ND="YES"
+
+# check target & source
+RSYNCSRC="${RSYNCURL}"
+RSYNCTGT="${LOCALURL}"
+
+# customized sync list
+EXCLUDES=${EXCLUDES:=""}
+INCLUDES=${INCLUDES:=""}
+[[ -r "$EXCLUDEFILE" ]] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
+[[ -r "$INCLUDEFILE" ]] && INCLUDES="--include-from=$INCLUDEFILE"
+
+# check parameters
+while  [[ "$1" != "" ]]; do
+	case $1 in
+		--upload)
+			RSYNCTMP="${RSYNCSRC}"
+			RSYNCSRC="${RSYNCTGT}"
+			RSYNCTGT="${RSYNCTMP}"
+			;;
+		--reload)
+			RSYNCOPT="${RSYNCOPT} --delete-excluded"
+			;;
+		--delete)
+			RSYNCOPT="${RSYNCOPT} --delete"
+			;;
+		--exec)
+			RSYNCOPT="${RSYNCOPT//--dry-run/}"
+			SKIP_2ND=""
+			;;
+		*)
+			echo "Unknown parameter '$1'"
+			exit 1
+			;;
+	esac
+	shift
+done
+
+# start actual mirroring process
+echo "*** From ${RSYNCSRC} To ${RSYNCTGT} ***"
+$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCSRC} ${RSYNCTGT}
+[[ "$SKIP_2ND" == "YES" ]] && exit 0
+echo "*** From ${RSYNCSRC} To ${RSYNCTGT} - (2nd Run) ***"
+$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCSRC} ${RSYNCTGT}
+echo "$(date) [$$]: Done mirroring (exit code $?)."
+
+exit 0

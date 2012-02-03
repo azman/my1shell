@@ -189,9 +189,9 @@ if [[ -r "$MOVIE_FILE" ]]; then
 	VIDEO_INPUT=$MOVIE_PATH/$MOVIE_TITLE.$MOVIE_TYPE
 elif [[ "$DVD_RIP_OPT" == "YES" ]]; then
 	if [[ "$DVD_SUBT_ID" != "" ]]; then
-		DVD_SUBT_OPT="$DVD_SUBT_ID -vobsubout ${DVD_RIP_TITLE}-subs -vobsuboutindex 0 -vobsuboutid en"
+		DVD_SUBT_OPT="$DVD_SUBT_ID" 
 	else
-		DVD_SUBT_OPT="-vobsubout /dev/null"
+		DVD_SUBT_OPT="-nosub -vobsubout /dev/null"
 	fi
 	MOVIE_TITLE="$DVD_RIP_TITLE-$DVD_TITLE"
 	VIDEO_INPUT="-dvd-device $DVD_DEVICE dvd://$DVD_TITLE $DVD_AUDIO_ID"

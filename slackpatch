@@ -166,20 +166,20 @@ function execute_patches()
 			pkg_file=${!pkg_temp}
 			pkg_temp="patchvers_${pkg_name//-/_}"
 			pkg_vers=${!pkg_temp}
-			[[ ! -r "$patchfile" ]] && echo "Error: File '$patchfile' not found!" && exit 1
+			[[ ! -r "$pkg_file" ]] && echo "Error: File '$pkg_file' not found!" && exit 1
 			if [[ "$OPT_AUTOPATCH" == "NO" ]] ; then
 				read -n 1 -p "Update package '$pkg' ? [y]/[*]/[q] : " do_update ; echo
 				if [[ "$do_update" == "y" ]]; then
-					echo -n "Updating '$pkg'... "
-					/sbin/upgradepkg ${patchfile} >>$TOOL_LOGFILE
+					echo -n "Updating '$pkg_name'... "
+					/sbin/upgradepkg ${pkg_file} >>$TOOL_LOGFILE
 					echo "done."
 				elif [[ "$do_update" == "q" ]]; then
-					echo "Aborting on '$pkg'!"
+					echo "Aborting on '$pkg_name'!"
 					exit 1
 				fi
 			elif [[ "$OPT_AUTOPATCH" == "YES" ]] ; then
-				echo -n "Auto-updating '$pkg'... "
-				/sbin/upgradepkg ${patchfile} >>$TOOL_LOGFILE
+				echo -n "Auto-updating '$pkg_name'... "
+				/sbin/upgradepkg ${pkg_file} >>$TOOL_LOGFILE
 				echo "done."
 			fi
 		done
