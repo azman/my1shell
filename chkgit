@@ -101,7 +101,7 @@ elif [[ "$do_command" == "create" ]]; then
 	else
 		echo "Repository '$FULL_PATH'/'$FULL_TEST' not found!" && exit 1
 	fi
-	$GIT clone $FULL_PATH $PROJ_COPY
+	$GIT clone file://$FULL_PATH $PROJ_COPY
 fi
 
 exit 0
