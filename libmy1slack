@@ -8,10 +8,17 @@ MY1_LIBVERS="2011.12.00"
 MY1_LIBCALL="$(basename $0 .sh)"
 
 # determine slackware architecture, NOT machine's!
-SLACKARCH=""
-[[ "$(find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null)" == "/lib64" ]] && SLACKARCH="64"
-SLACKNAME="slackware$SLACKARCH"
+SLACKARCH=${SLACKARCH:=""}
+case $SLACKARCH in
+	x86) SLACKARCH="" ;;
+	x86_64) SLACKARCH="64" ;;
+	*)
+		SLACKARCH=$(find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null)
+		if [[ "$SLACKARCH" == "/lib64" ]] ; then SLACKARCH="64"
+		else SLACKARCH="" ; fi ;;
+esac
 # get slackware release version - not sure if current is supported!
+SLACKNAME=${SLACKNAME:="slackware$SLACKARCH"}
 SLACKVERS=${SLACKVERS:=""}
 if [[ "$SLACKVERS" == "" ]]; then
 	SLACKVERS=$(cat /etc/slackware-version) # always in the form of "Slackware x.x.x"?
@@ -19,12 +26,11 @@ if [[ "$SLACKVERS" == "" ]]; then
 	SLACKVERS=${SLACKVERS//${SLACKVERS#*.*.}/}
 	SLACKVERS=${SLACKVERS:0:${#SLACKVERS}-1}
 fi
-# default path to look for
-SLACKFIND=${SLACKFIND:="/home"}
 # find slackware tree
-SLACKRELEASE="$SLACKNAME-$SLACKVERS"
+SLACKRELEASE=${SLACKRELEASE:="$SLACKNAME-$SLACKVERS"}
 SLACKROOTDIR=${SLACKROOTDIR:=""}
 if [[ "$SLACKROOTDIR" == "" ]]; then
+	SLACKFIND=${SLACKFIND:="/home"} # default path to look for
 	SLACKROOTDIR=$(find $SLACKFIND -maxdepth 3 -name "$SLACKRELEASE" -type d 2>/dev/null)
 	SLACKROOTDIR=${SLACKROOTDIR%"/$SLACKRELEASE"}
 fi

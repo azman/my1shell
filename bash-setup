@@ -8,11 +8,12 @@ MY1_BASH_PROFILE=$(cat <<SETVAR1
 # ~/.bash_profile - login shells
 
 umask 022
-export PATH=\$HOME/slackware/slackstuff:\$HOME/slackstuff:\$PATH:/usr/sbin:/sbin
-export VISUAL=\$(which vi)
+export PATH=\$HOME/slackware/slackstuff:\$HOME/slackstuff:\$HOME/slackbin:\$PATH:/usr/sbin:/sbin
+export VISUAL=\$(which vim)
 
 [[ -f ~/.bashrc ]] && source ~/.bashrc
 [[ -n "\$SSH_CLIENT" ]] && export PS1="(SSH) \$PS1"
+[[ "\$(echo \$SSH_CLIENT | grep '127.0.0.1')" != "" ]] && export DISPLAY=:0.0
 SETVAR1
 )
 MY1_FILE_BASH_PROFILE="$HOME/.bash_profile"

@@ -1,0 +1,123 @@
+#!/bin/bash
+
+# slackroot
+# - written by azman@my1matrix.net
+# - creates 32-bit chroot installation
+
+# standard tool info
+TOOL_THISFUNC="my1 Slackware chroot32 Tool"
+TOOL_THISVERS="2012.02.00"
+# standard tool conf
+TOOL_CHECKCMD="$@"
+TOOL_COMMANDS=${TOOL_CHECKCMD:=""}
+TOOL_THISFILE=$(basename $0 .sh)
+TOOL_LOCATION=$(cd $(dirname $0);pwd)
+TOOL_MY1SLACK="libmy1slack"
+SLACKARCH="x86" # force 32-bit slackware!
+# look for my1slack library
+[[ -r "$TOOL_LOCATION/$TOOL_MY1SLACK" ]] && source $TOOL_LOCATION/$TOOL_MY1SLACK
+
+function must_be_root()
+{
+	[[ $UID -ne 0 ]] && echo -e "Abort: must run as root!\n" && exit 1
+}
+
+function process_command()
+{
+	local pkg_path=$SLACKPKGPATH
+	local chk_root="/opt/chroot32"
+	local cur_path=$(pwd)
+	local chk_exec=""
+	local chk_syyy=""
+
+	must_be_root
+
+	# check parameters
+	while [[ "$1" != "" ]]; do
+		case "$1" in
+			--path)
+				shift
+				pkg_path="$(cd $1;pwd)"
+				;;
+			--root)
+				shift
+				chk_root="$(cd $1;pwd)"
+				;;
+			--help|-h|help)
+				echo -e "HELP!\n"
+				exit 0
+				;;
+			--quiet)
+				chk_syyy="YES"
+				;;
+			--exec)
+				chk_exec="YES"
+				;;
+			-*)
+				echo -e "Unknown option '$1'!\n" && exit 1
+				;;
+			*)
+				[[ "$do_command" != "" ]] &&
+					echo -e "Multiple commands '$1' & '$do_command'\n" && exit 1
+				for tcommand in $go_commands; do
+					[[ "$1" == "$tcommand" ]] && do_command=$1 && break
+				done
+				[[ "$do_command" == "" ]] &&
+					echo -e "Unknown command '$1'!\n" && exit 1
+				;;
+		esac
+		shift
+	done
+	# check paths
+	[[ ! -d "$pkg_path" ]] && echo -e "Cannot find pkg path '$pkg_path'!\n" && exit 1
+	[[ ! -d "$chk_root" ]] && echo "Creating root path '$chk_root' ... " && mkdir $chk_root
+	export CHROOT_PATH=$chk_root
+	# install pkgs
+	echo -n "Installing packages from $pkg_path :"
+	cd $pkg_path
+	for a in a d k l n ap t tcl x xap; do
+		[[ ! -d $a ]] && continue
+		cd $a
+		for b in $(find . -name "*.t[xg]z"); do
+			[[ "$chk_syyy" != "YES" ]] && echo -ne "\nInstalling $b to $CHROOT_PATH ..."
+			[[ "$chk_exec" == "YES" ]] && installpkg --root $CHROOT_PATH $b >> /tmp/$TOOL_THISFILE.log
+			[[ "$chk_syyy" != "YES" ]] && echo "done!"
+		done
+		cd $pkg_path
+	done
+	[[ "$chk_syyy" != "YES" ]] && echo "done!"
+	# check fstab
+FSTAB_ENTRY=$(cat <<FSTAB_LINES
+# for chroot
+proc            $CHROOT_PATH/proc     proc    defaults        0 0
+sysfs           $CHROOT_PATH/sys      sysfs   defaults        0 0
+/home           $CHROOT_PATH/home     none    bind            0 0
+/tmp            $CHROOT_PATH/tmp      none    bind            0 0
+/dev            $CHROOT_PATH/dev      none    bind            0 0
+/etc            $CHROOT_PATH/etc      none    bind            0 0
+FSTAB_LINES
+)
+	if [[ "$(cat /etc/fstab | grep $CHROOT_PATH)" == "" ]]; then
+		echo -e "\nAdding to /etc/fstab: \n$FSTAB_ENTRY\n"
+		[[ "$chk_exec" == "YES" ]] && echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
+	fi
+	# check sshd_config
+SSHD_ENTRY=$(cat <<SSHD_LINES
+# local ssh means chroot?
+Match Address 127.0.0.1
+	ChrootDirectory $CHROOT_PATH
+	X11Forwarding yes
+SSHD_LINES
+)
+	if [[ "$(cat /etc/ssh/sshd_config | grep $CHROOT_PATH)" == "" ]]; then
+		echo -e "\nAdding to /etc/ssh/sshd_config: \n$SSHD_ENTRY\n"
+		[[ "$chk_exec" == "YES" ]] && echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
+	fi
+}
+
+# BEGIN MAIN SCRIPT
+
+echo -e "\n$TOOL_THISFILE - $TOOL_THISFUNC ($TOOL_THISVERS)\n"
+process_command $TOOL_COMMANDS
+
+# END MAIN SCRIPT
