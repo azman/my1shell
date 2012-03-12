@@ -3,21 +3,105 @@
 # chkgit
 # - written by azman@my1matrix.net
 # - browse folders in current path and check git repos
+# - create project copy from local repo
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+CURPATH="$(pwd)"
+
+# look for config file
+for conffile in "$CURPATH/.$MY1TOOL" "$CURPATH/$MY1TOOL.conf" \
+		"$HOME/.$MY1TOOL" "$HOME/.$MY1TOOL.conf" ; do
+	[[ ! -f $conffile ]] && continue
+	source $conffile ; break
+done
 
 CLEAN_MSG="nothing to commit"
 
-CURR_PATH=$(pwd)
+# tool & env setup
+GIT=${GIT:="/usr/bin/git"}
+PATH2REPO=${PATH2REPO:="$HOME/repository"}
+PATH2PROJ=${PATH2PROJ:="$HOME/project"}
+PROJ_NAME=""
+PROJ_COPY=""
 
-for path in $(find * -maxdepth 0 -type d); do
-	cd $path
-	if [[ -d .git ]]; then
-		if [[ "$(git status | grep "$CLEAN_MSG")" == "" ]]; then
-			echo "Check: $(pwd)"
-		fi
-	else
-		echo "NOT: $(pwd)"
-	fi
-	cd $CURR_PATH
+do_command=""
+ok_command="create check"
+
+# check parameters for command
+while  [[ "$1" != "" ]]; do
+	case $1 in
+		--project-path)
+			shift
+			PATH2PROJ=$1
+			;;
+		--project-name)
+			shift
+			PROJ_NAME=$1
+			;;
+		--project-copy)
+			shift
+			PROJ_COPY=$1
+			;;
+		--repo-path)
+			shift
+			PATH2REPO=$1
+			;;
+		-*)
+			echo "Unknown parameter '$1'"
+			exit
+			;;
+		*)
+			[[ "$do_command" != "" ]] &&
+				echo "Command already given ($do_command)!" && exit 1
+			for a in $ok_command; do
+				if [[ $1 == $a ]]; then
+					do_command=$1
+					if [[ "$do_command" == "create" ]]; then
+						shift
+						PROJ_NAME=$1
+					fi
+					break;
+				fi
+			done
+			[[ "$do_command" == "" ]] && echo "Unknown command ($1)!" && exit 1
+			;;
+	esac
+	shift
 done
+
+if [[ "$do_command" == "check" ]] || [[ "$do_command" == "" ]]; then #default! 
+	# browse subfolders and report dirty repo!
+	for path in $(find * -maxdepth 0 -type d); do
+		cd $path
+		if [[ -d .git ]]; then
+			if [[ "$(git status | grep "$CLEAN_MSG")" == "" ]]; then
+				echo "Check: $(pwd)"
+			fi
+		else
+			echo "NOT: $(pwd)"
+		fi
+		cd $CURPATH
+	done
+elif [[ "$do_command" == "create" ]]; then
+	[[ ! -d "$PATH2REPO" ]] && echo "Invalid repo path '$PATH2REPO'!" && exit 1
+	[[ ! -d "$PATH2PROJ" ]] &&
+		echo "Invalid project path '$PATH2REPO'!" && exit 1
+	[[ "$PROJ_NAME" == "" ]] && echo "No project name given!" && exit 1
+	[[ "$PROJ_COPY" == "" ]] && PROJ_COPY=$PROJ_NAME
+	cd $PATH2PROJ
+	[[ -d "$PROJ_COPY" ]] &&
+		echo "'$PROJ_COPY' exists in '$PATH2PROJ'!" && exit 1
+	FULL_PATH=${PATH2REPO}/${PROJ_NAME}.git
+	FULL_TEST=${PATH2REPO}/${PROJ_NAME}
+	if [[ -d "$FULL_PATH" ]] ; then
+		FULL_TEST=$FULL_PATH # do nothing actually!
+	elif [[ -d "$FULL_TEST" ]]; then
+		FULL_PATH=$FULL_TEST
+	else
+		echo "Repository '$FULL_PATH'/'$FULL_TEST' not found!" && exit 1
+	fi
+	$GIT clone $FULL_PATH $PROJ_COPY
+fi
 
 exit 0

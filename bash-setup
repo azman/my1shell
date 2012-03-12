@@ -8,7 +8,7 @@ MY1_BASH_PROFILE=$(cat <<SETVAR1
 # ~/.bash_profile - login shells
 
 umask 022
-export PATH=\$HOME/slackware/slackstuff:\$HOME/slackstuff:\$HOME/slackbin:\$PATH:/usr/sbin:/sbin
+export PATH=\$HOME/slackware/slackstuff:\$HOME/slackware/slackexec:\$PATH:/usr/sbin:/sbin
 export VISUAL=\$(which vim)
 
 [[ -f ~/.bashrc ]] && source ~/.bashrc
@@ -68,4 +68,3 @@ fi
 echo
 
 exit 0
-
