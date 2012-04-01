@@ -2,7 +2,7 @@
 my1shell
 --------
 
-This is a collection of Bash shell scripts that I wrote (some based on other people's scripts - kudos to them!) and personally used on my Slackware machine(s). It works for me... so I just thought I want to share this to those who may find this useful.
-
-I'll try to summarize the function of each script later, but you can, of course, read them - they are scripts after all! :)
-
+This is a collection of Bash shell scripts that I wrote (some based on other
+people's scripts - kudos to them!) and personally used on my Slackware
+machine(s). It works for me... so I just thought I want to share this with
+those who may find it useful.

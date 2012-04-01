@@ -5,29 +5,32 @@
 # - my1slack test script
 
 # standard tool info
-TOOL_THISFUNC="my1 Slackware Test Script"
-TOOL_THISVERS="2010.06.01"
-# standard tool conf
-TOOL_CHECKCMD="$@"
-TOOL_COMMANDS=${TOOL_CHECKCMD:="--help"}
-TOOL_THISFILE=$(basename $0 .sh)
-TOOL_LOCATION=$(cd $(dirname $0);pwd)
-TOOL_CONFFILE="$TOOL_THISFILE.conf"
-TOOL_MY1SLACK="libmy1slack"
+MY1_TOOLNAME="my1 Slackware Test Script"
+MY1_TOOLVERS="2012.03.00"
+MY1_TOOLBASE=$(basename $0 .sh)
+MY1_TOOLPATH=$(cd $(dirname $0);pwd)
+MY1_TOOL_LIB="libmy1slack"
 # look for config file
-for conf_path in  $(pwd) $TOOL_LOCATION ; do
-	config_file="${conf_path}/${TOOL_CONFFILE}"
-	[[ -r $config_file ]] && source $config_file && break
+for config in $(pwd) $MY1_TOOLPATH $HOME; do
+	config=$config/.$MY1_TOOLBASE
+	[[ ! -f $config ]] && continue
+	source $config ; break
 done
 # look for my1slack library
-[[ -r "$TOOL_LOCATION/$TOOL_MY1SLACK" ]] && source $TOOL_LOCATION/$TOOL_MY1SLACK
+[[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] &&
+	source $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 # BEGIN MAIN SCRIPT
 
-echo -e "\n$TOOL_THISFILE - $TOOL_THISFUNC ($TOOL_THISVERS)\n"
+echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 if [[ "$@" != "" ]]; then
 	echo -e "[SLACKTEST] Executing '$@'...\n"
-	$@
+	test_value="\"$1\" "
+	shift
+	for word in "$@"; do
+		test_value="$test_value \"$word\""
+	done
+	eval "$test_value"
 	echo -e "\n[SLACKTEST] Done.\n"
 fi
 

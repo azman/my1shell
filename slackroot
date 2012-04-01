@@ -2,36 +2,38 @@
 
 # slackroot
 # - written by azman@my1matrix.net
-# - creates 32-bit chroot installation
+# - slackware 32-bit chroot (through ssh) installation
 
 # standard tool info
-TOOL_THISFUNC="my1 Slackware chroot32 Tool"
-TOOL_THISVERS="2012.02.00"
-# standard tool conf
-TOOL_CHECKCMD="$@"
-TOOL_COMMANDS=${TOOL_CHECKCMD:=""}
-TOOL_THISFILE=$(basename $0 .sh)
-TOOL_LOCATION=$(cd $(dirname $0);pwd)
-TOOL_MY1SLACK="libmy1slack"
-SLACKARCH="x86" # force 32-bit slackware!
+MY1_TOOLNAME="my1 Slackware chroot32 Tool"
+MY1_TOOLVERS="2012.03.00"
+MY1_TOOLBASE=$(basename $0 .sh)
+MY1_TOOLPATH=$(cd $(dirname $0);pwd)
+MY1_TOOL_LIB="libmy1slack"
+# look for config file
+for config in $(pwd) $MY1_TOOLPATH $HOME; do
+	config=$config/.$MY1_TOOLBASE
+	[[ ! -f $config ]] && continue
+	source $config ; break
+done
 # look for my1slack library
-[[ -r "$TOOL_LOCATION/$TOOL_MY1SLACK" ]] && source $TOOL_LOCATION/$TOOL_MY1SLACK
-
-function must_be_root()
-{
-	[[ $UID -ne 0 ]] && echo -e "Abort: must run as root!\n" && exit 1
-}
+SLACKARCH=${SLACKARCH:="x86"} # force 32-bit slackware!
+[[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] &&
+	source $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 function process_command()
 {
+	local pkg_core="a d k l n"
+	local pkg_apps="ap t tcl x xap"
+	local pkg_xgui="x xap"
 	local pkg_path=$SLACKPKGPATH
 	local chk_root="/opt/chroot32"
 	local cur_path=$(pwd)
 	local chk_exec=""
-	local chk_syyy=""
-
-	must_be_root
-
+	local chk_syyy="YES"
+	local pkg_opts=""
+	local opt_skip_pack=""
+	local opt_skip_conf=""
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -43,12 +45,24 @@ function process_command()
 				shift
 				chk_root="$(cd $1;pwd)"
 				;;
+			--core-only)
+				pkg_opts="CORE"
+				;;
+			--no-gui)
+				pkg_opts="CONS"
+				;;
+			--skip-conf)
+				opt_skip_conf="YES"
+				;;
+			--skip-pack)
+				opt_skip_pack="YES"
+				;;
 			--help|-h|help)
 				echo -e "HELP!\n"
 				exit 0
 				;;
-			--quiet)
-				chk_syyy="YES"
+			--verbose|-v)
+				chk_syyy=""
 				;;
 			--exec)
 				chk_exec="YES"
@@ -68,25 +82,38 @@ function process_command()
 		esac
 		shift
 	done
+	# must be root to exec!
+	[[ "$chk_exec" == "YES" ]] && must_be_root
 	# check paths
 	[[ ! -d "$pkg_path" ]] && echo -e "Cannot find pkg path '$pkg_path'!\n" && exit 1
 	[[ ! -d "$chk_root" ]] && echo "Creating root path '$chk_root' ... " && mkdir $chk_root
 	export CHROOT_PATH=$chk_root
-	# install pkgs
-	echo -n "Installing packages from $pkg_path :"
-	cd $pkg_path
-	for a in a d k l n ap t tcl x xap; do
-		[[ ! -d $a ]] && continue
-		cd $a
-		for b in $(find . -name "*.t[xg]z"); do
-			[[ "$chk_syyy" != "YES" ]] && echo -ne "\nInstalling $b to $CHROOT_PATH ..."
-			[[ "$chk_exec" == "YES" ]] && installpkg --root $CHROOT_PATH $b >> /tmp/$TOOL_THISFILE.log
-			[[ "$chk_syyy" != "YES" ]] && echo "done!"
-		done
+	# check skip request
+	if [[ "$opt_skip_pack" != "YES" ]]; then
+		# check package option
+		case "$pkg_opts" in
+			CORE) pkg_opts="$pkg_core" ;;
+			CONS) pkg_opts="$pkg_core $pkg_apps" ;;
+			*) pkg_opts="$pkg_core $pkg_apps $pkg_xgui" ;;
+		esac
+		# install pkgs
+		echo -n "Installing packages from $pkg_path :"
 		cd $pkg_path
-	done
-	[[ "$chk_syyy" != "YES" ]] && echo "done!"
-	# check fstab
+		for a in $pkg_opts; do
+			[[ ! -d $a ]] && continue
+			cd $a
+			for b in $(find . -name "*.t[xg]z"); do
+				[[ "$chk_syyy" != "YES" ]] && echo -ne "\nInstalling $b to $CHROOT_PATH ..."
+				[[ "$chk_exec" == "YES" ]] && installpkg --root $CHROOT_PATH $b >> /tmp/$MY1_TOOLBASE.log
+				[[ "$chk_syyy" != "YES" ]] && echo -n "done!"
+			done
+			cd $pkg_path
+		done
+		echo -e " done!\n"
+	fi
+	# check skip request
+	if [[ "$opt_skip_conf" == "YES" ]]; then
+		# check fstab
 FSTAB_ENTRY=$(cat <<FSTAB_LINES
 # for chroot
 proc            $CHROOT_PATH/proc     proc    defaults        0 0
@@ -97,11 +124,11 @@ sysfs           $CHROOT_PATH/sys      sysfs   defaults        0 0
 /etc            $CHROOT_PATH/etc      none    bind            0 0
 FSTAB_LINES
 )
-	if [[ "$(cat /etc/fstab | grep $CHROOT_PATH)" == "" ]]; then
-		echo -e "\nAdding to /etc/fstab: \n$FSTAB_ENTRY\n"
-		[[ "$chk_exec" == "YES" ]] && echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
-	fi
-	# check sshd_config
+		if [[ "$(cat /etc/fstab | grep $CHROOT_PATH)" == "" ]]; then
+			echo -e "\nAdding to /etc/fstab: \n$FSTAB_ENTRY\n"
+			[[ "$chk_exec" == "YES" ]] && echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
+		fi
+		# check sshd_config
 SSHD_ENTRY=$(cat <<SSHD_LINES
 # local ssh means chroot?
 Match Address 127.0.0.1
@@ -109,15 +136,17 @@ Match Address 127.0.0.1
 	X11Forwarding yes
 SSHD_LINES
 )
-	if [[ "$(cat /etc/ssh/sshd_config | grep $CHROOT_PATH)" == "" ]]; then
-		echo -e "\nAdding to /etc/ssh/sshd_config: \n$SSHD_ENTRY\n"
-		[[ "$chk_exec" == "YES" ]] && echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
+		if [[ "$(cat /etc/ssh/sshd_config | grep $CHROOT_PATH)" == "" ]]; then
+			echo -e "\nAdding to /etc/ssh/sshd_config: \n$SSHD_ENTRY\n"
+			[[ "$chk_exec" == "YES" ]] && echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
+		fi
+		echo
 	fi
 }
 
 # BEGIN MAIN SCRIPT
 
-echo -e "\n$TOOL_THISFILE - $TOOL_THISFUNC ($TOOL_THISVERS)\n"
-process_command $TOOL_COMMANDS
+echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+process_command "$@"
 
 # END MAIN SCRIPT

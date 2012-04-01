@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# libmy1slack (by azman@my1matrix.net)
-# -> library function for my1slack system management
+# libmy1slack
+# - written by azman@my1matrix.net
+# - library functions for slackware system management
 
 MY1_LIBNAME="libmy1slack"
-MY1_LIBVERS="2011.12.00"
+MY1_LIBVERS="2012.03.00"
 MY1_LIBCALL="$(basename $0 .sh)"
 
 # determine slackware architecture, NOT machine's!
@@ -48,6 +49,11 @@ if [[ "$MY1_DEBUG" == "YES" ]]; then
 	echo "[DEBUG-$$] ==> Command Call '$MY1_LIBCALL'"
 fi
 
+function must_be_root()
+{
+	[[ $UID -ne 0 ]] && echo -e "Abort: must run as root!\n" && exit 1
+}
+
 function get_pkg_info()
 {
 	# get pkg info from name (i.e. filename minus extension!)
@@ -62,27 +68,36 @@ function get_pkg_info()
 	echo -n "$pkg_name $pkg_vers $pkg_arch $pkg_extd"
 }
 
-function get_softpack()
+function get_pathpack()
 {
-	local pkg_list
-	local pkg_pack="${SLACKPKGPATH}/$1"
+	# make a package list from custom path
+	local pkg_list=""
+	local pkg_pack="$(cd $1;pwd)"
 	if [[ -d $pkg_pack ]]; then
 		cd $pkg_pack
 		for pkg_file in *.t[gx]z; do
-			pkg_list="$pkg_list ${pkg_file%.t[gx]z}"
+			pkg_list="$pkg_list ${pkg_file%.t[gx]z}" # trim extension
 		done
+		cd - >/dev/null
 	fi
 	echo -n "$pkg_list"
 }
 
+function get_softpack()
+{
+	# make a package list from official software set (e.g. a,d,l...)
+	echo -n "$(get_pathpack ${SLACKPKGPATH}/$1)"
+}
+
 function comp_package()
 {
+	# compare 2 packages (based on filename), returns 0 if the same!
 	local pkg1_file="$1"
 	local pkg2_file="$2"
 	local pkg_temp
 	local pkg1_name pkg1_vers pkg1_arch pkg1_extd
 	local pkg2_name pkg2_vers pkg2_arch pkg2_extd
-
+	# extract info components
 	pkg_temp=($(get_pkg_info $pkg1_file))
 	pkg1_name="${pkg_temp[0]}"
 	pkg1_vers="${pkg_temp[1]}"
@@ -93,17 +108,18 @@ function comp_package()
 	pkg2_vers="${pkg_temp[1]}"
 	pkg2_arch="${pkg_temp[2]}"
 	pkg2_extd="${pkg_temp[3]}"
-
+	# do compare!
 	[[ "$pkg1_name" == "$pkg2_name" ]] || return 1
 	[[ "$pkg1_vers" == "$pkg2_vers" ]] || return 2
 	[[ "$pkg1_arch" == "$pkg2_arch" ]] || return 3
 	[[ "$pkg1_extd" == "$pkg2_extd" ]] || return 4
-
+	# okay.. the same!
 	return 0
 }
 
 function pkg_db_package()
 {
+	# get package info from mirror tree and put into db!
 	local pkg_name="$1"
 	local pkg_flag="$2"
 	local pkg_info pkg_long pkg_file pkg_path
@@ -112,7 +128,6 @@ function pkg_db_package()
 	local pkg_test=$(cat $SLACKPKGFILE | grep -e "$pkg_temp" -A3)
 	[[ "$pkg_test" = "" ]] && return 1
 	[[ "$pkg_flag" == "--check" ]] && echo -n "$pkg_name" && return 0
-
 	# extract info
 	pkg_file=$(echo "$pkg_test" | grep 'PACKAGE NAME')
 	pkg_file="${pkg_file##* }"
@@ -133,12 +148,14 @@ function pkg_db_package()
 	eval pkgfull_${pkg_name//[-.]/_}="$pkg_full"
 	eval pkgbase_${pkg_name//[-.]/_}="$pkg_base"
 	eval pkgdesc_${pkg_name//[-.]/_}='$pkg_desc'
-
+	# done!
 	return 0
 }
 
 function pkg_db_install()
 {
+	# get package info from current installation and put into db!
+	# CHECKED20120324: HAVE TO DO THIS IN DIFFERENT FUNCTION FROM ABOVE!
 	local pkg_name="$1"
 	local pkg_flag="$2"
 	local pkg_base pkg_file pkg_path
@@ -147,7 +164,6 @@ function pkg_db_install()
 	local pkg_test=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
 	[[ "$pkg_test" = "" ]] && return 1
 	[[ "$pkg_flag" == "--check" ]] && echo -n "$pkg_name" && return 0
-
 	# extract info
 	pkg_temp="$SLACKINSTLOG/$pkg_test"
 	pkg_test=$(cat $pkg_temp | grep -e "^PACKAGE NAME:" -A3)
@@ -169,12 +185,13 @@ function pkg_db_install()
 	eval pkgfull_${pkg_name//[-.]/_}="$pkg_full"
 	eval pkgbase_${pkg_name//[-.]/_}="$pkg_base"
 	eval pkgdesc_${pkg_name//[-.]/_}='$pkg_desc'
-
+	# done!
 	return 0
 }
 
 function find_infile()
 {
+	# get package entry from a file
 	local pkg_base="$1"
 	local pkg_test="$2"
 	local pkg_temp="\<${pkg_test}-[^-]*-[^-]*-[^-]*$"
@@ -184,6 +201,7 @@ function find_infile()
 
 function find_inpath()
 {
+	# get package entry from file(s) in a path (filename)
 	local pkg_test="$1"
 	local tgt_path="$2"
 	[[ -d "$tgt_path" ]] || tgt_path="."
@@ -194,6 +212,7 @@ function find_inpath()
 
 function find_install()
 {
+	# get package entry from current installation
 	local pkg_test="$1"
 	local pkg_temp="\<${pkg_test}-[^-]*-[^-]*-[^-]*$"
 	local pkg_file=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
@@ -202,6 +221,7 @@ function find_install()
 
 function find_package()
 {
+	# get package entry from mirror tree
 	local pkg_test="$1"
 	local pkg_temp="\<PACKAGE NAME:  ${pkg_test}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
 	local pkg_file=$(cat $SLACKPKGFILE | grep -e "$pkg_temp")
@@ -212,12 +232,13 @@ function find_package()
 
 function show_info()
 {
+	# print package info (including desc entry!)
 	local pkg_test="$1"
 	local pkg_path pkg_size pkg_full
 	local pkg_stat pkg_flag pkg_base
 	local pkg_temp pkg_desc pkg_log pkg_file
 	local pkg_name pkg_vers pkg_arch pkg_extd
-
+	# extracting information
 	pkg_temp="pkgbase_${pkg_test//-/_}"
 	[[ -z "${!pkg_temp}" ]] && return
 	pkg_base="${!pkg_temp}"
@@ -239,17 +260,11 @@ function show_info()
 	[[ "$pkg_path" == "" ]] && pkg_path="Unknown"
 	[[ "$pkg_size" == "" ]] && pkg_size="Unknown"
 	[[ "$pkg_full" == "" ]] && pkg_full="Unknown"
-
-	if [[ "$(find_install $pkg_name)" == "" ]]; then
-		pkg_flag="NOT "
-	else
-		pkg_flag=""
-	fi
-	if [[ "$(find_package $pkg_name)" == "" ]]; then
-		pkg_stat=" (ALIEN!)"
-	else
+	pkg_flag=""
+	[[ "$(find_install $pkg_name)" == "" ]] && pkg_flag="NOT "
 		pkg_stat=""
-	fi
+	[[ "$(find_package $pkg_name)" == "" ]] && pkg_stat=" (ALIEN!)"
+	# do the printing
 	local title="PACKAGE <$pkg_name> - BEGIN"
 	local trail="PACKAGE <$pkg_name> - END"
 	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
@@ -263,47 +278,19 @@ function show_info()
 	echo "SIZE (Compressed)  : $pkg_size"
 	echo "SIZE (Uncompressed): $pkg_full"
 	echo "INSTALL STATUS     : ${pkg_flag}INSTALLED"
-	echo "DESCRIPTION        :"
-	echo -e "$pkg_desc"
+	[[ "$pkg_desc" != "" ]] &&
+	echo "DESCRIPTION        : " && echo -e "$pkg_desc"
 	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
 	echo "$trail"
 	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo ; echo
 }
 
-function find_alien_pkgs()
-{
-	local pkg_list pkg_name
-
-	# find installed
-	for pkg_base in $(ls $SLACKINSTLOG); do
-		pkg_name="${pkg_base%-*-*-*}"
-		# find if alien
-		[[ "$(find_package $pkg_name)" == "" ]] && pkg_list="$pkg_list $pkg_base"
-	done
-
-	echo -n "$pkg_list"
-}
-
-function find_datab_pkg()
-{
-	# find package from db, if not found create entry!
-	local pkg_name="$1"
-	local pkg_temp pkg_base
-
-	pkg_temp="pkgbase_${pkg_name//-/_}"
-	[[ -z "${!pkg_temp}" ]] && pkg_db_package $pkg_name
-	[[ -z "${!pkg_temp}" ]] && pkg_db_install $pkg_name
-	[[ -z "${!pkg_temp}" ]] && return 1
-	pkg_base="${!pkg_temp}"
-
-	echo -n "$pkg_base"
-	return 0
-}
-
 function format_text()
 {
-	local begin="\033[0m"
-	local end="\033[0m"
+	# oooh! blinking color text!
+	local mark="\033[0m"
+	local begin=$mark
+	local end=$mark
 	local bold="\033[1m"
 	local uline="\033[4m"
 	local blink="\033[5m"
@@ -319,7 +306,7 @@ function format_text()
 	local cyan="\033[36m"
 	local white="\033[37m"
 	local text=""
-
+	# check options
 	while [ "$1" != "" ]; do
 		case "$1" in
 		--bold) begin="${begin}${bold}" ;;
@@ -338,28 +325,34 @@ function format_text()
 				*) color="$black" ;;
 			esac
 			begin="${begin}${color}";;
-		--text)
-			shift; text="$1";;
+		*)
+			text="${begin}${1}${end}"; begin=$mark;;
 		esac
 		shift
 	done	
-	echo -e "$begin""$text""$end"
+	echo -e "$text"
 }
 
 function test_param()
 {
-	local test="$1"
-	echo "Param @ is $@"
-	echo "Param * is $*"
-	echo "Param 1 is $1"
-	echo "Param test is $test"
+	# just testing...
+	local test="$@"
+
+
+	echo "Param count: $#"
+	echo "Param \$@ is $@"
+	echo "Param \$* is $*"
+	echo "Param \$1 is $1"
+	echo "Param \$test is $test"
 	shift
 	echo "Params shifted by 1!"
-	test="$1"
-	echo "Param @ is $@"
-	echo "Param * is $*"
-	echo "Param 1 is $1"
-	echo "Param test is $test"
+	# $* similar to $@, but use IFS as separator
+	test="$@"
+	echo "Param count: $#"
+	echo "Param \$@ is $@"
+	echo "Param \$* is $*"
+	echo "Param \$1 is $1"
+	echo "Param \$test is $test"
 	shift
-	echo "Param \$ is $$"
+	echo "Param \$\$ is $$"
 }
