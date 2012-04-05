@@ -140,7 +140,8 @@ function pkg_db_package()
 	pkg_full="${pkg_full%% K*}"
 	pkg_full="${pkg_full##* }K"
 	pkg_base=${pkg_file%.t[gx]z}
-	[[ "$pkg_flag" == "--all" ]] && pkg_desc=$(grep "$pkg_name:" $SLACKPKGFILE)
+	[[ "$pkg_flag" == "--all" ]] &&
+		pkg_desc=$(grep -e "^$pkg_name:" $SLACKPKGFILE)
 	# build db
 	eval pkgfile_${pkg_name//[-.]/_}="$pkg_file"
 	eval pkgpath_${pkg_name//[-.]/_}="$pkg_path"

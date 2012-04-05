@@ -124,7 +124,7 @@ function file_option_package()
 	local pkg_stat="INCLUDED"
 	# interactive
 	pkg_test="pkgbase_${pkg_name//-/_}"
-	[[ -z "${!pkg_test}" ]] && pkg_db_package $pkg
+	[[ -z "${!pkg_test}" ]] && pkg_db_package $pkg_name
 	[[ -z "${!pkg_test}" ]] &&
 		echo "Package '$pkg_name' unknown!" && return
 	show_info $pkg_name
@@ -150,44 +150,51 @@ function file_option_package()
 
 function file_browse_packages()
 {
-	local pkg_list pkg_name pkg_temp
-	local pkg_file=$1
+	local pkg_name pkg_temp pkg_test pkg_full
+	local opt_more opt_init="[p]revious/[n]ext/[*]quit"
+	local tmp_list pkg_list pkg_file=$1
+	shift ; pkg_list="$@"
 	# get all packages on file
 	SAVE_IFS=$IFS
 	IFS='
 '
-	pkg_list=($(cat $pkg_file))
+	tmp_list=($(cat $pkg_file))
 	IFS=$SAVE_IFS
-	# process the list
-	for (( x=0;x<${#pkg_list[@]}; )); do
-		pkg_temp=($(get_pkg_info ${pkg_list[$x]}))
+	for (( x=0;x<${#tmp_list[@]};x++ )); do
+		pkg_temp=($(get_pkg_info ${tmp_list[$x]}))
 		pkg_name=${pkg_temp[0]}
-		echo -n "Package: ${pkg_list[$x]} => "
-		read -n 1 -p "Command ([p]revious/[n]ext/[*]quit): " do_select ; echo
+		[[ "$(echo $pkg_list | grep '$pkg_name')" == "" ]] &&
+			pkg_list="$pkg_list $pkg_name"
+	done
+	# process the list
+	for pkg_name in $pkg_list ; do
+		pkg_full=$(find_infile $pkg_file $pkg_name)
+		# try to show details
+		pkg_test="pkgbase_${pkg_name//-/_}"
+		[[ -z "${!pkg_test}" ]] && pkg_db_package $pkg_name --all
+		if [[ -z "${!pkg_test}" ]] ; then
+			echo -n "Package: ${pkg_full} => "
+		else
+			show_info $pkg_name
+			opt_more="[i]nsert/[d]elete/"
+		fi
+		# navigation options
+		read -n 1 -p "Command (${opt_more}${opt_init}): " do_select
+		echo ; echo
 		if [[ "$do_select" == "n" ]]; then
 			[[ $x -lt ${#pkg_list[@]}-1 ]] && (( x++ ))
 		elif [[ "$do_select" == "p" ]]; then
 			[[ $x -gt 0 ]] && (( x-- ))
 		else
+			if [[ "$opt_more" != "" ]] ; then
+				if [[ "$do_select" == "i" ]]; then
+					file_insert_package $pkg_file $pkg_name
+				elif [[ "$do_select" == "d" ]]; then
+					file_remove_package $pkg_file $pkg_name
+				fi
+			fi
 			break;
 		fi
-	done
-	echo
-}
-
-function file_listall_packages()
-{
-	local pkg_list pkg_name pkg_temp
-	local pkg_file=$1
-	# get all packages on file
-	SAVE_IFS=$IFS
-	IFS='
-'
-	pkg_list=($(cat $pkg_file))
-	IFS=$SAVE_IFS
-	# process the list
-	for (( x=0;x<${#pkg_list[@]};x++ )); do
-		echo "Package: ${pkg_list[$x]}"
 	done
 	echo
 }
@@ -204,10 +211,7 @@ function view_file_package()
 			--unselect)
 				do_select="INV"
 				;;
-			--list)
-				do_select="LST"
-				;;
-			--all)
+			--browse)
 				do_select="CHK"
 				;;
 			--name)
@@ -238,8 +242,8 @@ function view_file_package()
 	[[ ! -r "$pkg_file" ]] &&
 		echo -e "[ERROR] Cannot read file '$pkg_file'!\n" && return
 	# check request to browse file
-	[[ "$do_select" == "CHK" ]] && file_browse_packages $pkg_file && return
-	[[ "$do_select" == "LST" ]] && file_listall_packages $pkg_file && return
+	[[ "$do_select" == "CHK" ]] &&
+		file_browse_packages $pkg_file $pkg_list && return
 	# check if list is empty
 	[[ "$pkg_list" == "" ]] &&
 		echo -e "No package selected? Nothing to do!\n" && return
@@ -285,9 +289,9 @@ function process_command()
 			echo "  file   : Manage File for package list"
 			echo "         > --select   : Insert package to list"
 			echo "         > --unselect : Delete package from list"
-			echo "         > --list     : List packages on list"
-			echo "         > --all      : Browse packages on list"
+			echo "         > --browse   : Browse packages on list"
 			echo "         > --name     : Specify filename"
+			echo "         > --pack     : Select official software set"
 			echo "         > --sort     : Sort package list"
 			echo "  help   : Show this help message"
 			echo "Mirror Source:"
