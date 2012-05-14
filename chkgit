@@ -17,6 +17,7 @@ for conffile in "$CURPATH/.$MY1TOOL" "$CURPATH/$MY1TOOL.conf" \
 done
 
 CLEAN_MSG="nothing to commit"
+AHEAD_MSG="is ahead of"
 
 # tool & env setup
 GIT=${GIT:="/usr/bin/git"}
@@ -26,7 +27,7 @@ PROJ_NAME=""
 PROJ_COPY=""
 
 do_command=""
-ok_command="create check"
+ok_command="create check origin"
 
 # check parameters for command
 while  [[ "$1" != "" ]]; do
@@ -76,10 +77,33 @@ if [[ "$do_command" == "check" ]] || [[ "$do_command" == "" ]]; then #default!
 		cd $path
 		if [[ -d .git ]]; then
 			if [[ "$(git status | grep "$CLEAN_MSG")" == "" ]]; then
-				echo "Check: $(pwd)"
+				echo "Check: $(pwd) [unclean]"
+			elif [[ "$(git status | grep "$AHEAD_MSG")" != "" ]]; then
+				echo "Check: $(pwd) [ahead]"
 			fi
 		else
 			echo "NOT: $(pwd)"
+		fi
+		cd $CURPATH
+	done
+elif [[ "$do_command" == "origin" ]]; then
+	# browse subfolders and report origin url
+	for path in $(find * -maxdepth 0 -type d); do
+		cd $path
+		if [[ -d .git ]]; then
+			chk_ifs=$IFS
+			IFS=$'\n'
+			chk_origin=($(git remote -v | grep origin))
+			IFS=$chk_ifs
+			if [[ ${#chk_origin[@]} -gt 0 ]]; then
+				chk_source=${chk_origin[0]##origin	}
+				chk_source=${chk_source%% (*}
+				echo "$(basename $path): '$chk_source'"
+			else
+				echo "$(basename $path): No origin repo found!"
+			fi
+		else
+			echo "$(basename $path): Not a git repo!"
 		fi
 		cd $CURPATH
 	done

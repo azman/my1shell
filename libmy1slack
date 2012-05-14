@@ -37,7 +37,9 @@ if [[ "$SLACKROOTDIR" == "" ]]; then
 fi
 SLACKRELPATH=${SLACKRELPATH:="${SLACKROOTDIR}/${SLACKRELEASE}"}
 SLACKPKGPATH=${SLACKPKGPATH:="${SLACKRELPATH}/slackware$SLACKARCH"}
+SLACKEXTPATH=${SLACKEXTPATH:="${SLACKRELPATH}/extra"}
 SLACKPKGFILE=${SLACKPKGFILE:="${SLACKPKGPATH}/PACKAGES.TXT"}
+SLACKEXTFILE=${SLACKEXTFILE:="${SLACKEXTPATH}/PACKAGES.TXT"}
 SLACKINSTLOG="/var/log/packages"
 
 if [[ "$MY1_DEBUG" == "YES" ]]; then
@@ -126,7 +128,11 @@ function pkg_db_package()
 	local pkg_size pkg_full pkg_base pkg_desc
 	local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
 	local pkg_test=$(cat $SLACKPKGFILE | grep -e "$pkg_temp" -A3)
-	[[ "$pkg_test" = "" ]] && return 1
+	if [[ "$pkg_test" = "" ]] ; then # look in extra, if available
+		[[ ! -f $SLACKEXTFILE ]] && return 1
+		pkg_test=$(cat $SLACKEXTFILE | grep -e "$pkg_temp" -A3)
+		[[ "$pkg_test" = "" ]] && return 1
+	fi
 	[[ "$pkg_flag" == "--check" ]] && echo -n "$pkg_name" && return 0
 	# extract info
 	pkg_file=$(echo "$pkg_test" | grep 'PACKAGE NAME')
@@ -226,8 +232,11 @@ function find_package()
 	local pkg_test="$1"
 	local pkg_temp="\<PACKAGE NAME:  ${pkg_test}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
 	local pkg_file=$(cat $SLACKPKGFILE | grep -e "$pkg_temp")
-	local pkg_file="${pkg_file##* }"
-	[[ "$pkg_file" != "" ]] && pkg_file="${pkg_file%.t[gx]z}"
+	[[ "$pkg_file" == "" ]] &&
+		pkg_file=$(cat $SLACKEXTFILE | grep -e "$pkg_temp")
+	[[ "$pkg_file" == "" ]] && return
+	pkg_file="${pkg_file##* }"
+	pkg_file="${pkg_file%.t[gx]z}"
 	echo -n "$pkg_file"
 }
 
@@ -272,7 +281,7 @@ function show_info()
 	echo "$title"
 	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
 	echo "FILE               : ${pkg_file}${pkg_stat}"
-	echo "INSTALL PATH       : $pkg_path"
+	echo "LOCATION           : $pkg_path"
 	echo "VERSION            : $pkg_vers"
 	echo "ARCHITECTURE       : $pkg_arch"
 	echo "BUILD TAG          : $pkg_extd"

@@ -15,10 +15,10 @@ done
 
 MY1_GETSLACK_CONF=$(cat <<MY1CONF
 # checkout release & arch
-# RSYNCURLROOT=\${RSYNCURLROOT:="slackware.mirrors.tds.net::slackware/slackware-current"}
-# RSYNCURLROOT=\${RSYNCURLROOT:="rsync.osuosl.org::slackware/slackware-current"}
-RSYNCURLROOT=\${RSYNCURLROOT:="taper.alienbase.nl::mirrors/slackware/"}
-# RSYNCURLROOT=\${RSYNCURLROOT:="mirror.aarnet.edu.au::slackware/"}
+RSYNCURLROOT=\${RSYNCURLROOT:="slackware.mirrors.tds.net::slackware/"}
+#RSYNCURLROOT=\${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
+#RSYNCURLROOT=\${RSYNCURLROOT:="taper.alienbase.nl::mirrors/slackware/"}
+#RSYNCURLROOT=\${RSYNCURLROOT:="mirror.aarnet.edu.au::slackware/"}
 RELEASE=\${RELEASE:="13.37"}
 SLACKARCH=\${SLACKARCH:="\$(uname -m)"}
 SLACKFULL=\${SLACKFULL:="slackware"}
@@ -27,7 +27,9 @@ SLACKFULL=\${SLACKFULL:="slackware"}
 NO_KDE=\${NO_KDE:="no"}
 GO_BOOTSTRAP=\${GO_BOOTSTRAP:="no"}
 # include some wanted software in excluded path
+#INCLUDES="\$INCLUDES --include=extra/PACKAGES.TXT"
 #INCLUDES="\$INCLUDES --include=extra/wicd/"
+#INCLUDES="\$INCLUDES --include=extra/google-chrome/"
 #INCLUDES="\$INCLUDES --include=extra/jdk-6/"
 #INCLUDES="\$INCLUDES --include=extra/kde3-compat"
 #INCLUDES="\$INCLUDES --include=extra/source/"
