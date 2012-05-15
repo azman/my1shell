@@ -23,6 +23,7 @@ SLACKARCH=${SLACKARCH:="x86"} # force 32-bit slackware!
 
 function process_command()
 {
+	local pkg_base="a nb"
 	local pkg_core="a d k l n"
 	local pkg_apps="ap t tcl x xap"
 	local pkg_xgui="x xap"
@@ -31,9 +32,8 @@ function process_command()
 	local cur_path=$(pwd)
 	local chk_exec=""
 	local chk_syyy="YES"
-	local pkg_opts=""
-	local opt_skip_pack=""
-	local opt_skip_conf=""
+	local pkg_opts pkg_list
+	local opt_skip_pack opt_do_config
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -43,7 +43,10 @@ function process_command()
 				;;
 			--root)
 				shift
-				chk_root="$(cd $1;pwd)"
+				chk_root="$1"
+				;;
+			--base-only)
+				pkg_opts="BASE"
 				;;
 			--core-only)
 				pkg_opts="CORE"
@@ -51,8 +54,11 @@ function process_command()
 			--no-gui)
 				pkg_opts="CONS"
 				;;
-			--skip-conf)
-				opt_skip_conf="YES"
+			--desktop)
+				pkg_opts="DESK"
+				;;
+			--do-config)
+				opt_do_config="YES"
 				;;
 			--skip-pack)
 				opt_skip_pack="YES"
@@ -85,8 +91,22 @@ function process_command()
 	# must be root to exec!
 	[[ "$chk_exec" == "YES" ]] && must_be_root
 	# check paths
-	[[ ! -d "$pkg_path" ]] && echo -e "Cannot find pkg path '$pkg_path'!\n" && exit 1
-	[[ ! -d "$chk_root" ]] && echo "Creating root path '$chk_root' ... " && mkdir $chk_root
+	[[ ! -d "$pkg_path" ]] &&
+		echo -e "Cannot find pkg path '$pkg_path'!\n" && exit 1
+	[[ -d "$chk_root" ]] &&
+		echo -e "Existing root path '$chk_root'!\n" && exit 1
+	# check in case we're simulating target root
+	if [[ "$chk_exec" != "YES" ]] ; then
+		if [[ "$(dirname $chk_root)" == "." ]] ; then
+			[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
+			chk_root="$(pwd)/${chk_root}"
+		fi
+	else
+		echo -e "Creating root path '$chk_root' ...\n" && mkdir $chk_root
+		chk_root=$(cd $chk_root;pwd)
+	fi
+	echo -ne "Source path: '$pkg_path'\n"
+	echo -e "Target path: '$chk_root'\n"
 	export CHROOT_PATH=$chk_root
 	# check skip request
 	if [[ "$opt_skip_pack" != "YES" ]]; then
@@ -94,25 +114,46 @@ function process_command()
 		case "$pkg_opts" in
 			CORE) pkg_opts="$pkg_core" ;;
 			CONS) pkg_opts="$pkg_core $pkg_apps" ;;
-			*) pkg_opts="$pkg_core $pkg_apps $pkg_xgui" ;;
+			DESK) pkg_opts="$pkg_core $pkg_apps $pkg_xgui" ;;
+			BASE) pkg_opts="$pkg_base" ;;
 		esac
 		# install pkgs
 		echo -n "Installing packages from $pkg_path :"
+		[[ "$chk_syyy" != "YES" ]] && echo -e "\n"
 		cd $pkg_path
 		for a in $pkg_opts; do
-			[[ ! -d $a ]] && continue
-			cd $a
-			for b in $(find . -name "*.t[xg]z"); do
-				[[ "$chk_syyy" != "YES" ]] && echo -ne "\nInstalling $b to $CHROOT_PATH ..."
-				[[ "$chk_exec" == "YES" ]] && installpkg --root $CHROOT_PATH $b >> /tmp/$MY1_TOOLBASE.log
-				[[ "$chk_syyy" != "YES" ]] && echo -n "done!"
+			pkg_list=""
+			if [[ "$a" == "nb" ]] ; then
+				# special case for base packages!
+				a="n"
+				cd $a
+				for b in dhcpcd iputils net-tools network-scripts ; do
+					b=$(find . -name "*.t[xg]z"|grep $b)
+					pkg_list="$pkg_list ${pkg_path}/$a/${b//.\//}"
+				done
+			elif [[ -d $a ]] ; then
+				cd $a
+				for b in $(find . -name "*.t[xg]z"); do
+					pkg_list="$pkg_list ${pkg_path}/$a/${b//.\//}"
+				done
+			fi
+			for b in $pkg_list; do
+				[[ ! -f $b ]] && echo "[WARNING] File '$b' not found!" &&
+					continue
+				[[ "$chk_syyy" != "YES" ]] &&
+					echo -n "Installing $(basename $b) to $CHROOT_PATH ..."
+				[[ "$chk_exec" == "YES" ]] &&
+					installpkg --root $CHROOT_PATH $b >> /tmp/$MY1_TOOLBASE.log
+				[[ "$chk_syyy" != "YES" ]] &&
+					echo "done!"
 			done
 			cd $pkg_path
 		done
-		echo -e " done!\n"
+		[[ "$chk_syyy" == "YES" ]] && echo " done!"
+		echo
 	fi
 	# check skip request
-	if [[ "$opt_skip_conf" == "YES" ]]; then
+	if [[ "$opt_do_config" == "YES" ]]; then
 		# check fstab
 FSTAB_ENTRY=$(cat <<FSTAB_LINES
 # for chroot
@@ -148,5 +189,6 @@ SSHD_LINES
 
 echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 process_command "$@"
+exit 0
 
 # END MAIN SCRIPT

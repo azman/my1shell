@@ -298,29 +298,32 @@ function show_info()
 function format_text()
 {
 	# oooh! blinking color text!
-	local mark="\033[0m"
-	local begin=$mark
-	local end=$mark
-	local bold="\033[1m"
-	local uline="\033[4m"
-	local blink="\033[5m"
-	local inverse="\033[7m"
-	local concealed="\033[8m"
-	local color=""
-	local black="\033[30m"
-	local red="\033[31m"
-	local green="\033[32m"
-	local yellow="\033[33m"
-	local blue="\033[34m"
-	local magenta="\033[35m"
-	local cyan="\033[36m"
-	local white="\033[37m"
-	local text=""
+	# format is "\033[<attr>;<textcolor>;<backcolor>m" \033 = \e (ESC char)
+	local ends="\033[0m"
+	# attributes
+	local bold="1" # bright (bold on xterm?)
+	local dim="2" # dim
+	local uline="4"
+	local blink="5" # doesn't work on xterm (only real console!)
+	local reverse="7"
+	local hidden="8"
+	# text colors
+	local black="30" # for background Xm + 10m
+	local red="31"
+	local green="32"
+	local yellow="33"
+	local blue="34"
+	local magenta="35"
+	local cyan="36"
+	local white="37"
+	local default="39"
 	# check options
-	while [ "$1" != "" ]; do
+	local attr color text
+	while [[ "$1" != "" ]] ; do
 		case "$1" in
-		--bold) begin="${begin}${bold}" ;;
-		--blink) begin="${begin}${blink}" ;;
+		--reset) attr="0" ;;
+		--bold) attr=$bold ;;
+		--blink) attr=$blink ;;
 		--color)
 			shift; color="$1"
 			case "$color" in
@@ -332,14 +335,29 @@ function format_text()
 				magenta) color="$magenta" ;;
 				cyan) color="$cyan" ;;
 				white) color="$white" ;;
-				*) color="$black" ;;
+				*) color="$default" ;;
 			esac
-			begin="${begin}${color}";;
+			;;
 		*)
-			text="${begin}${1}${end}"; begin=$mark;;
+			[[ "$MY1_DEBUG" == "YES" ]] &&
+				echo "Attribute: $attr, Color: $color"
+			if [[ "$color" != "" ]] ; then
+				[[ "$attr" == "" ]] && attr="0"
+				color="\033[${attr};${color}m"
+			else
+				[[ "$attr" != "" ]] &&
+					color="\033[${attr}m"
+			fi
+			if [[ "$color" == "" ]] ;  then
+				text="${text}${1} "
+			else
+				text="${text}${color}${1}${ends} "
+			fi
+			attr="" color=""
+			;;
 		esac
 		shift
-	done	
+	done
 	echo -e "$text"
 }
 
@@ -347,8 +365,7 @@ function test_param()
 {
 	# just testing...
 	local test="$@"
-
-
+	# show parameters
 	echo "Param count: $#"
 	echo "Param \$@ is $@"
 	echo "Param \$* is $*"
