@@ -24,6 +24,7 @@ MY1_BASHRC=$(cat <<SETVAR2
 MY1PROMPT="\u@\h:\w$ "
 [[ "\$PS1" =~ "\$MY1PROMPT" ]] || export PS1="\$MY1PROMPT"
 
+export HISTIGNORE="&:ls*:[bf]g:exit:[ \t]*"
 export LS_OPTIONS="-F -b -T 0 --color=auto"
 alias ls='ls \$LS_OPTIONS'
 SETVAR2
