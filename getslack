@@ -27,16 +27,14 @@ SLACKFULL=\${SLACKFULL:="slackware"}
 NO_KDE=\${NO_KDE:="no"}
 GO_BOOTSTRAP=\${GO_BOOTSTRAP:="no"}
 # include some wanted software in excluded path
-#INCLUDES="\$INCLUDES --include=extra/PACKAGES.TXT"
+INCLUDES="\$INCLUDES --include=extra/PACKAGES.TXT"
 #INCLUDES="\$INCLUDES --include=extra/wicd/"
-#INCLUDES="\$INCLUDES --include=extra/google-chrome/"
 #INCLUDES="\$INCLUDES --include=extra/jdk-6/"
-#INCLUDES="\$INCLUDES --include=extra/kde3-compat"
 #INCLUDES="\$INCLUDES --include=extra/source/"
 #INCLUDES="\$INCLUDES --include=extra/source/flashplayer-plugin/"
 # exclude non-essentials
-EXCLUDES="\$EXCLUDES --exclude=extra/"
-#EXCLUDES="\$EXCLUDES --exclude=extra/*"
+#EXCLUDES="\$EXCLUDES --exclude=extra/"
+EXCLUDES="\$EXCLUDES --exclude=extra/*"
 #EXCLUDES="\$EXCLUDES --exclude=extra/source/*"
 # exclude non-standard
 EXCLUDES="\$EXCLUDES --exclude=pasture/ --exclude=testing/"
@@ -62,7 +60,7 @@ EXCLUDES="\$EXCLUDES --exclude=source/kdei/ --exclude=source/y/"
 [[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/xap/ --exclude=source/xap/"
 MY1CONF
 )
-if [[ "$1" == "--write" ]]; then
+if [[ "$1" == "--config" ]]; then
 	echo "$MY1_GETSLACK_CONF" >$HOME/.$MY1TOOL
 	echo "New config file ($HOME/.$MY1TOOL) written!"
 	exit 0
@@ -89,8 +87,9 @@ if [[ "$1" == "--mkiso" ]]; then
 	[[ "$MKISOFS" == "" ]] && echo "'mkisofs' not found! Aborting!" && exit 1
 	ISOPATH=${ISOPATH:="$HOME/temp"}
 	[[ ! -d "$ISOPATH"  ]] && echo "Path '$ISOPATH' not found! Aborting!" && exit 1
-	echo -n "Creating ISO from $SLACKPATH... "
+	[[ ! -d "$SLACKPATH" ]] && echo "Path '$SLACKPATH' not found! Aborting!" && exit 1
 	cd $SLACKPATH
+	echo -n "Creating ISO from $SLACKPATH... "
 	$MKISOFS -o $ISOPATH/${SLACKRELEASE}-install.iso -V "${SLACKRELEASE} Install DVD" \
 		-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N \
 		-v -v -no-emul-boot -boot-load-size 32 -boot-info-table \

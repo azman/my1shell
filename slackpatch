@@ -83,8 +83,10 @@ function find_patches()
 			pkg_vers="${pkg_temp[1]}"
 			pkg_arch="${pkg_temp[2]}"
 			pkg_extd="${pkg_temp[3]}"
-			# skip if for different arch!
-			[[ "$pkg_arch" != "$pat_arch" ]] && continue
+			# warn if for different arch!
+			[[ "$pkg_arch" != "$pat_arch" ]] &&
+				warn_msg "Mismatched arch for '$pat_name'! \
+					($pat_arch)/($pkg_arch)"
 			# check version update
 			if [[ "$pkg_vers" == "$pat_vers" ]] &&
 				[[ "$pkg_extd" == "$pat_extd" ]]; then
@@ -106,7 +108,7 @@ function check_patches()
 	local lnx_path chk_path=$(pwd)
 	MY1_PATCHDIR=$(cd $MY1_PATCHDIR;pwd)
 	[[ ! -d $MY1_PATCHDIR ]] &&
-		echo -e "Path '$MY1_PATCHDIR' not found! Aborting!\n" && exit 1
+		error_exit "Path '$MY1_PATCHDIR' not found!"
 	cd $MY1_PATCHDIR
 	pat_list=$(find_patches)
 	# look for paths for kernel patches
@@ -120,7 +122,7 @@ function check_patches()
 	while [[ "$1" != "" ]]; do
 		pat_path=$(cd $1;pwd)
 		[[ ! -d $pat_path ]] && 
-			echo -e "Path '$pat_path' is invalid! Aborting!\n" && exit 1
+			error_exit "Path '$pat_path' is invalid!"
 		cd $pat_path
 		pat_list="${pat_list}$(find_patches)"
 		cd - >/dev/null
@@ -139,7 +141,7 @@ function apply_patch()
 	# check if can be applied
 	[[ "$pat_stat" != "check" ]] && return # patch not needed
 	[[ ! -r "$pat_file" ]] &&
-		echo "Error: File '$pat_file' not found!" && exit 1
+		error_exit "File '$pat_file' not found!"
 	# apply the patch!
 	if [[ "$OPT_AUTOPATCH" == "NO" ]] ; then
 		read -n 1 -p "Update '$pat_name'? [y]/[*]/[q] : " do_update ; echo
@@ -148,8 +150,8 @@ function apply_patch()
 			/sbin/upgradepkg ${pat_file} >>$OPT_LOGFILE
 			echo "done."
 		elif [[ "$do_update" == "q" ]]; then
-			echo "Aborting on '$pat_name'!"
-			exit 1
+			warn_msg "Aborting on '$pat_name'!"
+			exit 0
 		fi
 	elif [[ "$OPT_AUTOPATCH" == "YES" ]] ; then
 		echo -n "Auto-updating '$pat_name'... "
@@ -229,7 +231,7 @@ function execute_patches()
 			apply_patch "${chk_list[$x]}"
 		done
 	else
-		echo "Nothing to patch/upgrade!"
+		echo "** Nothing to patch/upgrade! **"
 	fi
 	echo
 }
@@ -260,16 +262,14 @@ function process_command()
 			--path)
 				shift
 				# check additional path
-				[[ ! -d "$1" ]] &&
-					echo "Cannot find path '$1'!" && exit 1
+				[[ ! -d "$1" ]] && error_exit "Cannot find path '$1'!"
 				pkg_path="${pkg_path} $(cd $1;pwd)"
 				;;
 			--pkg)
 				shift
 				# check discrete package name
 				pkg_temp=$(find_install $1)
-				[[ "$pkg_temp" == "" ]] &&
-					echo "Unknown package '$1'!" && exit 1
+				[[ "$pkg_temp" == "" ]] && error_exit "Unknown package '$1'!"
 				pkg_temp=($(get_pkg_info $pkg_temp))
 				pkg_temp="${pkg_temp[0]}"
 				pkg_list="${pkg_list} ${pkg_temp}"
@@ -279,16 +279,16 @@ function process_command()
 				exit 0
 				;;
 			-*)
-				echo "Unknown option '$1'!" && exit 1
+				error_exit "Unknown option '$1'!"
 				;;
 			*)
 				[[ "$do_command" != "" ]] &&
-					echo "Multiple commands '$1' & '$do_command'" && exit 1
+					error_exit "Multiple commands '$1' & '$do_command'"
 				for tcommand in $go_commands; do
 					[[ "$1" == "$tcommand" ]] && do_command=$1 && break
 				done
 				[[ "$do_command" == "" ]] &&
-					echo "Unknown command '$1'!" && exit 1
+					error_exit "Unknown command '$1'!"
 				;;
 		esac
 		shift

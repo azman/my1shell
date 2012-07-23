@@ -5,7 +5,7 @@
 # - library functions for slackware system management
 
 MY1_LIBNAME="libmy1slack"
-MY1_LIBVERS="2012.03.00"
+MY1_LIBVERS="2012.07.00"
 MY1_LIBCALL="$(basename $0 .sh)"
 
 # determine slackware architecture, NOT machine's!
@@ -42,18 +42,41 @@ SLACKPKGFILE=${SLACKPKGFILE:="${SLACKPKGPATH}/PACKAGES.TXT"}
 SLACKEXTFILE=${SLACKEXTFILE:="${SLACKEXTPATH}/PACKAGES.TXT"}
 SLACKINSTLOG="/var/log/packages"
 
+function error_exit()
+{
+	echo -e "\033[1;31m[ERROR]\033[0;31m $1 Aborting!\033[0m\n" 1>&2
+	exit 1
+}
+
+function debug_msg()
+{
+	echo -e "\033[1;32m[DEBUG]\033[0;32m $1\033[0m" 1>&2
+}
+
+function warn_msg()
+{
+	echo -e "\033[1;33m[WARN]\033[0;33m $1\033[0m" 1>&2
+}
+
+function info_msg()
+{
+	echo -e "\033[1;34m[INFO]\033[0;34m $1\033[0m"
+}
+
 if [[ "$MY1_DEBUG" == "YES" ]]; then
 	echo
-	echo "[DEBUG-$$] ==> my1slack Library Name is $MY1_LIBNAME"
-	echo "[DEBUG-$$] ==> my1slack Library Version is $MY1_LIBVERS"
-	echo "[DEBUG-$$] ==> Slack Release is $SLACKRELEASE"
-	echo "[DEBUG-$$] ==> Slack Tree is at $SLACKROOTDIR"
-	echo "[DEBUG-$$] ==> Command Call '$MY1_LIBCALL'"
+	debug_msg "my1slack Library Name is $MY1_LIBNAME"
+	debug_msg "my1slack Library Version is $MY1_LIBVERS"
+	debug_msg "System machine is $(uname -m)"
+	debug_msg "Slack Version is $(cat /etc/slackware-version)"
+	debug_msg "Slack Release is $SLACKRELEASE"
+	debug_msg "Slack Tree is at $SLACKROOTDIR"
+	debug_msg "Command Call '$MY1_LIBCALL'"
 fi
 
 function must_be_root()
 {
-	[[ $UID -ne 0 ]] && echo -e "Abort: must run as root!\n" && exit 1
+	[[ $UID -ne 0 ]] && error_exit "Must run as root!"
 }
 
 function get_pkg_info()
@@ -232,7 +255,7 @@ function find_package()
 	local pkg_test="$1"
 	local pkg_temp="\<PACKAGE NAME:  ${pkg_test}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
 	local pkg_file=$(cat $SLACKPKGFILE | grep -e "$pkg_temp")
-	[[ "$pkg_file" == "" ]] &&
+	[[ "$pkg_file" == "" ]] && [[ -f $SLACKEXTFILE ]] &&
 		pkg_file=$(cat $SLACKEXTFILE | grep -e "$pkg_temp")
 	[[ "$pkg_file" == "" ]] && return
 	pkg_file="${pkg_file##* }"
@@ -359,27 +382,4 @@ function format_text()
 		shift
 	done
 	echo -e "$text"
-}
-
-function test_param()
-{
-	# just testing...
-	local test="$@"
-	# show parameters
-	echo "Param count: $#"
-	echo "Param \$@ is $@"
-	echo "Param \$* is $*"
-	echo "Param \$1 is $1"
-	echo "Param \$test is $test"
-	shift
-	echo "Params shifted by 1!"
-	# $* similar to $@, but use IFS as separator
-	test="$@"
-	echo "Param count: $#"
-	echo "Param \$@ is $@"
-	echo "Param \$* is $*"
-	echo "Param \$1 is $1"
-	echo "Param \$test is $test"
-	shift
-	echo "Param \$\$ is $$"
 }

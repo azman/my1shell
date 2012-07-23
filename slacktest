@@ -2,7 +2,7 @@
 
 # slacktest
 # - written by azman@my1matrix.net
-# - my1slack test script
+# - my1slack test script (mainly to test libmy1slack functions)
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Test Script"
