@@ -66,9 +66,24 @@ if [[ "$1" == "--config" ]]; then
 	exit 0
 fi
 
+function find_binary()
+{
+	local chk_exec=$1
+	local set_exec=$(which $chk_exec 2>/dev/null)
+	[[ "$set_exec" == "" ]] &&
+		echo "Binary '$chk_exec' not found! Aborting!" && exit 1
+	echo -n $set_exec
+}
+
+function check_path()
+{
+	local chk_path=$1
+	[[ ! -d "$chk_path"  ]] &&
+		echo "Path '$chk_path' not found! Aborting!" && exit 1
+}
+
 # tool & env setup
-RSYNC=${RSYNC:="$(chk_rsync=$(which rsync 2>&1); [[ $? -eq 0 ]] && echo "$chk_rsync")"}
-[[ "$RSYNC" == "" ]] && echo "'rsync' not found! Aborting!" && exit 1
+RSYNC=${RSYNC:="$(find_binary rsync)"}
 SLACKROOT=${SLACKROOT:="$(pwd)"}
 SLACKARCH=${SLACKARCH:="$(uname -m)"}
 SLACKSUFX=${SLACKSUFX:=""}
@@ -83,25 +98,25 @@ RSYNCOPT=${RSYNCOPT:="--delete --delete-excluded --partial -rlptD --progress"}
 
 # option to create iso - helping o-thers... local mirror must exist!
 if [[ "$1" == "--mkiso" ]]; then
-	MKISOFS=${MKISOFS:="$(chk_mkisofs=$(which mkisofs 2>&1); [[ $? -eq 0 ]] && echo "$chk_mkisofs")"}
-	[[ "$MKISOFS" == "" ]] && echo "'mkisofs' not found! Aborting!" && exit 1
+	MKISOFS=${MKISOFS:="$(find_binary mkisofs)"}
 	ISOPATH=${ISOPATH:="$HOME/temp"}
-	[[ ! -d "$ISOPATH"  ]] && echo "Path '$ISOPATH' not found! Aborting!" && exit 1
-	[[ ! -d "$SLACKPATH" ]] && echo "Path '$SLACKPATH' not found! Aborting!" && exit 1
+	check_path $ISOPATH
+	check_path $SLACKPATH
 	cd $SLACKPATH
 	echo -n "Creating ISO from $SLACKPATH... "
-	$MKISOFS -o $ISOPATH/${SLACKRELEASE}-install.iso -V "${SLACKRELEASE} Install DVD" \
-		-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N \
-		-v -v -no-emul-boot -boot-load-size 32 -boot-info-table \
-		-sort isolinux/iso.sort -b isolinux/isolinux.bin -c isolinux/isolinux.boot \
+	$MKISOFS -o $ISOPATH/${SLACKRELEASE}-install.iso \
+		-V "${SLACKRELEASE} Install DVD" \
+		-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N -v -v -no-emul-boot \
+		-boot-load-size 32 -boot-info-table -sort isolinux/iso.sort \
+		-b isolinux/isolinux.bin -c isolinux/isolinux.boot \
 		-A "${SLACKRELEASE} Install DVD (build $(date +%Y%m%d))" . \
 		> $ISOPATH/${SLACKRELEASE}-install_build.log 2>&1
 	echo "done!"
 	exit 0
 fi
 
-# customized sync list
-EXCLUDES=${EXCLUDES:="--exclude pasture"}
+# customized default sync list
+EXCLUDES=${EXCLUDES:="--exclude=pasture/ --exclude=testing/ --exclude=source/"}
 INCLUDES=${INCLUDES:=""}
 [[ -r "$EXCLUDEFILE" ]] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
 [[ -r "$INCLUDEFILE" ]] && INCLUDES="--include-from=$INCLUDEFILE"
