@@ -37,24 +37,36 @@ CROPDETECT_MSG="vf crop="
 CROPDETECT_END=")."
 CROPDETECT_OPT=""
 
+function find_binary()
+{
+	local chk_exec=$1
+	local set_exec=$(which $chk_exec 2>/dev/null)
+	[[ "$set_exec" == "" ]] &&
+		echo "Binary '$chk_exec' not found! Aborting!" && exit 1
+	echo -n $set_exec
+}
+
 #
-# This function is from http://forum.videohelp.com/threads/255147-Mini-Guide-Normalizing-Audio-for-Multiple-AVI-files
+# This function is from http://forum.videohelp.com/threads/255147
 # - I just converted the batch file into shell script :p
 # - the audio file is out-of-sync if using mencoder, using ffmpeg instead
 #
 
 function avigain()
 {
-	local AVI_FILE=$1
-	local OUT_FILE=$2
-	local AVI_TEMP="/tmp/temp-video-$$.avi"
-	local MP3_TEMP="/tmp/temp-audio-$$.mp3"
-
-	mencoder $RUN_QUIET -o $OUT_FILE -forceidx -oac copy -ovc copy $AVI_FILE
-	ffmpeg -i $OUT_FILE -vcodec copy -an -y $AVI_TEMP
-	ffmpeg -i $OUT_FILE -vn -acodec copy -y $MP3_TEMP
-	mp3gain -f -s s -d $AVIGAIN_DB_VALUE -k -r $MP3_TEMP
-	ffmpeg -i $AVI_TEMP -i $MP3_TEMP -vcodec copy -acodec copy -y $OUT_FILE
+	local avi_file=$1
+	local out_file=$2
+	local adb_gain=$3
+	local avi_temp="/tmp/temp-video-$$.avi"
+	local mp3_temp="/tmp/temp-audio-$$.mp3"
+	local FFMPEG_BIN=$(find_binary ffmpeg)
+	local MP3GAIN_BIN=$(find_binary mp3gain)
+	[[ "$adb_gain" == "" ]] && adb_gain="100" # default value!
+	$FFMPEG_BIN -i $avi_file -vcodec copy -acodec copy $out_file
+	$FFMPEG_BIN -i $out_file -vcodec copy -an -y $avi_temp
+	$FFMPEG_BIN -i $out_file -vn -acodec copy -y $mp3_temp
+	$MP3GAIN_BIN -f -s s -d $adb_gain -k -r $mp3_temp
+	$FFMPEG_BIN -i $avi_temp -i $mp3_temp -vcodec copy -acodec copy -y $out_file
 }
 
 #
@@ -63,10 +75,11 @@ function avigain()
 
 function avi23gp()
 {
-	local AVI_FILE=$1
-	local OUT_FILE=$2
-
-	ffmpeg -i $AVI_FILE -s cif -vcodec h263 -acodec libfaac -ac 1 -ar 8000 -r 25 -ab 12200 -y $OUT_FILE
+	local avi_file=$1
+	local out_file=$2
+	local 3gp_opts="-vcodec h263 -acodec libfaac -ac 1 -ar 8000 -r 25 -ab 12200"
+	local FFMPEG_BIN=$(find_binary ffmpeg)
+	$FFMPEG_BIN -i $avi_file -s cif $3gp_opts -y $OUT_FILE
 }
 
 while [[ "$1" != "" ]]; do
@@ -202,8 +215,8 @@ fi
 VIDEO_OUTPUT=${VIDEO_OUTPUT:="$MOVIE_TITLE-$MOVIE_SUFFIX.avi"}
 
 if [[ "$DO_AVIGAIN" == "YES" ]]; then
-	avigain $VIDEO_INPUT $VIDEO_OUTPUT 1>/dev/null 2>/dev/null
-	echo "[AVIGAIN] ==> 'avigain $VIDEO_INPUT $VIDEO_OUTPUT'"
+	avigain $VIDEO_INPUT $VIDEO_OUTPUT $AVIGAIN_DB_VALUE 1>/dev/null 2>/dev/null
+	echo "[AVIGAIN] ==> 'avigain $VIDEO_INPUT $VIDEO_OUTPUT $AVIGAIN_DB_VALUE'"
 	exit 0
 fi
 
@@ -261,7 +274,7 @@ TEST2_OPT="$PASS2_OPT"
 if [[ "$RUN_TESTCODE" == "YES" ]]; then
 	echo "[TESTCODE] - Processing ($VIDEO_INPUT)..."
 	mencoder $TEST2_OPT
-	if [[ "$RUN_QUIET"=="-really-quiet" ]]; then
+	if [[ "$RUN_QUIET" == "-really-quiet" ]]; then
 		echo "[TESTCODE] - Done."
 	else
 		echo "[TEST2_OPT] ==> $TEST2_OPT"
@@ -270,7 +283,7 @@ else
 	echo "[STD_CODE] - Processing ($VIDEO_INPUT)..."
 	mencoder $PASS1_OPT
 	mencoder $PASS2_OPT
-	if [[ "$RUN_QUIET"=="-really-quiet" ]]; then
+	if [[ "$RUN_QUIET" == "-really-quiet" ]]; then
 		echo "[STD_CODE] - Done."
 	else
 		echo "[PASS1_OPT] ==> $PASS1_OPT"
