@@ -2,7 +2,7 @@
 
 # getsync
 # - written by azman@my1matrix.net
-# - a getslack-like script to sync personal documents
+# - a getslack-like script to sync personal documents ('wrapper' for rsync)
 
 MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(dirname $0)"
@@ -19,11 +19,14 @@ done
 [[ "$RSYNCURL" == "" ]] && echo "Server URL not specified!" && exit 1
 
 # tool & env setup
-RSYNC=${RSYNC:="/usr/bin/rsync"}
+RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
 RSYNCURL=${RSYNCURL:="user@server:/path/to/home/"}
 RSYNCOPT=${RSYNCOPT:="-e ssh --partial -rlptD --update --progress --dry-run"}
 LOCALURL=${LOCALURL:="."}
 SKIP_2ND="YES"
+
+# make sure rsync is available!
+[[ "$RSYNC" == "" ]] && echo "Cannot find rsync!" && exit 1
 
 # check target & source
 RSYNCSRC="${RSYNCURL}"
