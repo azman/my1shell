@@ -3,6 +3,7 @@
 # slackroot
 # - written by azman@my1matrix.net
 # - slackware 32-bit chroot (through ssh) installation
+# - general rootfs (opt: module) builder
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware chroot32 Tool"
@@ -21,19 +22,105 @@ SLACKARCH=${SLACKARCH:="x86"} # force 32-bit slackware!
 [[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] &&
 	source $MY1_TOOLPATH/$MY1_TOOL_LIB
 
-function process_command()
+function do_root_install()
+{
+	local chk_root=$1
+	local chk_exec="NO"
+	local chk_syyy="YES"
+	local pkg_list pkg_temp
+	# check 'command-line'
+	shift # first param is chk_root
+	while [[ "$1" != "" ]]; do
+		pkg_temp=$1
+		case $pkg_temp in
+			--exec) chk_exec="YES" ;;
+			--verbose) chk_syyy="NO" ;;
+			*)
+				if [[ ! -f $pkg_temp ]] ; then
+					warn_msg "File '$pkg_temp' not found! Not included!"
+				else
+					pkg_list="${pkg_list}$pkg_temp "
+				fi
+				;;
+		esac
+		shift
+	done
+	# check valid root path... if executing!
+	[[ "$chk_exec" == "YES" ]] &&
+		must_have_path "$chk_root" "Root path '$chk_root' not found!"
+	# install packages in list to given root
+	for pkg_file in $pkg_list; do
+		[[ "$chk_syyy" != "YES" ]] && 
+			info_msg "Installing $(basename $pkg_file) to $chk_root ..."
+		[[ "$chk_exec" == "YES" ]] &&
+			installpkg --root $chk_root $pkg_file >> /tmp/$MY1_TOOLBASE.log
+		[[ "$chk_syyy" != "YES" ]] && 
+			info_msg --no-tag " done!\n"
+	done
+}
+
+function do_pack_list()
 {
 	local pkg_base="a nb"
 	local pkg_core="a d k l n"
-	local pkg_apps="ap t tcl x xap"
+	local pkg_apps="ap t tcl"
 	local pkg_xgui="x xap"
-	local pkg_path=$SLACKPKGPATH
-	local chk_root="/opt/chroot32"
-	local cur_path=$(pwd)
-	local chk_exec=""
+	local pkg_path=$1
+	local pkg_opts=$2
 	local chk_syyy="YES"
-	local pkg_opts pkg_list
-	local opt_skip_pack opt_do_config
+	local pkg_list pkg_file
+	# check 'command-line' for verbose option!
+	[[ "$(echo $@ | grep -e '--verbose')" != "" ]] && chk_syyy="NO"
+	# check package option
+	case "$pkg_opts" in
+		CORE) pkg_opts="$pkg_core" ;;
+		CONS) pkg_opts="$pkg_core $pkg_apps" ;;
+		DESK) pkg_opts="$pkg_core $pkg_apps $pkg_xgui" ;;
+		BASE) pkg_opts="$pkg_base" ;;
+		*) error_exit "Unknown package option!" ;;
+	esac
+	# check valid pkg path
+	must_have_path "$pkg_path" "Package(s) path '$pkg_path' not found!"
+	# select packages
+	debug_msg "Selecting packages from '$pkg_path' ..."
+	[[ "$chk_syyy" != "YES" ]] && debug_msg --no-tag "\n"
+	pkg_list=""
+	cd $pkg_path
+	for pkg_soft in $pkg_opts; do
+		if [[ "$pkg_soft" == "nb" ]] ; then
+			# special case for base packages!
+			pkg_soft="n"
+			cd $pkg_soft
+			for pkg_name in dhcpcd iputils net-tools network-scripts ; do
+				pkg_name=$(find . -name "*.t[xg]z"|grep $pkg_name)
+				pkg_file=${pkg_path}/${pkg_soft}/${pkg_name//.\//}
+				pkg_list="$pkg_list $pkg_file"
+				[[ "$chk_syyy" != "YES" ]] &&
+					debug_msg "Adding package '$pkg_file'\n"
+			done
+		elif [[ -d $pkg_soft ]] ; then
+			cd $pkg_soft
+			for pkg_name in $(find . -name "*.t[xg]z"); do
+				pkg_file=${pkg_path}/${pkg_soft}/${pkg_name//.\//}
+				pkg_list="$pkg_list $pkg_file"
+				[[ "$chk_syyy" != "YES" ]] &&
+					debug_msg "Adding package '$pkg_file'\n"
+			done
+		fi
+		cd $pkg_path
+	done
+	[[ "$chk_syyy" == "YES" ]] && debug_msg --no-tag " done!\n"
+	echo -n "$pkg_list"
+}
+
+function rootfs_create()
+{
+	local pkg_path="$SLACKPKGPATH"
+	local pkg_opts="CORE" # default package set
+	local chk_root="/opt/chroot32"
+	local chk_exec=""
+	local chk_syyy=""
+	local pkg_list
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -43,7 +130,7 @@ function process_command()
 				;;
 			--root)
 				shift
-				chk_root="$1"
+				chk_root=$1
 				;;
 			--base-only)
 				pkg_opts="BASE"
@@ -57,138 +144,247 @@ function process_command()
 			--desktop)
 				pkg_opts="DESK"
 				;;
-			--do-config)
-				opt_do_config="YES"
-				;;
-			--skip-pack)
-				opt_skip_pack="YES"
-				;;
-			--help|-h|help)
-				echo -e "HELP!\n"
-				exit 0
-				;;
 			--verbose|-v)
-				chk_syyy=""
+				chk_syyy="--verbose"
 				;;
 			--exec)
-				chk_exec="YES"
+				chk_exec="--exec"
 				;;
 			-*)
-				echo -e "Unknown option '$1'!\n" && exit 1
+				error_exit "Unknown create_root option '$1'!"
 				;;
 			*)
-				[[ "$do_command" != "" ]] &&
-					echo -e "Multiple commands '$1' & '$do_command'\n" && exit 1
-				for tcommand in $go_commands; do
-					[[ "$1" == "$tcommand" ]] && do_command=$1 && break
-				done
-				[[ "$do_command" == "" ]] &&
-					echo -e "Unknown command '$1'!\n" && exit 1
+				error_exit "Unknown create_root parameter '$1'!"
 				;;
 		esac
 		shift
 	done
 	# must be root to exec!
-	[[ "$chk_exec" == "YES" ]] && must_be_root
-	# check paths
-	[[ ! -d "$pkg_path" ]] &&
-		echo -e "Cannot find pkg path '$pkg_path'!\n" && exit 1
-	[[ -d "$chk_root" ]] &&
-		echo -e "Existing root path '$chk_root'!\n" && exit 1
-	# check in case we're simulating target root
-	if [[ "$chk_exec" != "YES" ]] ; then
-		if [[ "$(dirname $chk_root)" == "." ]] ; then
+	[[ "$chk_exec" == "--exec" ]] && must_be_root
+	# check in case we're simulating target root (need not exist!)
+	if [[ "$chk_exec" != "--exec" ]] ; then
+		if [[ "${chk_root:0:1}" != "/" ]] ; then
 			[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
 			chk_root="$(pwd)/${chk_root}"
 		fi
-	else
-		echo -e "Creating root path '$chk_root' ...\n" && mkdir $chk_root
+	fi
+	# check paths
+	[[ ! -d "$pkg_path" ]] && error_exit "Cannot find pkg path '$pkg_path'!"
+	[[ -d "$chk_root" ]] && error_exit "Existing root path '$chk_root'!"
+	debug_msg "Source path: '$pkg_path'\n"
+	debug_msg "Target path: '$chk_root'\n"
+	# if executing, check/create root path
+	if [[ "$chk_exec" == "--exec" ]] ; then
+		echo -e "Creating root path '$chk_root' ...\n"
+		mkdir -p $chk_root
 		chk_root=$(cd $chk_root;pwd)
 	fi
-	echo -ne "Source path: '$pkg_path'\n"
-	echo -e "Target path: '$chk_root'\n"
-	export CHROOT_PATH=$chk_root
-	# check skip request
-	if [[ "$opt_skip_pack" != "YES" ]]; then
-		# check package option
-		case "$pkg_opts" in
-			CORE) pkg_opts="$pkg_core" ;;
-			CONS) pkg_opts="$pkg_core $pkg_apps" ;;
-			DESK) pkg_opts="$pkg_core $pkg_apps $pkg_xgui" ;;
-			BASE) pkg_opts="$pkg_base" ;;
+	# create package list based on pkg_opts
+	pkg_list=$(do_pack_list $pkg_path $pkg_opts $chk_syyy $chk_exec)
+	# install the packages
+	do_root_install $chk_root $pkg_list $chk_syyy $chk_exec
+}
+
+function chroot_config()
+{
+	local chk_root="/opt/chroot32"
+	local chk_exec="NO"
+	# check parameters (just look for root and exec)_
+	while [[ "$1" != "" ]]; do
+		case "$1" in
+			--root)
+				shift
+				chk_root=$1
+				# ensure full pathname
+				if [[ "${chk_root:0:1}" != "/" ]] ; then
+					[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
+					chk_root="$(pwd)/${chk_root}"
+				fi
+				;;
+			--exec)
+				chk_exec="YES"
+				;;
+			# ignore the rest!
 		esac
-		# install pkgs
-		echo -n "Installing packages from $pkg_path :"
-		[[ "$chk_syyy" != "YES" ]] && echo -e "\n"
-		cd $pkg_path
-		for a in $pkg_opts; do
-			pkg_list=""
-			if [[ "$a" == "nb" ]] ; then
-				# special case for base packages!
-				a="n"
-				cd $a
-				for b in dhcpcd iputils net-tools network-scripts ; do
-					b=$(find . -name "*.t[xg]z"|grep $b)
-					pkg_list="$pkg_list ${pkg_path}/$a/${b//.\//}"
-				done
-			elif [[ -d $a ]] ; then
-				cd $a
-				for b in $(find . -name "*.t[xg]z"); do
-					pkg_list="$pkg_list ${pkg_path}/$a/${b//.\//}"
-				done
-			fi
-			for b in $pkg_list; do
-				[[ ! -f $b ]] && echo "[WARNING] File '$b' not found!" &&
-					continue
-				[[ "$chk_syyy" != "YES" ]] &&
-					echo -n "Installing $(basename $b) to $CHROOT_PATH ..."
-				[[ "$chk_exec" == "YES" ]] &&
-					installpkg --root $CHROOT_PATH $b >> /tmp/$MY1_TOOLBASE.log
-				[[ "$chk_syyy" != "YES" ]] &&
-					echo "done!"
-			done
-			cd $pkg_path
-		done
-		[[ "$chk_syyy" == "YES" ]] && echo " done!"
-		echo
-	fi
-	# check skip request
-	if [[ "$opt_do_config" == "YES" ]]; then
-		# check fstab
-FSTAB_ENTRY=$(cat <<FSTAB_LINES
+		shift
+	done
+	# create entries with given parameter(s)
+local FSTAB_ENTRY=$(cat <<FSTAB_LINES
 # for chroot
-proc            $CHROOT_PATH/proc     proc    defaults        0 0
-sysfs           $CHROOT_PATH/sys      sysfs   defaults        0 0
-/home           $CHROOT_PATH/home     none    bind            0 0
-/tmp            $CHROOT_PATH/tmp      none    bind            0 0
-/dev            $CHROOT_PATH/dev      none    bind            0 0
-/etc            $CHROOT_PATH/etc      none    bind            0 0
+proc            $chk_root/proc     proc    defaults        0 0
+sysfs           $chk_root/sys      sysfs   defaults        0 0
+/home           $chk_root/home     none    bind            0 0
+/tmp            $chk_root/tmp      none    bind            0 0
+/etc            $chk_root/etc      none    bind            0 0
+/dev            $chk_root/dev      none    rbind           0 0
 FSTAB_LINES
 )
-		if [[ "$(cat /etc/fstab | grep $CHROOT_PATH)" == "" ]]; then
-			echo -e "\nAdding to /etc/fstab: \n$FSTAB_ENTRY\n"
-			[[ "$chk_exec" == "YES" ]] && echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
-		fi
-		# check sshd_config
-SSHD_ENTRY=$(cat <<SSHD_LINES
+local SSHD_ENTRY=$(cat <<SSHD_LINES
 # local ssh means chroot?
 Match Address 127.0.0.1
-	ChrootDirectory $CHROOT_PATH
+	ChrootDirectory $chk_root
 	X11Forwarding yes
 SSHD_LINES
 )
-		if [[ "$(cat /etc/ssh/sshd_config | grep $CHROOT_PATH)" == "" ]]; then
-			echo -e "\nAdding to /etc/ssh/sshd_config: \n$SSHD_ENTRY\n"
-			[[ "$chk_exec" == "YES" ]] && echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
-		fi
-		echo
+	# must be root to exec!
+	[[ "$chk_exec" == "YES" ]] && must_be_root
+	# check valid root path - only if executing
+	[[ "$chk_exec" == "YES" ]] &&
+		must_have_path "$chk_root" "Root path '$chk_root' not found!"
+	# check fstab
+	if [[ "$(cat /etc/fstab | grep $chk_root)" == "" ]]; then
+		debug_msg "Adding to /etc/fstab:\n"
+		echo "$FSTAB_ENTRY"
+		[[ "$chk_exec" == "YES" ]] &&
+			echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
 	fi
+	# check sshd_config
+	if [[ "$(cat /etc/ssh/sshd_config | grep $chk_root)" == "" ]]; then
+		debug_msg "Adding to /etc/ssh/sshd_config:\n"
+		echo "$SSHD_ENTRY"
+		[[ "$chk_exec" == "YES" ]] &&
+			echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
+	fi
+}
+
+function build_rootfs()
+{
+	local path_root=$1
+	local user_name="user"
+	rootfs_create --root $path_root --core-only --verbose --exec
+	echo -n "Preparing root account and a user..."
+	chroot $path_root passwd
+	# add a user
+	chroot $path_root useradd -m -g users /bin/bash $user_name
+	chroot $path_root usermod -G power,plugdev,netdev $user_name
+	chroot $path_root usermod -a -G cdrom,floppy $user_name
+	chroot $path_root usermod -a -G audio,video $user_name
+	chroot $path_root usermod -a -G scanner,lp $user_name
+	chroot $path_root passwd $user_name
+	echo " done!"
+}
+
+function copy_exec()
+{
+	local src_exec=$1
+	local tgt_path=$2
+	local chk_root=$3 # chroot option!
+	local chk_libs ifs_save this_lib chk_path chk_exec opt_root
+	[[ -d "$chk_root" ]] && chk_root=$(cd $chk_root;pwd) || chk_root=""
+	[[ "$chk_root" != "" ]] && [[ ! -d "$chk_root/proc" ]] &&
+		echo -e "'$chk_root' may not be a chroot target?\n" && exit 1
+	[[ "$chk_root" != "" ]] && opt_root="chroot $chk_root"
+	[[ "$chk_root" != "" ]] && mount --bind /proc $chk_root/proc
+	# find full path
+	src_exec=$($opt_root which $src_exec 2>/dev/null)
+	[[ $? -ne 0 ]] && echo -e "'$1' NOT found! Aborting!\n" && exit 1
+	chk_exec=${chk_root}${src_exec}
+	[[ ! -e "$chk_exec" ]] &&
+		echo -e "'$chk_exec' NOT a valid executable! Aborting!\n" && exit 1
+	# check target path
+	tgt_path=$(cd $tgt_path;pwd)
+	[[ ! -d $tgt_path ]] &&
+		echo -e "'$2' NOT a valid path?! Aborting!\n" && exit 1
+	# copy exec AND dependencies!
+	cp $chk_exec $tgt_path
+	ifs_save=$IFS
+	IFS=$'\n'
+	chk_libs=($($opt_root ldd $src_exec 2>/dev/null))
+	IFS=$ifs_save
+	for (( x=0;x<${#chk_libs[@]};x++ )); do
+		this_lib=${chk_libs[$x]%% (0x*}
+		this_lib=${this_lib##*=> }
+		# debug_msg "CHECK1 => $this_lib!"
+		[[ "$this_lib" == "" ]] && continue # linux-vdso.so.1!!
+		this_lib=${chk_root}$this_lib
+		[[ ! -f $this_lib ]] && error_exit "Cannot find lib '$this_lib'?"
+		cp $this_lib $tgt_path
+	done
+	[[ "$chk_root" != "" ]] && umount $chk_root/proc
+}
+
+function copy_file()
+{
+	local src_file=$1
+	local tgt_path=$2
+	# check source file full name
+	src_file=$(cd $(dirname $src_file);pwd)/$(basename $src_file)
+	[[ ! -e "$src_file" ]] && error_exit "Cannot find '$src_file'!"
+	# check target path
+	tgt_path=$(cd $tgt_path;pwd)
+	must_have_path "$tgt_path" "'$tgt_path' NOT a valid path?!"
+	# copy file
+	cp $src_file $tgt_path
+}
+
+function build_initfs()
+{
+	local path_root=$1
+	local path_live=$2
+	local path_init=$3
+	echo -n "Preparing kernel and building initramfs... "
+	# prepare/check structure
+	mkdir -p $path_live/boot
+	# check-in kernel
+	copy_file $path_root/boot/vmlinuz $path_live/boot/
+	# need to build busybox binary?
+	#copy_file busybox $path_init/bin
+	# copy executables
+	#copy_exec unionfs $path_init/bin $path_root
+	#copy_exec mkfs.jfs $path_init/sbin $path_root
+	# 'build' process
+	chown -R root:root $path_init
+	cd $path_init
+	rm -f $path_live/boot/initrd.gz
+	find . | cpio -o -H newc 2>/dev/null | gzip -9c > $path_live/boot/initrd.gz
+	#gunzip $path_live/boot/initrd.gz
+	#cpio -i -d -H newc --no-absolute-filenames < $path_live/boot/initrd.gz
+	chown $USER_NAME:$USER_GRPN $path_live/boot/initrd.gz
+	cd $THIS_PATH
+	chown -R $USER_NAME:$USER_GRPN $path_init
+	echo "done!"
+}
+
+function build_module()
+{
+	local path_root=$1
+	local path_live=$2
+	local mod_label=$3
+	local opt_compress="-comp gzip" # or, "-comp xz -b 1M"
+	local mods_path="$path_live/modules" # $path_live/optional
+	local mods_file=${mods_path}/${mod_label}.sfs
+	mkdir -p $mods_path
+	rm -f ${mods_file}
+	echo -n "Preparing module '$mods_file'... "
+	mksquashfs $path_root $mods_file \
+		$opt_compress -e tmp dev proc sys $path_live >/dev/null 2>&1
+	echo "done! ($?)"
+}
+
+function process_command()
+{
+	local go_commands="create config chroot livebuild"
+	local chk_command=$1
+	local do_command
+	shift
+	# check command
+	for tcommand in $go_commands; do
+		[[ "$chk_command" == "$tcommand" ]] && do_command=$chk_command && break
+	done
+	[[ "$do_command" == "" ]] && error_exit "Unknown command '$chk_command'!"
+	# execute command
+	case $do_command in
+		create) rootfs_create $@ ;;
+		config) chroot_config $@ ;;
+		chroot) rootfs_create $@ ; chroot_config $@  ;;
+	esac
 }
 
 # BEGIN MAIN SCRIPT
 
 echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 process_command "$@"
+echo
 exit 0
 
 # END MAIN SCRIPT
