@@ -343,14 +343,10 @@ function build_ace()
 	build_download
 
 	# genace option
-	local VSK_GENACE_OPT="-jprog \n
-	-board user \n
-	-target mdm \n
-	-hw $FPGA_DOWNLOAD_FILE \n
-	-elf $APP_EXECUTABLE \n
-	-configdevice devicenr 1 idcode 0x0384e093 irlength 6 partname xc3sd3400a \n
-	-debugdevice devicenr 1 cpunr 0 \n
-	-ace $FPGA_ACEFILE\n"
+	local VSK_GENACE_OPT="-jprog\n-board user\n-target mdm\n"
+	VSK_GENACE_OPT+="-hw $FPGA_DOWNLOAD_FILE\n-elf $APP_EXECUTABLE\n"
+	VSK_GENACE_OPT+="-configdevice devicenr 1 idcode 0x0384e093 irlength 6 partname xc3sd3400a\n"
+	VSK_GENACE_OPT+="-debugdevice devicenr 1 cpunr 0\n-ace $FPGA_ACEFILE\n"
 	# options for genace.tcl
 	local ACE_GENACE_OPT=${ACE_GENACE_OPT:="$VSK_GENACE_OPT"}
 	local TEMP_GENACE_OPT=${TEMP_GENACE_OPT:="genace.opt"}
@@ -366,9 +362,9 @@ function build_ace()
 	echo "$header_msg"
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	echo -e "$ACE_GENACE_OPT" >$TEMP_GENACE_OPT
+	rm -rf $FPGA_ACEFILE
 	xmd -tcl genace.tcl -opt $TEMP_GENACE_OPT >> $EDK_LOGFILE
-	check_result=$?
-	[[ $check_result -ne 0 ]] && echo -e "[$TOOL_THISFILE] xmd error? [$check_result] Aborting...\n" && exit 1
+	[[ ! -f "$FPGA_ACEFILE" ]] && echo -e "[$TOOL_THISFILE] xmd error? Aborting...\n" && exit 1
 	rm $TEMP_GENACE_OPT
 }
 

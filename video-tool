@@ -26,6 +26,8 @@ VIDEO_OUTTMP=""
 RUN_TESTCODE=""
 RUN_QUIET="-quiet"
 SINGLE_PASS_OPT=""
+SKIP_OPT=""
+STOP_OPT=""
 
 AVIGAIN_DB_VALUE="100"
 DO_AVIGAIN=""
@@ -137,13 +139,29 @@ while [[ "$1" != "" ]]; do
 		--do-avigain )
 			DO_AVIGAIN="YES"
 			;;
+		--skip-frame )
+			shift
+			if [[ "$1" == "" ]] ; then
+				echo "Missing params [$1] for (-ss)!"
+				exit 1
+			fi;
+			SKIP_OPT="-ss $1"
+			;;
+		--stop-frame )
+			shift
+			if [[ "$1" == "" ]] ; then
+				echo "Missing params [$1] for (-endpos)!"
+				exit 1
+			fi;
+			STOP_OPT="-endpos $1"
+			;;
 		--cut-frame )
 			shift
 			if [[ "$1" == "" ]] || [[ "$2" == "" ]]; then
 				echo "Missing params [$1] for (-ss) and [$2] for (-endpos)!"
 				exit 1
 			fi;
-			SINGLE_PASS_OPT="-ss $1 -endpos $2 -ovc copy -oac copy"
+			SINGLE_PASS_OPT="-forceidx -ss $1 -endpos $2 -ovc copy -oac copy"
 			shift
 			;;
 		--output )
@@ -265,8 +283,8 @@ LAME_PASS1_OPT="-nosound"
 LAME_PASS2_OPT="-oac mp3lame -lameopts br=56:cbr:mode=0"
 VIDEO_OPT="-force-avi-aspect $ASPECT_RATIO -ofps 25"
 
-PASS1_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $XVID_PASS1_OPT $AFILTER_OPT $LAME_PASS1_OPT $VIDEO_OPT -o /dev/null $DVD_SUBT_OPT"
-PASS2_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $XVID_PASS2_OPT $AFILTER_OPT $LAME_PASS2_OPT $VIDEO_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
+PASS1_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $SKIP_OPT $STOP_OPT $XVID_PASS1_OPT $AFILTER_OPT $LAME_PASS1_OPT $VIDEO_OPT -o /dev/null $DVD_SUBT_OPT"
+PASS2_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $SKIP_OPT $STOP_OPT $XVID_PASS2_OPT $AFILTER_OPT $LAME_PASS2_OPT $VIDEO_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
 
 TEST1_OPT="$PASS1_OPT"
 TEST2_OPT="$PASS2_OPT"
