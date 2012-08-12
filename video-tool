@@ -107,6 +107,10 @@ while [[ "$1" != "" ]]; do
 			shift
 			VF_CROP_SEC="$1"
 			;;
+		--cropvf )
+			shift
+			VF_CROP="$1"
+			;;
 		--no-af )
 			AFILTER_OPT="NAY"
 			;;

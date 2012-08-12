@@ -20,14 +20,16 @@ CLEAN_MSG="nothing to commit"
 AHEAD_MSG="is ahead of"
 
 # tool & env setup
-GIT=${GIT:="/usr/bin/git"}
+GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
+[[ "$GIT_BIN" = "" ]] && echo "git binary NOT found! Aborting!" && exit 1
 PATH2REPO=${PATH2REPO:="$HOME/repository"}
 PATH2PROJ=${PATH2PROJ:="$HOME/project"}
 PROJ_NAME=""
 PROJ_COPY=""
+OPT_VERBOSE="NO"
 
 do_command=""
-ok_command="create check origin"
+ok_command="create check origin update"
 
 # check parameters for command
 while  [[ "$1" != "" ]]; do
@@ -47,6 +49,9 @@ while  [[ "$1" != "" ]]; do
 		--repo-path)
 			shift
 			PATH2REPO=$1
+			;;
+		--verbose|-v)
+			OPT_VERBOSE="YES"
 			;;
 		-*)
 			echo "Unknown parameter '$1'"
@@ -71,40 +76,87 @@ while  [[ "$1" != "" ]]; do
 	shift
 done
 
+# common functions
+
+function chkgit_clean()
+{
+	local chk_verbose="YES"
+	local chk_stat=0
+	# check params
+	if [[ "$1" != "" ]]; then
+		case $1 in
+			--silent) chk_verbose="NO" ;;
+			*) echo "Unknown parameter '$1'!" ;;
+		esac
+	fi
+	# do the actual checking
+	if [[ -d .git ]]; then
+		if [[ "$($GIT_BIN status | grep "$CLEAN_MSG")" == "" ]]; then
+			[[ "$chk_verbose" == "YES"  ]] && echo "Check: $(pwd) [unclean]"
+			chk_stat=1
+		elif [[ "$($GIT_BIN status | grep "$AHEAD_MSG")" != "" ]]; then
+			[[ "$chk_verbose" == "YES"  ]] && echo "Check: $(pwd) [ahead]"
+			chk_stat=2
+		elif [[ "$OPT_VERBOSE" = "YES" ]]; then
+			[[ "$chk_verbose" == "YES"  ]] && echo "GIT: $(pwd)"
+			chk_stat=0
+		fi
+	else
+		[[ "$chk_verbose" == "YES"  ]] && echo "NOT: $(pwd)"
+		chk_stat=3
+	fi
+	return $chk_stat
+}
+
+function chkgit_origin()
+{
+	local chk_origin chk_source
+	local chk_path=$(pwd)
+	if [[ -d .git ]]; then
+		local chk_ifs=$IFS
+		IFS=$'\n'
+		chk_origin=($($GIT_BIN remote -v | grep origin))
+		IFS=$chk_ifs
+		if [[ ${#chk_origin[@]} -gt 0 ]]; then
+			chk_source=${chk_origin[0]##origin	}
+			chk_source=${chk_source%% (*}
+			echo "$(basename $chk_path): '$chk_source'"
+		else
+			echo "$(basename $chk_path): No origin repo found!"
+		fi
+	else
+		echo "$(basename $chk_path): Not a git repo!"
+	fi
+}
+
+function chkgit_update()
+{
+	local chk_path=$(pwd)
+	if [[ -d .git ]]; then
+		chkgit_clean --silent
+		[[ $? -ne 0 ]] &&
+			echo "$(basename $chk_path): Repo not clean! Skipped!" && return
+		echo "$(basename $chk_path): Running update..."
+		#$GIT_BIN pull
+	else
+		echo "$(basename $chk_path): Not a git repo!"
+	fi
+}
+
+# do your thing!
+
 if [[ "$do_command" == "check" ]] || [[ "$do_command" == "" ]]; then #default! 
 	# browse subfolders and report dirty repo!
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
-		if [[ -d .git ]]; then
-			if [[ "$(git status | grep "$CLEAN_MSG")" == "" ]]; then
-				echo "Check: $(pwd) [unclean]"
-			elif [[ "$(git status | grep "$AHEAD_MSG")" != "" ]]; then
-				echo "Check: $(pwd) [ahead]"
-			fi
-		else
-			echo "NOT: $(pwd)"
-		fi
+		chkgit_clean
 		cd $CURPATH
 	done
 elif [[ "$do_command" == "origin" ]]; then
 	# browse subfolders and report origin url
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
-		if [[ -d .git ]]; then
-			chk_ifs=$IFS
-			IFS=$'\n'
-			chk_origin=($(git remote -v | grep origin))
-			IFS=$chk_ifs
-			if [[ ${#chk_origin[@]} -gt 0 ]]; then
-				chk_source=${chk_origin[0]##origin	}
-				chk_source=${chk_source%% (*}
-				echo "$(basename $path): '$chk_source'"
-			else
-				echo "$(basename $path): No origin repo found!"
-			fi
-		else
-			echo "$(basename $path): Not a git repo!"
-		fi
+		chkgit_origin
 		cd $CURPATH
 	done
 elif [[ "$do_command" == "create" ]]; then
@@ -125,7 +177,14 @@ elif [[ "$do_command" == "create" ]]; then
 	else
 		echo "Repository '$FULL_PATH'/'$FULL_TEST' not found!" && exit 1
 	fi
-	$GIT clone file://$FULL_PATH $PROJ_COPY
+	$GIT_BIN clone file://$FULL_PATH $PROJ_COPY
+elif [[ "$do_command" == "update" ]]; then
+	# browse subfolders and update
+	for path in $(find * -maxdepth 0 -type d); do
+		cd $path
+		chkgit_update
+		cd $CURPATH
+	done
 fi
 
 exit 0

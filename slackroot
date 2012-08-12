@@ -247,24 +247,30 @@ SSHD_LINES
 	fi
 }
 
-function build_rootfs()
+function rootfs_custom()
 {
-	local path_root=$1
-	local user_name="user"
-	rootfs_create --root $path_root --core-only --verbose --exec
-	echo -n "Preparing root account and a user..."
-	chroot $path_root passwd
+	local chk_root=$1
+	local chk_user=$2
+	local chk_exec=$3
+	[[ "$chk_exec" == "--exec" ]] && chroot $chk_root passwd
 	# add a user
-	chroot $path_root useradd -m -g users /bin/bash $user_name
-	chroot $path_root usermod -G power,plugdev,netdev $user_name
-	chroot $path_root usermod -a -G cdrom,floppy $user_name
-	chroot $path_root usermod -a -G audio,video $user_name
-	chroot $path_root usermod -a -G scanner,lp $user_name
-	chroot $path_root passwd $user_name
-	echo " done!"
+	[[ "$chk_exec" == "--exec" ]] &&
+		chroot $chk_root useradd -m -g users /bin/bash $chk_user
+	[[ "$chk_exec" == "--exec" ]] &&
+		chroot $chk_root usermod -G power,plugdev,netdev $chk_user
+	[[ "$chk_exec" == "--exec" ]] &&
+		chroot $chk_root usermod -a -G cdrom,floppy $chk_user
+	[[ "$chk_exec" == "--exec" ]] &&
+		chroot $chk_root usermod -a -G audio,video $chk_user
+	[[ "$chk_exec" == "--exec" ]] &&
+		chroot $chk_root usermod -a -G scanner,lp $chk_user
+	[[ "$chk_exec" == "--exec" ]] &&
+		chroot $chk_root passwd $chk_user
 }
 
-function copy_exec()
+# copy_exec unionfs $path_init/bin $path_root
+
+function copy_exec() # for reference
 {
 	local src_exec=$1
 	local tgt_path=$2
@@ -303,7 +309,9 @@ function copy_exec()
 	[[ "$chk_root" != "" ]] && umount $chk_root/proc
 }
 
-function copy_file()
+# copy_file busybox $path_init/bin
+
+function copy_file() # for reference
 {
 	local src_file=$1
 	local tgt_path=$2
@@ -317,32 +325,27 @@ function copy_file()
 	cp $src_file $tgt_path
 }
 
-function build_initfs()
+function mkpack_init() # for reference
 {
-	local path_root=$1
+	local path_init=$1
 	local path_live=$2
-	local path_init=$3
-	echo -n "Preparing kernel and building initramfs... "
-	# prepare/check structure
-	mkdir -p $path_live/boot
-	# check-in kernel
-	copy_file $path_root/boot/vmlinuz $path_live/boot/
-	# need to build busybox binary?
-	#copy_file busybox $path_init/bin
-	# copy executables
-	#copy_exec unionfs $path_init/bin $path_root
-	#copy_exec mkfs.jfs $path_init/sbin $path_root
-	# 'build' process
-	chown -R root:root $path_init
+	local path_curr=$(pwd)
 	cd $path_init
 	rm -f $path_live/boot/initrd.gz
+	mkdir -p $path_live/boot
 	find . | cpio -o -H newc 2>/dev/null | gzip -9c > $path_live/boot/initrd.gz
-	#gunzip $path_live/boot/initrd.gz
-	#cpio -i -d -H newc --no-absolute-filenames < $path_live/boot/initrd.gz
-	chown $USER_NAME:$USER_GRPN $path_live/boot/initrd.gz
-	cd $THIS_PATH
-	chown -R $USER_NAME:$USER_GRPN $path_init
-	echo "done!"
+	cd $path_curr
+}
+
+function unpack_init() # for reference
+{
+	local file_init=$1
+	local path_init=$2
+	local path_curr=$(pwd)
+	mkdir -p $path_init
+	cd $path_init
+	zcat $file_init | cpio -i -d -H newc --no-absolute-filenames
+	cd $path_curr
 }
 
 function build_module()
@@ -350,15 +353,67 @@ function build_module()
 	local path_root=$1
 	local path_live=$2
 	local mod_label=$3
+	local chk_exec=$4
 	local opt_compress="-comp gzip" # or, "-comp xz -b 1M"
 	local mods_path="$path_live/modules" # $path_live/optional
 	local mods_file=${mods_path}/${mod_label}.sfs
 	mkdir -p $mods_path
 	rm -f ${mods_file}
 	echo -n "Preparing module '$mods_file'... "
-	mksquashfs $path_root $mods_file \
-		$opt_compress -e tmp dev proc sys $path_live >/dev/null 2>&1
+	[[ "$chk_exec" == "--exec" ]] && mksquashfs $path_root $mods_file \
+		$opt_compress -e tmp dev proc sys $mods_path >/dev/null 2>&1
 	echo "done! ($?)"
+}
+
+function livefs_create()
+{
+	local chk_root="/opt/chroot32"
+	local chk_live="$(pwd)"
+	local chk_user="user"
+	local chk_exec=""
+	# check parameters
+	while [[ "$1" != "" ]]; do
+		case "$1" in
+			--root)
+				shift
+				chk_root=$1
+				# ensure full pathname
+				if [[ "${chk_root:0:1}" != "/" ]] ; then
+					[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
+					chk_root="$(pwd)/${chk_root}"
+				fi
+				;;
+			--live)
+				shift
+				chk_live=$1
+				# ensure full pathname
+				if [[ "${chk_live:0:1}" != "/" ]] ; then
+					[[ "${chk_live:0:2}" == "./" ]] && chk_live=${chk_live:2}
+					chk_live="$(pwd)/${chk_live}"
+				fi
+				;;
+			--user)
+				shift
+				chk_user=$1
+				;;
+			--exec)
+				chk_exec=$1
+				;;
+			*)
+				echo "Unknown parameter '$1'!"
+				;;
+		esac
+		shift
+	done
+	echo -n "Creating core root filesystem..."
+	rootfs_create --root $chk_root --core-only --verbose $chk_exec
+	echo " done!"
+	echo -n "Preparing root account and a user ('$user_name')..."
+	rootfs_custom $chk_root $chk_user $chk_exec
+	echo " done!"
+	echo -n "Creating live module..."
+	build_module $chk_root $chk_live 00-core $chk_exec
+	echo " done!"
 }
 
 function process_command()
@@ -377,6 +432,7 @@ function process_command()
 		create) rootfs_create $@ ;;
 		config) chroot_config $@ ;;
 		chroot) rootfs_create $@ ; chroot_config $@  ;;
+		livefs) livefs_create $@  ;;
 	esac
 }
 
