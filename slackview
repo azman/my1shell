@@ -24,8 +24,8 @@ function pkg_db_check()
 {
 	local pkg_temp pkg_name=$1
 	pkg_temp="pkgbase_${pkg_name//-/_}"
-	[[ -z "${!pkg_temp}" ]] && pkg_db_package $pkg
 	[[ -z "${!pkg_temp}" ]] && pkg_db_install $pkg
+	[[ -z "${!pkg_temp}" ]] && pkg_db_package $pkg
 	[[ -z "${!pkg_temp}" ]] && return 1
 	return 0
 }

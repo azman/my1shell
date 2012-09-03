@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# droidbuild
+# - written by azman@my1matrix.net
+# - start shell for android sdk (with some utilities for android dev)
+
+SDK_PATH=${SDK_PATH:="/home/share/application/android-sdk-linux"}
+TOOL_PATH=${TOOS_PATH:="${SDK_PATH}/platform-tools:${SDK_PATH}/tools"}
+
+export PATH=$TOOL_PATH:$PATH
+
+if [ "$1" == "" ] ; then
+	# start a shell
+	exec env PS1="(DROID-SDK) \u@\h:\w$ " KDE_SESSION_VERSION= $(which bash)
+else
+	COMMAND=$1
+	shift
+	case $COMMAND in
+		create)
+			PROJECT=${PROJECT:="$1"}
+			[[ "$PROJECT" == "" ]] && PROJECT="my1defpro"
+			TARGETP=${TARGETP:="android-16"}
+			CHECKTGT="$(android list targets|grep $TARGETP)"
+			[[ "$CHECKTGT" == "" ]] &&
+				echo -e "Invalid target '$TARGETP'? Aborting!\n" && exit 1
+			android create project --target ${TARGETP} --name ${PROJECT} \
+				--path $(pwd)/${PROJECT} --activity MainActivity \
+				--package com.my1matrix.${PROJECT}
+			;;
+		*)
+			echo "Unknown command(s) '$@'!"
+			exit 1;
+			;;
+	esac
+fi
+
+exit 0
