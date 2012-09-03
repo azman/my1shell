@@ -82,8 +82,8 @@ function do_pack_list()
 	# check valid pkg path
 	must_have_path "$pkg_path" "Package(s) path '$pkg_path' not found!"
 	# select packages
-	debug_msg "Selecting packages from '$pkg_path' ..."
-	[[ "$chk_syyy" != "YES" ]] && debug_msg --no-tag "\n"
+	[[ "$chk_syyy" == "NO" ]] &&
+		info_msg "Selecting packages from '$pkg_path' ...\n"
 	pkg_list=""
 	cd $pkg_path
 	for pkg_soft in $pkg_opts; do
@@ -95,21 +95,20 @@ function do_pack_list()
 				pkg_name=$(find . -name "*.t[xg]z"|grep $pkg_name)
 				pkg_file=${pkg_path}/${pkg_soft}/${pkg_name//.\//}
 				pkg_list="$pkg_list $pkg_file"
-				[[ "$chk_syyy" != "YES" ]] &&
-					debug_msg "Adding package '$pkg_file'\n"
+				#[[ "$chk_syyy" != "YES" ]] &&
+				#	debug_msg "Adding package '$pkg_file'\n"
 			done
 		elif [[ -d $pkg_soft ]] ; then
 			cd $pkg_soft
 			for pkg_name in $(find . -name "*.t[xg]z"); do
 				pkg_file=${pkg_path}/${pkg_soft}/${pkg_name//.\//}
 				pkg_list="$pkg_list $pkg_file"
-				[[ "$chk_syyy" != "YES" ]] &&
-					debug_msg "Adding package '$pkg_file'\n"
+				#[[ "$chk_syyy" != "YES" ]] &&
+				#	debug_msg "Adding package '$pkg_file'\n"
 			done
 		fi
 		cd $pkg_path
 	done
-	[[ "$chk_syyy" == "YES" ]] && debug_msg --no-tag " done!\n"
 	echo -n "$pkg_list"
 }
 
@@ -171,11 +170,13 @@ function rootfs_create()
 	# check paths
 	[[ ! -d "$pkg_path" ]] && error_exit "Cannot find pkg path '$pkg_path'!"
 	[[ -d "$chk_root" ]] && error_exit "Existing root path '$chk_root'!"
-	debug_msg "Source path: '$pkg_path'\n"
-	debug_msg "Target path: '$chk_root'\n"
+	[[ "$chk_syyy" == "--verbose" ]] && echo
+	#[[ "$chk_syyy" == "--verbose" ]] && debug_msg "Source path: '$pkg_path'\n"
+	#[[ "$chk_syyy" == "--verbose" ]] && debug_msg "Target path: '$chk_root'\n"
 	# if executing, check/create root path
 	if [[ "$chk_exec" == "--exec" ]] ; then
-		echo -e "Creating root path '$chk_root' ...\n"
+		[[ "$chk_syyy" == "--verbose" ]] &&
+			info_msg "Creating root path '$chk_root' ...\n"
 		mkdir -p $chk_root
 		chk_root=$(cd $chk_root;pwd)
 	fi
@@ -208,7 +209,7 @@ function chroot_config()
 		esac
 		shift
 	done
-	# create entries with given parameter(s)
+	# create entries for fstab and sshd (also rc.local_shutdown command)
 local FSTAB_ENTRY=$(cat <<FSTAB_LINES
 # for chroot
 proc            $chk_root/proc     proc    defaults        0 0
@@ -225,6 +226,11 @@ Match Address 127.0.0.1
 	ChrootDirectory $chk_root
 	X11Forwarding yes
 SSHD_LINES
+)
+local SHUTDOWN_ENTRY=$(cat <<SHUTDOWN_LINES
+# unbind /dev 'recursively'
+umount $(cat /proc/mounts | awk '{print \$2}' | grep "^$chk_root/dev" | sort -r)
+SHUTDOWN_LINES
 )
 	# must be root to exec!
 	[[ "$chk_exec" == "YES" ]] && must_be_root
@@ -251,19 +257,37 @@ function rootfs_custom()
 {
 	local chk_root=$1
 	local chk_user=$2
-	local chk_exec=$3
+	local chk_exec chk_syyy
+	# check 'command-line' for verbose option!
+	[[ "$(echo $@ | grep -e '--exec')" != "" ]] && chk_exec="--exec"
+	[[ "$(echo $@ | grep -e '--verbose')" != "" ]] && chk_syyy="--verbose"
+	# change root password
+	[[ "$chk_syyy" == "--verbose" ]] && echo
+	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Changing root password...\n"
 	[[ "$chk_exec" == "--exec" ]] && chroot $chk_root passwd
 	# add a user
+	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Adding user '$chk_user'...\n"
 	[[ "$chk_exec" == "--exec" ]] &&
-		chroot $chk_root useradd -m -g users /bin/bash $chk_user
+		chroot $chk_root useradd -m -g users -s /bin/bash $chk_user
+	# Assign user to useful group(s)...
+	[[ "$chk_syyy" == "--verbose" ]] &&
+		info_msg "Adding user to groups power,plugdev,netdev...\n"
 	[[ "$chk_exec" == "--exec" ]] &&
-		chroot $chk_root usermod -G power,plugdev,netdev $chk_user
+		chroot $chk_root usermod -a -G power,plugdev,netdev $chk_user
+	[[ "$chk_syyy" == "--verbose" ]] &&
+		info_msg "Adding user to groups cdrom,floppy...\n"
 	[[ "$chk_exec" == "--exec" ]] &&
 		chroot $chk_root usermod -a -G cdrom,floppy $chk_user
+	[[ "$chk_syyy" == "--verbose" ]] &&
+		info_msg "Adding user to groups audio,video...\n"
 	[[ "$chk_exec" == "--exec" ]] &&
 		chroot $chk_root usermod -a -G audio,video $chk_user
+	[[ "$chk_syyy" == "--verbose" ]] &&
+		info_msg "Adding user to groups scanner,lp...\n"
 	[[ "$chk_exec" == "--exec" ]] &&
 		chroot $chk_root usermod -a -G scanner,lp $chk_user
+	# change user password
+	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Changing user password...\n"
 	[[ "$chk_exec" == "--exec" ]] &&
 		chroot $chk_root passwd $chk_user
 }
@@ -350,19 +374,50 @@ function unpack_init() # for reference
 
 function build_module()
 {
-	local path_root=$1
-	local path_live=$2
-	local mod_label=$3
-	local chk_exec=$4
+	local mod_label=$1
+	local path_root=""
+	local path_live=""
+	local chk_exec="NO"
+	local chk_syyy="YES"
 	local opt_compress="-comp gzip" # or, "-comp xz -b 1M"
-	local mods_path="$path_live/modules" # $path_live/optional
-	local mods_file=${mods_path}/${mod_label}.sfs
-	mkdir -p $mods_path
-	rm -f ${mods_file}
-	echo -n "Preparing module '$mods_file'... "
-	[[ "$chk_exec" == "--exec" ]] && mksquashfs $path_root $mods_file \
+	local mods_path="modules" # $path_live/optional
+	local mods_file=${mod_label}.sfs
+	local MKSQUASHFS_BIN=$(find_binary mksquashfs)
+	# check 'command-line'
+	shift # first param is mod_label
+	while [[ "$1" != "" ]]; do
+		pkg_temp=$1
+		case $pkg_temp in
+			--live)
+				shift
+				path_live=$1
+				;;
+			--root)
+				shift
+				path_root=$1
+				;;
+			--exec) chk_exec="YES" ;;
+			--verbose) chk_syyy="NO" ;;
+			*)
+				warn_msg "Unknown build_module parameter '$1'!"
+				;;
+		esac
+		shift
+	done
+	# if executing, do a sanity check
+	mods_path=${path_live}/${mods_path}
+	mods_file=${mods_path}/${mods_file}
+	if [[ "$chk_exec" == "YES" ]] ; then
+		mkdir -p $mods_path
+		rm -f ${mods_file}
+		[[ ! -d "$path_root" ]] && error_exit "Root '$path_root' NOT found!"
+	fi
+	# process!
+	[[ "$chk_syyy" == "NO" ]] && echo
+	[[ "$chk_syyy" == "NO" ]] && info_msg "Preparing module '$mods_file'... "
+	[[ "$chk_exec" == "YES" ]] && $MKSQUASHFS_BIN $path_root $mods_file \
 		$opt_compress -e tmp dev proc sys $mods_path >/dev/null 2>&1
-	echo "done! ($?)"
+	[[ "$chk_syyy" == "NO" ]] && info_msg --no-tag " done! ($?)\n"
 }
 
 function livefs_create()
@@ -371,6 +426,7 @@ function livefs_create()
 	local chk_live="$(pwd)"
 	local chk_user="user"
 	local chk_exec=""
+	local chk_syyy=""
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -396,6 +452,9 @@ function livefs_create()
 				shift
 				chk_user=$1
 				;;
+			--verbose)
+				chk_syyy=$1
+				;;
 			--exec)
 				chk_exec=$1
 				;;
@@ -406,19 +465,19 @@ function livefs_create()
 		shift
 	done
 	echo -n "Creating core root filesystem..."
-	rootfs_create --root $chk_root --core-only --verbose $chk_exec
+	rootfs_create --root $chk_root --core-only $chk_exec $chk_syyy
 	echo " done!"
-	echo -n "Preparing root account and a user ('$user_name')..."
-	rootfs_custom $chk_root $chk_user $chk_exec
+	echo -n "Preparing root account and a user ('$chk_user')..."
+	rootfs_custom $chk_root $chk_user $chk_exec $chk_syyy
 	echo " done!"
 	echo -n "Creating live module..."
-	build_module $chk_root $chk_live 00-core $chk_exec
+	build_module 00-core --root $chk_root --live $chk_live $chk_exec $chk_syyy
 	echo " done!"
 }
 
 function process_command()
 {
-	local go_commands="create config chroot livebuild"
+	local go_commands="create config chroot livefs"
 	local chk_command=$1
 	local do_command
 	shift

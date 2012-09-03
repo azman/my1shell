@@ -64,7 +64,7 @@ function info_msg()
 {
 	local info_tag="[INFO]"
 	[[ "$1" == "--no-tag" ]] && info_tag="" && shift
-	echo -ne "\033[1;32m${info_tag}\033[0;32m $1\033[0m"
+	echo -ne "\033[1;32m${info_tag}\033[0;32m $1\033[0m" 1>&2
 }
 
 if [[ "$MY1_DEBUG" == "YES" ]]; then
