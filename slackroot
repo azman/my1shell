@@ -228,8 +228,8 @@ Match Address 127.0.0.1
 SSHD_LINES
 )
 local SHUTDOWN_ENTRY=$(cat <<SHUTDOWN_LINES
-# unbind /dev 'recursively'
-umount $(cat /proc/mounts | awk '{print \$2}' | grep "^$chk_root/dev" | sort -r)
+# unbind $chk_root/dev 'recursively'
+umount \$(cat /proc/mounts|awk '{print \$2}'|grep "^$chk_root/dev"|sort -r)
 SHUTDOWN_LINES
 )
 	# must be root to exec!
