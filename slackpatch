@@ -275,7 +275,7 @@ function process_command()
 				pkg_list="${pkg_list} ${pkg_temp}"
 				;;
 			--help|-h|help)
-				echo "$MSG_THISHELP"
+				echo -e "$MSG_THISHELP\n"
 				exit 0
 				;;
 			-*)
@@ -294,7 +294,7 @@ function process_command()
 		shift
 	done
 	# exit if no command...
-	[[ "$do_command" == "" ]] && echo "$MSG_THISHELP!" && exit 0
+	[[ "$do_command" == "" ]] && echo -e "$MSG_THISHELP\n" && exit 0
 	# find patches
 	pat_list=$(check_patches $pkg_path)
 	SAVE_IFS=$IFS

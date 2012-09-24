@@ -7,8 +7,7 @@
 MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(dirname $0)"
 # look for config file
-for conffile in "$HOME/.$MY1TOOL" \
-		"$HOME/.$MY1TOOL.conf" "$MY1PATH/$MY1TOOL.conf"; do
+for conffile in "$(pwd)/.$MY1TOOL" "$HOME/.$MY1TOOL"; do
 	[[ ! -f $conffile ]] && continue
 	source $conffile ; break
 done
@@ -49,20 +48,26 @@ EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/kdei/ --exclude=\${SLACKFULL}/y/"
 EXCLUDES="\$EXCLUDES --exclude=source/e/ --exclude=source/f/"
 EXCLUDES="\$EXCLUDES --exclude=source/kdei/ --exclude=source/y/"
 # if we don't need kde
-[[ "\$NO_KDE" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/kde/"
-[[ "\$NO_KDE" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=source/kde/"
+if [[ "\$NO_KDE" == "yes" ]]; then
+	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/kde/"
+	EXCLUDES="\$EXCLUDES --exclude=source/kde/"
+fi
 # if we want to bootstrap
-[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/d/ --exclude=source/d/"
-[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/k/ --exclude=source/k/"
-[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/t/ --exclude=source/t/"
-[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/tcl/ --exclude=source/tcl/"
-[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/x/ --exclude=source/x/"
-[[ "\$GO_BOOTSTRAP" == "yes" ]] && EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/xap/ --exclude=source/xap/"
+if [[ "\$GO_BOOTSTRAP" == "yes" ]]; then
+	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/d/ --exclude=source/d/"
+	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/k/ --exclude=source/k/"
+	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/t/ --exclude=source/t/"
+	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/tcl/ --exclude=source/tcl/"
+	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/x/ --exclude=source/x/"
+	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/xap/ --exclude=source/xap/"
+fi
 MY1CONF
 )
+CFG_PATH=$HOME
 if [[ "$1" == "--config" ]]; then
-	echo "$MY1_GETSLACK_CONF" >$HOME/.$MY1TOOL
-	echo "New config file ($HOME/.$MY1TOOL) written!"
+	[[ -d "$2" ]] && CFG_PATH=$(cd $2;pwd)
+	echo "$MY1_GETSLACK_CONF" >$CFG_PATH/.$MY1TOOL
+	echo "New config file ($CFG_PATH/.$MY1TOOL) written!"
 	exit 0
 fi
 

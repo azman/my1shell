@@ -190,6 +190,7 @@ function chroot_config()
 {
 	local chk_root="/opt/chroot32"
 	local chk_exec="NO"
+	local chk_file
 	# check parameters (just look for root and exec)_
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -250,6 +251,15 @@ SHUTDOWN_LINES
 		echo "$SSHD_ENTRY"
 		[[ "$chk_exec" == "YES" ]] &&
 			echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
+	fi
+	# check shutdown
+	chk_file="/etc/rc.d/rc.local_shutdown"
+	[[ ! -f "$chk_file" ]] && touch $chk_file
+	if [[ "$(cat $chk_file | grep $chk_root/dev)" == "" ]]; then
+		debug_msg "Adding to $chk_file:\n"
+		echo "$SHUTDOWN_ENTRY"
+		[[ "$chk_exec" == "YES" ]] &&
+			echo -e "\n$SHUTDOWN_ENTRY" >> $chk_file
 	fi
 }
 
