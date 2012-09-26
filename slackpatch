@@ -36,7 +36,6 @@ Commands:
   pdone : List patches that has been applied
   nlist : List patches NOT in update list (not used)
   patch : Apply updates/patches
-  help  : Show this help message
 Options:
   --short  : Short Info
   --full   : Full Info
@@ -273,10 +272,6 @@ function process_command()
 				pkg_temp=($(get_pkg_info $pkg_temp))
 				pkg_temp="${pkg_temp[0]}"
 				pkg_list="${pkg_list} ${pkg_temp}"
-				;;
-			--help|-h|help)
-				echo -e "$MSG_THISHELP\n"
-				exit 0
 				;;
 			-*)
 				error_exit "Unknown option '$1'!"
