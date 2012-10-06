@@ -41,10 +41,11 @@ done
 
 for slackbuild in $CHECKLIST ; do
 	[[ "$(basename $REF_BUILD)" == "$slackbuild" ]] && continue
-	CHK_BUILD="$(sed -n '/# ONLY TEMPLATES BELOW THIS LINE/,$ p' $slackbuild)"
-	CHK_ERROR="$(diff <(echo $STR_BUILD) <(echo $CHK_BUILD))"
+	CHK_BUILD=$(sed -n '/# ONLY TEMPLATES BELOW THIS LINE/,$ p' $slackbuild)
+	CHK_ERROR=$(diff <(echo "$STR_BUILD") <(echo "$CHK_BUILD"))
 	[[ "$CHK_BUILD" == "" ]] && echo "$slackbuild: Not a my1 SlackBuild?" && continue;
 	if [[ "$CHK_ERROR" != "" ]]; then
+		[[ "$OPT_VERBO" == "YES" ]] && echo -ne "**DIFF-BEGIN** - $slackbuild\n$CHK_ERROR\n**DIFF-END** - $slackbuild\n"
 		[[ "$OPT_DOFIX" != "YES" ]] && echo "$slackbuild: Not up-to-date!" && continue
 		sed -i '/# ONLY TEMPLATES BELOW THIS LINE/,$ d' $slackbuild
 		echo "$STR_BUILD" >>$slackbuild

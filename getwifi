@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# NEED TO RE-CHECK THIS... HAVE BEEN MODIFIED FROM SIMPLE SCRIPT!
-
 # getwifi
 # - written by azman@my1matrix.net
 # - simple wifi connect script based on wpa utilities
@@ -35,13 +33,13 @@ while [ "$1" != "" ]; do
 			echo "The script's parameters are:"
 			echo "  -h               This help."
 			echo "  --ssid [ssid]    Specify SSID."
-			echo "  --wep [wep_pass] Specify WEP Pass."
-			echo "  --wpa [wpa_pass] Specify WPA Pass."
+			echo "  --key [pass]     Specify key/passphrase."
+			echo "  --wpa            Flag WPA usage."
 			echo "  --device [dev]   Specify WIFI Device."
 			echo "  --static [IP]    Specify Static IP."
 			echo "  --netmask [mask] Specify IP Mask."
 			echo "  --stop           Stop the service."
-			echo "  --write-wpacfg   Write data configuration."
+			echo "  --write-wpacfg   Write WPA configuration."
 			exit
 			;;
 		--ssid)
@@ -49,15 +47,12 @@ while [ "$1" != "" ]; do
 			[[ "$1" == "" ]] && echo "No SSID given? Aborting..." && exit 1
 			WIFI_SSID="$1"
 			;;
-		--wep)
+		--key)
 			shift
-			[[ "$1" == "" ]] && echo "No WEP key given? Aborting..." && exit 1
+			[[ "$1" == "" ]] && echo "No key given? Aborting..." && exit 1
 			WIFI_ENC="$1"
 			;;
 		--wpa)
-			#shift
-			#[[ "$1" == "" ]] && echo "No WPA key given? Aborting..." && exit 1
-			#WIFI_ENCS="$1"
 			WIFI_WPA_SUPP="yes"
 			;;
 		--device)
@@ -129,7 +124,7 @@ if [[ "$WIFI_DO_STOP" == "yes" ]]; then
 SAVE_IFS=$IFS
 IFS='
 '
-	tmp_lines=($(ps -ef | grep $(which dhcpcd)))
+	tmp_lines=($(ps -ef | grep "dhcpcd"))
 IFS=$SAVE_IFS
 GO_FISH=""
 	# check currently running dhcpcd process
@@ -175,24 +170,15 @@ iwconfig $WIFI_DEV $WIFI_SSID $WIFI_ENC >$WIFI_LOGFILE
 ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >$WIFI_LOGFILE
 echo "done."
 
-echo "iwconfig $WIFI_DEV $WIFI_SSID $WIFI_ENC >$WIFI_LOGFILE"
-echo "ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >$WIFI_LOGFILE"
-
 if [[ "$WIFI_WPA_SUPP" == "yes" ]]; then
 	echo -n "Starting wpa_supplicant... "
 	wpa_supplicant -B -i$WIFI_DEV -c$WIFI_WPA_CONF
 	echo "done."
-	echo -n "Waiting for '$WIFI_DEV' to be active..."
-	# CHECK SOMETHING ELSE!
-	while [[ "$(wpa_cli status 2>/dev/null | grep "$WIFI_DEV")" == "" ]] ; do
-		echo -n "."
-	done
-	echo " done."
 fi
 
 if [[ "$WIFI_RUN_DHCP" == "yes" ]]; then
 	echo -n "Starting DHCP client daemon..."
-	dhcpcd -h $(hostname -f) $WIFI_DEV 2>/dev/null
+	dhcpcd -h $(hostname) $WIFI_DEV 2>/dev/null
 	retval=$?
 	[[ $retval -ne 0 ]] && echo -n "(dhcpcd) Return Error [$retval]? "
 	echo "done."
