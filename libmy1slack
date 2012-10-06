@@ -22,10 +22,12 @@ esac
 SLACKNAME=${SLACKNAME:="slackware$SLACKARCH"}
 SLACKVERS=${SLACKVERS:=""}
 if [[ "$SLACKVERS" == "" ]]; then
-	SLACKVERS=$(cat /etc/slackware-version) # always in the form of "Slackware x.x.x"?
+	SLACKVERS=$(cat /etc/slackware-version)
 	SLACKVERS=${SLACKVERS#Slackware }
-	SLACKVERS=${SLACKVERS//${SLACKVERS#*.*.}/}
-	SLACKVERS=${SLACKVERS:0:${#SLACKVERS}-1}
+	SLACKVMAJ=${SLACKVERS%%.*}
+	SLACKVMIN=${SLACKVERS#*.}
+	[[ "${SLACKVMIN//./}" != "$SLACKVMIN" ]] && SLACKVMIN=${SLACKVMIN%%.*}
+	SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
 fi
 # find slackware tree
 SLACKRELEASE=${SLACKRELEASE:="$SLACKNAME-$SLACKVERS"}
