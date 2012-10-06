@@ -7,9 +7,8 @@
 MY1_BASH_PROFILE=$(cat <<SETVAR1
 # ~/.bash_profile - login shells
 
-umask 022
-export PATH=\$HOME/slackware/slackstuff:\$HOME/slackware/slackexec:\$PATH:/usr/sbin:/sbin
-export VISUAL=\$(which vim)
+umask 0022
+export PATH=\$HOME/slackware/slackstuff:\$PATH:/usr/sbin:/sbin
 
 [[ -f ~/.bashrc ]] && source ~/.bashrc
 [[ -n "\$SSH_CLIENT" ]] && export PS1="(SSH) \$PS1"
@@ -24,12 +23,23 @@ MY1_BASHRC=$(cat <<SETVAR2
 MY1PROMPT="\u@\h:\w$ "
 [[ "\$PS1" =~ "\$MY1PROMPT" ]] || export PS1="\$MY1PROMPT"
 
+export VISUAL="\$(which vim)"
 export HISTIGNORE="&:ls*:[bf]g:exit:[ \t]*"
 export LS_OPTIONS="-F -b -T 0 --color=auto"
+
 alias ls='ls \$LS_OPTIONS'
+
+[[ "\$SSH_CONNECTION" ]] && [[ -z "\$STY" ]] && exec screen -d -R -S ssh
 SETVAR2
 )
 MY1_FILE_BASHRC="$HOME/.bashrc"
+
+MY1_BASH_LOGOUT=$(cat <<SETVAR3
+# ~/.bash_logout - logout script
+clear
+SETVAR3
+)
+MY1_FILE_BASH_LOGOUT="$HOME/.bash_logout"
 
 GO_WRITE=""
 while [[ "$1" != "" ]]; do
@@ -65,6 +75,17 @@ else
 	echo "BASHRC:"
 	echo "-------"
 	echo "$MY1_BASHRC"
+fi
+echo
+if [[ "$GO_WRITE" == "--write" ]] ; then
+	echo -n "Writing to $MY1_FILE_BASH_LOGOUT..."
+	echo "$MY1_BASH_LOGOUT" >$MY1_FILE_BASH_LOGOUT
+	echo "done."
+else
+	echo "------------"
+	echo "BASH_LOGOUT:"
+	echo "------------"
+	echo "$MY1_BASH_LOGOUT"
 fi
 echo
 
