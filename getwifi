@@ -11,13 +11,16 @@ WIFI_ADD=${WIFI_ADD:="192.168.1.100"}
 WIFI_MSK=${WIFI_MSK:="255.255.255.0"}
 WIFI_SSID=${WIFI_SSID:=""}
 WIFI_ENC=${WIFI_ENC:=""}
+WIFI_ENCS=${WIFI_ENCS:=""}
 
+WIFI_LOGFILE=${WIFI_LOGFILE:="/tmp/$(basename $0).log"}
 WIFI_WPA_CONF=${WIFI_WPA_CONF:="/etc/wpa_supplicant.conf"}
 WIFI_WPA_SUPP="" # do not use wpa by default
 WIFI_RUN_DHCP="yes" # use dhcp by default
 
 WIFI_DO_STOP=""
 MSG_NO_WPA_SUPPLICANT="Failed to connect to wpa_supplicant"
+OPT_WRITECFG_WPA=""
 
 function must_be_root()
 {
@@ -28,9 +31,17 @@ while [ "$1" != "" ]; do
 	case $1 in
 		-h|--help)
 			echo "Usage:"
-			echo "  $0 [parameters] ..."
+			echo "  $(basename $0) [parameters] ..."
 			echo "The script's parameters are:"
-			echo "  -h            This help."
+			echo "  -h               This help."
+			echo "  --ssid [ssid]    Specify SSID."
+			echo "  --wep [wep_pass] Specify WEP Pass."
+			echo "  --wpa [wpa_pass] Specify WPA Pass."
+			echo "  --device [dev]   Specify WIFI Device."
+			echo "  --static [IP]    Specify Static IP."
+			echo "  --netmask [mask] Specify IP Mask."
+			echo "  --stop           Stop the service."
+			echo "  --write-wpacfg   Write data configuration."
 			exit
 			;;
 		--ssid)
@@ -46,7 +57,7 @@ while [ "$1" != "" ]; do
 		--wpa)
 			#shift
 			#[[ "$1" == "" ]] && echo "No WPA key given? Aborting..." && exit 1
-			#WIFI_ENC="$1"
+			#WIFI_ENCS="$1"
 			WIFI_WPA_SUPP="yes"
 			;;
 		--device)
@@ -68,6 +79,9 @@ while [ "$1" != "" ]; do
 		-s|--stop)
 			WIFI_DO_STOP="yes"
 			;;
+		--write-wpacfg)
+			OPT_WRITECFG_WPA="yes"
+			;;
 		*)
 			echo "You passed an illegal switch to the program!"
 			echo "Run '$0 -h' for more help."
@@ -79,6 +93,24 @@ done
 
 # now we start!
 must_be_root
+
+if [[ "$OPT_WRITECFG_WPA" == "yes" ]]; then
+WIFI_WPA_CONF_DATA=$(cat <<SETVAR1
+network={
+	scan_ssid=0
+	ssid="$WIFI_SSID"
+	proto=WPA RSN
+	key_mgmt=WPA-PSK WPA-EAP
+	pairwise=CCMP TKIP
+	group=CCMP TKIP
+	psk="$WIFI_ENCS"
+}
+SETVAR1
+)
+	echo "Writing (append) following network info to '$WIFI_WPA_CONF':"
+	echo "$WIFI_WPA_CONF_DATA"
+	echo "$WIFI_WPA_CONF_DATA" >>$WIFI_WPA_CONF
+fi
 
 if [[ "$WIFI_DO_STOP" == "yes" ]]; then
 	# check if wpa is running?
@@ -119,7 +151,8 @@ fi
 
 # look for WIFI_DEV, in case it's NOT plugged in
 echo -n "Looking for $WIFI_DEV..."
-[[ "$(iwconfig 2>/dev/null | grep "$WIFI_DEV")" == "" ]] && echo "NOT FOUND! Exiting!" && exit 0
+[[ "$(iwconfig 2>/dev/null | grep "$WIFI_DEV")" == "" ]] &&
+	echo "NOT FOUND! Exiting!" && exit 0
 echo "found."
 
 # configure for static if DHCP NOT requested
@@ -138,14 +171,23 @@ fi
 [[ "$WIFI_SSID" != "" ]] && WIFI_SSID="essid $WIFI_SSID"
 
 echo -n "Configuring $WIFI_DEV..."
-iwconfig $WIFI_DEV $WIFI_SSID $WIFI_ENC
-ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD
+iwconfig $WIFI_DEV $WIFI_SSID $WIFI_ENC >$WIFI_LOGFILE
+ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >$WIFI_LOGFILE
 echo "done."
 
+echo "iwconfig $WIFI_DEV $WIFI_SSID $WIFI_ENC >$WIFI_LOGFILE"
+echo "ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >$WIFI_LOGFILE"
+
 if [[ "$WIFI_WPA_SUPP" == "yes" ]]; then
-	echo -n "Starting wpa_supplicant..."
+	echo -n "Starting wpa_supplicant... "
 	wpa_supplicant -B -i$WIFI_DEV -c$WIFI_WPA_CONF
 	echo "done."
+	echo -n "Waiting for '$WIFI_DEV' to be active..."
+	# CHECK SOMETHING ELSE!
+	while [[ "$(wpa_cli status 2>/dev/null | grep "$WIFI_DEV")" == "" ]] ; do
+		echo -n "."
+	done
+	echo " done."
 fi
 
 if [[ "$WIFI_RUN_DHCP" == "yes" ]]; then
