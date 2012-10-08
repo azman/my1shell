@@ -81,6 +81,30 @@ if [ ! "$ETH_DEV" == "" ] ; then
 	/sbin/ifconfig $ETH_DEV down
 fi
 
+MY1_DEV_E220=$(cat <<MY1DEV1
+/dev/ttyUSB0 460800
+connect '/usr/sbin/chat -v -f /etc/ppp/chat-maxisbb'
+defaultroute lock
+debug ipcp-accept-remote ipcp-accept-local
+persist usepeerdns noipdefault
+name maxis
+remotename MAXISBB
+password wap
+MY1DEV1
+)
+#echo "$MY1_DEV_E220" >/etc/ppp/huawei-e220
+
+MY1_CHATSEQ=$(cat <<MY1CHAT
+ABORT 'BUSY'
+ABORT 'NO CARRIER'
+'' ATZ
+OK AT+CGDCONT=1,"IP","maxisbb"
+OK ATDT*99#
+CONNECT ''
+MY1CHAT
+)
+#echo "$MY1_CHATSEQ" >/etc/ppp/chat-maxisbb
+
 echo -n "" >$PPPD_LOG_FILE
 echo -n "Connecting to Huawei-e220 device ..."
 pppd call huawei-e220 logfile $PPPD_LOG_FILE 1>>$PPPD_LOG_FILE 2>>$PPPD_LOG_FILE
