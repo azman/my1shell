@@ -4,11 +4,14 @@
 # - written by azman@my1matrix.net
 # - create useful bash startup file
 
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+
 MY1_BASH_PROFILE=$(cat <<SETVAR1
 # ~/.bash_profile - login shells
 
 umask 0022
-export PATH=\$HOME/slackware/slackstuff:\$PATH:/usr/sbin:/sbin
+export PATH=$MY1PATH:\$PATH:/usr/sbin:/sbin
 
 [[ -f ~/.bashrc ]] && source ~/.bashrc
 [[ -n "\$SSH_CLIENT" ]] && export PS1="(SSH) \$PS1"
@@ -24,12 +27,12 @@ MY1PROMPT="\u@\h:\w$ "
 [[ "\$PS1" =~ "\$MY1PROMPT" ]] || export PS1="\$MY1PROMPT"
 
 export VISUAL="\$(which vim)"
-export HISTIGNORE="&:ls*:[bf]g:exit:[ \t]*"
+export HISTIGNORE="&:[bf]g:exit:[ \t]*"
 export LS_OPTIONS="-F -b -T 0 --color=auto"
 
 alias ls='ls \$LS_OPTIONS'
 
-[[ "\$SSH_CONNECTION" ]] && [[ -z "\$STY" ]] && exec screen -d -R -S ssh
+#[[ "\$SSH_CONNECTION" ]] && [[ -z "\$STY" ]] && exec screen -d -R -S ssh
 SETVAR2
 )
 MY1_FILE_BASHRC="$HOME/.bashrc"

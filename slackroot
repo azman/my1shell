@@ -232,7 +232,7 @@ local SHUTDOWN_ENTRY=$(cat <<SHUTDOWN_LINES
 # unbind $chk_root/dev 'recursively'
 umount \$(cat /proc/mounts|awk '{print \$2}'|grep "^$chk_root/dev"|sort -r)
 # unmount chroot mounts manually
-for a in etc dev tmp home sys proc; do
+for a in etc tmp home sys proc; do
 	umount $chk_root/\$a
 done
 SHUTDOWN_LINES
