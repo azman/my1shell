@@ -76,7 +76,7 @@ function find_binary()
 	local chk_exec=$1
 	local set_exec=$(which $chk_exec 2>/dev/null)
 	[[ "$set_exec" == "" ]] &&
-		echo "Binary '$chk_exec' not found! Aborting!" && exit 1
+		echo "Binary '$chk_exec' not found! Aborting!" 1>&2 && exit 1
 	echo -n $set_exec
 }
 
@@ -87,8 +87,10 @@ function check_path()
 		echo "Path '$chk_path' not found! Aborting!" && exit 1
 }
 
+# capture error in sub-shells
+set -e # activates errexit
+
 # tool & env setup
-RSYNC=${RSYNC:="$(find_binary rsync)"}
 SLACKROOT=${SLACKROOT:="$(pwd)"}
 SLACKARCH=${SLACKARCH:="$(uname -m)"}
 SLACKSUFX=${SLACKSUFX:=""}
@@ -100,6 +102,8 @@ SLACKPATH="${SLACKROOT}/${SLACKRELEASE}"
 RSYNCURLROOT=${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
 RSYNCURL=${RSYNCURL:="${RSYNCURLROOT}${SLACKRELEASE}"}
 RSYNCOPT=${RSYNCOPT:="--delete --delete-excluded --partial -rlptD --progress"}
+# check required binary
+RSYNC=${RSYNC:="$(find_binary rsync)"}
 
 # option to create iso - helping o-thers... local mirror must exist!
 if [[ "$1" == "--mkiso" ]]; then

@@ -44,29 +44,60 @@ SLACKPKGFILE=${SLACKPKGFILE:="${SLACKPKGPATH}/PACKAGES.TXT"}
 SLACKEXTFILE=${SLACKEXTFILE:="${SLACKEXTPATH}/PACKAGES.TXT"}
 SLACKINSTLOG="/var/log/packages"
 
+function tag_msg()
+{
+	local msg_tag=$1 ; shift
+	local col_tag=$1 ; shift
+	local out_err="yes"
+	[[ "$1" == "--stdout" ]] && out_err="" && shift
+	[[ "$1" == "--no-tag" ]] && msg_tag="" && shift
+	if [[ "$out_err" == "yes" ]]; then
+		echo -ne "\033[1;${col_tag}m${msg_tag}\033[0;${col_tag}m $1\033[0m" 1>&2
+	else
+		echo -ne "\033[1;${col_tag}m${msg_tag}\033[0;${col_tag}m $1\033[0m"
+	fi
+}
+
+function error_msg()
+{
+	local error_tag="[ERROR]"
+	local color_tag="31"
+	tag_msg "$error_tag" "$color_tag" "$@"
+}
+
 function error_exit()
 {
-	echo -ne "\033[1;31m[ERROR]\033[0;31m $1 Aborting!\033[0m\n\n" 1>&2
+	error_msg "--no-tag" "\n"
+	error_msg "$@ Aborting!\n\n"
 	exit 1
 }
 
 function debug_msg()
 {
 	local debug_tag="[DEBUG]"
-	[[ "$1" == "--no-tag" ]] && debug_tag="" && shift
-	echo -ne "\033[1;33m${debug_tag}\033[0;33m $1\033[0m" 1>&2
+	local color_tag="33"
+	tag_msg "$check_tag" "$color_tag" "$@"
+}
+
+function check_msg()
+{
+	local check_tag="[CHECK]"
+	local color_tag="34"
+	tag_msg "$check_tag" "$color_tag" "$@"
 }
 
 function warn_msg()
 {
-	echo -ne "\n\033[1;33m[WARN]\033[0;33m $1\033[0m\n\n" 1>&2
+	local warn0_tag="[WARN]"
+	local color_tag="33"
+	tag_msg "$warn0_tag" "$color_tag" "$@"
 }
 
 function info_msg()
 {
-	local info_tag="[INFO]"
-	[[ "$1" == "--no-tag" ]] && info_tag="" && shift
-	echo -ne "\033[1;32m${info_tag}\033[0;32m $1\033[0m" 1>&2
+	local info0_tag="[INFO]"
+	local color_tag="32"
+	tag_msg "$info0_tag" "$color_tag" "--stdout" "$@"
 }
 
 if [[ "$MY1_DEBUG" == "YES" ]]; then
@@ -82,12 +113,11 @@ fi
 
 function find_binary()
 {
-	local chk_exec=$1 ; shift
-	local msg_fail=$@
+	local chk_exec=$1
 	local set_exec=$(which $chk_exec 2>/dev/null)
+	echo -n $set_exec
 	[[ "$msg_fail" == "" ]] && msg_fail="Binary '$chk_exec' not found!"
 	[[ "$set_exec" == "" ]] && error_exit "$msg_fail"
-	echo -n $set_exec
 }
 
 function must_have_path()

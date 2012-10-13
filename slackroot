@@ -11,6 +11,7 @@ MY1_TOOLVERS="2012.03.00"
 MY1_TOOLBASE=$(basename $0 .sh)
 MY1_TOOLPATH=$(cd $(dirname $0);pwd)
 MY1_TOOL_LIB="libmy1slack"
+MY1_TOOL_LOG=/tmp/${MY1_TOOLBASE}.log
 # look for config file
 for config in $(pwd) $MY1_TOOLPATH $HOME; do
 	config=$config/.$MY1_TOOLBASE
@@ -49,12 +50,13 @@ function do_root_install()
 	[[ "$chk_exec" == "YES" ]] &&
 		must_have_path "$chk_root" "Root path '$chk_root' not found!"
 	# install packages in list to given root
+	[[ "$chk_exec" == "YES" ]] && echo -n "" >$MY1_TOOL_LOG
 	for pkg_file in $pkg_list; do
-		[[ "$chk_syyy" != "YES" ]] && 
+		[[ "$chk_syyy" != "YES" ]] &&
 			info_msg "Installing $(basename $pkg_file) to $chk_root ..."
 		[[ "$chk_exec" == "YES" ]] &&
-			installpkg --root $chk_root $pkg_file >> /tmp/$MY1_TOOLBASE.log
-		[[ "$chk_syyy" != "YES" ]] && 
+			installpkg --root $chk_root $pkg_file >>$MY1_TOOL_LOG
+		[[ "$chk_syyy" != "YES" ]] &&
 			info_msg --no-tag " done!\n"
 	done
 }
@@ -67,10 +69,7 @@ function do_pack_list()
 	local pkg_xgui="x xap"
 	local pkg_path=$1
 	local pkg_opts=$2
-	local chk_syyy="YES"
 	local pkg_list pkg_file
-	# check 'command-line' for verbose option!
-	[[ "$(echo $@ | grep -e '--verbose')" != "" ]] && chk_syyy="NO"
 	# check package option
 	case "$pkg_opts" in
 		CORE) pkg_opts="$pkg_core" ;;
@@ -82,11 +81,8 @@ function do_pack_list()
 	# check valid pkg path
 	must_have_path "$pkg_path" "Package(s) path '$pkg_path' not found!"
 	# select packages
-	[[ "$chk_syyy" == "NO" ]] &&
-		info_msg "Selecting packages from '$pkg_path' ...\n"
-	pkg_list=""
-	cd $pkg_path
 	for pkg_soft in $pkg_opts; do
+		cd $pkg_path
 		if [[ "$pkg_soft" == "nb" ]] ; then
 			# special case for base packages!
 			pkg_soft="n"
@@ -94,20 +90,15 @@ function do_pack_list()
 			for pkg_name in dhcpcd iputils net-tools network-scripts ; do
 				pkg_name=$(find . -name "*.t[xg]z"|grep $pkg_name)
 				pkg_file=${pkg_path}/${pkg_soft}/${pkg_name//.\//}
-				pkg_list="$pkg_list $pkg_file"
-				#[[ "$chk_syyy" != "YES" ]] &&
-				#	debug_msg "Adding package '$pkg_file'\n"
+				pkg_list="${pkg_list}${pkg_file} "
 			done
 		elif [[ -d $pkg_soft ]] ; then
 			cd $pkg_soft
 			for pkg_name in $(find . -name "*.t[xg]z"); do
 				pkg_file=${pkg_path}/${pkg_soft}/${pkg_name//.\//}
-				pkg_list="$pkg_list $pkg_file"
-				#[[ "$chk_syyy" != "YES" ]] &&
-				#	debug_msg "Adding package '$pkg_file'\n"
+				pkg_list="${pkg_list}${pkg_file} "
 			done
 		fi
-		cd $pkg_path
 	done
 	echo -n "$pkg_list"
 }
@@ -137,7 +128,7 @@ function rootfs_create()
 			--core-only)
 				pkg_opts="CORE"
 				;;
-			--no-gui)
+			--console)
 				pkg_opts="CONS"
 				;;
 			--desktop)
@@ -158,6 +149,8 @@ function rootfs_create()
 		esac
 		shift
 	done
+	# start main info msg
+	info_msg "Creating core root filesystem..."
 	# must be root to exec!
 	[[ "$chk_exec" == "--exec" ]] && must_be_root
 	# check in case we're simulating target root (need not exist!)
@@ -170,9 +163,10 @@ function rootfs_create()
 	# check paths
 	[[ ! -d "$pkg_path" ]] && error_exit "Cannot find pkg path '$pkg_path'!"
 	[[ -d "$chk_root" ]] && error_exit "Existing root path '$chk_root'!"
-	[[ "$chk_syyy" == "--verbose" ]] && echo
-	#[[ "$chk_syyy" == "--verbose" ]] && debug_msg "Source path: '$pkg_path'\n"
-	#[[ "$chk_syyy" == "--verbose" ]] && debug_msg "Target path: '$chk_root'\n"
+	[[ "$chk_syyy" == "--verbose" ]] && echo # not on previous info_msg!
+	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Source path: '$pkg_path'\n"
+	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Target path: '$chk_root'\n"
+	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Pack option: '$pkg_opts'\n"
 	# if executing, check/create root path
 	if [[ "$chk_exec" == "--exec" ]] ; then
 		[[ "$chk_syyy" == "--verbose" ]] &&
@@ -181,15 +175,18 @@ function rootfs_create()
 		chk_root=$(cd $chk_root;pwd)
 	fi
 	# create package list based on pkg_opts
-	pkg_list=$(do_pack_list $pkg_path $pkg_opts $chk_syyy $chk_exec)
+	pkg_list=$(do_pack_list $pkg_path $pkg_opts)
 	# install the packages
 	do_root_install $chk_root $pkg_list $chk_syyy $chk_exec
+	# end main info msg
+	info_msg --no-tag "done.\n"
 }
 
 function chroot_config()
 {
 	local chk_root="/opt/chroot32"
 	local chk_exec="NO"
+	local chk_syyy="YES"
 	local chk_file
 	# check parameters (just look for root and exec)_
 	while [[ "$1" != "" ]]; do
@@ -202,6 +199,9 @@ function chroot_config()
 					[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
 					chk_root="$(pwd)/${chk_root}"
 				fi
+				;;
+			--verbose|-v)
+				chk_syyy="NO"
 				;;
 			--exec)
 				chk_exec="YES"
@@ -231,36 +231,52 @@ SSHD_LINES
 local SHUTDOWN_ENTRY=$(cat <<SHUTDOWN_LINES
 # unbind $chk_root/dev 'recursively'
 umount \$(cat /proc/mounts|awk '{print \$2}'|grep "^$chk_root/dev"|sort -r)
+# unmount chroot mounts manually
+for a in etc dev tmp home sys proc; do
+	umount $chk_root/\$a
+done
 SHUTDOWN_LINES
 )
+	# start main info msg
+	info_msg "Configuring chroot environment..."
 	# must be root to exec!
 	[[ "$chk_exec" == "YES" ]] && must_be_root
 	# check valid root path - only if executing
 	[[ "$chk_exec" == "YES" ]] &&
 		must_have_path "$chk_root" "Root path '$chk_root' not found!"
+	local do_echo="no"
 	# check fstab
 	if [[ "$(cat /etc/fstab | grep $chk_root)" == "" ]]; then
-		debug_msg "Adding to /etc/fstab:\n"
-		echo "$FSTAB_ENTRY"
+		check_msg --no-tag "\n"
+		check_msg "Adding text to /etc/fstab:"
+		[[ "$chk_syyy" == "NO" ]] && echo -ne "\n$FSTAB_ENTRY"
 		[[ "$chk_exec" == "YES" ]] &&
 			echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
+		do_echo="yes"
 	fi
 	# check sshd_config
 	if [[ "$(cat /etc/ssh/sshd_config | grep $chk_root)" == "" ]]; then
-		debug_msg "Adding to /etc/ssh/sshd_config:\n"
-		echo "$SSHD_ENTRY"
+		check_msg --no-tag "\n"
+		check_msg "Adding text to /etc/ssh/sshd_config:"
+		[[ "$chk_syyy" == "NO" ]] && echo -ne "\n$SSHD_ENTRY"
 		[[ "$chk_exec" == "YES" ]] &&
 			echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
+		do_echo="yes"
 	fi
 	# check shutdown
 	chk_file="/etc/rc.d/rc.local_shutdown"
 	[[ ! -f "$chk_file" ]] && touch $chk_file
 	if [[ "$(cat $chk_file | grep $chk_root/dev)" == "" ]]; then
-		debug_msg "Adding to $chk_file:\n"
-		echo "$SHUTDOWN_ENTRY"
+		check_msg --no-tag "\n"
+		check_msg "Adding text to $chk_file:"
+		[[ "$chk_syyy" == "NO" ]] && echo -ne "\n$SHUTDOWN_ENTRY"
 		[[ "$chk_exec" == "YES" ]] &&
 			echo -e "\n$SHUTDOWN_ENTRY" >> $chk_file
+		do_echo="yes"
 	fi
+	[[ "$do_echo" == "yes" ]] && check_msg --no-tag "\n"
+	# end main info msg
+	info_msg --no-tag "done.\n"
 }
 
 function rootfs_custom()
@@ -268,6 +284,8 @@ function rootfs_custom()
 	local chk_root=$1
 	local chk_user=$2
 	local chk_exec chk_syyy
+	# start main info msg
+	info_msg "Preparing root account and a user ('$chk_user')..."
 	# check 'command-line' for verbose option!
 	[[ "$(echo $@ | grep -e '--exec')" != "" ]] && chk_exec="--exec"
 	[[ "$(echo $@ | grep -e '--verbose')" != "" ]] && chk_syyy="--verbose"
@@ -300,6 +318,8 @@ function rootfs_custom()
 	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Changing user password...\n"
 	[[ "$chk_exec" == "--exec" ]] &&
 		chroot $chk_root passwd $chk_user
+	# end main info msg
+	info_msg --no-tag "done!\n"
 }
 
 # copy_exec unionfs $path_init/bin $path_root
@@ -334,7 +354,6 @@ function copy_exec() # for reference
 	for (( x=0;x<${#chk_libs[@]};x++ )); do
 		this_lib=${chk_libs[$x]%% (0x*}
 		this_lib=${this_lib##*=> }
-		# debug_msg "CHECK1 => $this_lib!"
 		[[ "$this_lib" == "" ]] && continue # linux-vdso.so.1!!
 		this_lib=${chk_root}$this_lib
 		[[ ! -f $this_lib ]] && error_exit "Cannot find lib '$this_lib'?"
@@ -392,7 +411,9 @@ function build_module()
 	local opt_compress="-comp gzip" # or, "-comp xz -b 1M"
 	local mods_path="modules" # $path_live/optional
 	local mods_file=${mod_label}.sfs
-	local MKSQUASHFS_BIN=$(find_binary mksquashfs)
+	local MKSQUASHFS_BIN="mksquashfs"
+	# start main info msg
+	info_msg "Creating live module..."
 	# check 'command-line'
 	shift # first param is mod_label
 	while [[ "$1" != "" ]]; do
@@ -414,6 +435,9 @@ function build_module()
 		esac
 		shift
 	done
+	# exit if cannot find binary!
+	[[ "$chk_exec" == "YES" ]] && find_binary $MKSQUASHFS_BIN >/dev/null &&
+		MKSQUASHFS_BIN=$(find_binary $MKSQUASHFS_BIN)
 	# if executing, do a sanity check
 	mods_path=${path_live}/${mods_path}
 	mods_file=${mods_path}/${mods_file}
@@ -424,10 +448,12 @@ function build_module()
 	fi
 	# process!
 	[[ "$chk_syyy" == "NO" ]] && echo
-	[[ "$chk_syyy" == "NO" ]] && info_msg "Preparing module '$mods_file'... "
+	[[ "$chk_syyy" == "NO" ]] && info_msg "Preparing module '$mods_file'..."
 	[[ "$chk_exec" == "YES" ]] && $MKSQUASHFS_BIN $path_root $mods_file \
 		$opt_compress -e tmp dev proc sys $mods_path >/dev/null 2>&1
 	[[ "$chk_syyy" == "NO" ]] && info_msg --no-tag " done! ($?)\n"
+	# end main info msg
+	info_msg --no-tag "done!\n"
 }
 
 function livefs_create()
@@ -474,15 +500,10 @@ function livefs_create()
 		esac
 		shift
 	done
-	echo -n "Creating core root filesystem..."
+	# do your thing!
 	rootfs_create --root $chk_root --core-only $chk_exec $chk_syyy
-	echo " done!"
-	echo -n "Preparing root account and a user ('$chk_user')..."
 	rootfs_custom $chk_root $chk_user $chk_exec $chk_syyy
-	echo " done!"
-	echo -n "Creating live module..."
 	build_module 00-core --root $chk_root --live $chk_live $chk_exec $chk_syyy
-	echo " done!"
 }
 
 function process_command()
