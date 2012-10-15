@@ -5,7 +5,7 @@
 # - create useful bash startup file
 
 MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(dirname $0)"
+MY1PATH="$(cd $(dirname $0);pwd)"
 
 MY1_BASH_PROFILE=$(cat <<SETVAR1
 # ~/.bash_profile - login shells
