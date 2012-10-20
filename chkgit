@@ -29,7 +29,7 @@ PROJ_COPY=""
 OPT_VERBOSE="NO"
 
 do_command=""
-ok_command="create check origin update"
+ok_command="create check origin update remote"
 
 # check parameters for command
 while  [[ "$1" != "" ]]; do
@@ -76,36 +76,22 @@ while  [[ "$1" != "" ]]; do
 	shift
 done
 
-# common functions
+# command functions
 
 function chkgit_clean()
 {
-	local chk_verbose="YES"
-	local chk_stat=0
-	# check params
-	if [[ "$1" != "" ]]; then
-		case $1 in
-			--silent) chk_verbose="NO" ;;
-			*) echo "Unknown parameter '$1'!" ;;
-		esac
-	fi
 	# do the actual checking
 	if [[ -d .git ]]; then
 		if [[ "$($GIT_BIN status | grep "$CLEAN_MSG")" == "" ]]; then
-			[[ "$chk_verbose" == "YES"  ]] && echo "Check: $(pwd) [unclean]"
-			chk_stat=1
+			echo "Check: $(pwd) [unclean]"
 		elif [[ "$($GIT_BIN status | grep "$AHEAD_MSG")" != "" ]]; then
-			[[ "$chk_verbose" == "YES"  ]] && echo "Check: $(pwd) [ahead]"
-			chk_stat=2
+			echo "Check: $(pwd) [ahead]"
 		elif [[ "$OPT_VERBOSE" = "YES" ]]; then
-			[[ "$chk_verbose" == "YES"  ]] && echo "GIT: $(pwd)"
-			chk_stat=0
+			[[ "$OPT_VERBOSE" == "YES"  ]] && echo "GIT: $(pwd)"
 		fi
 	else
-		[[ "$chk_verbose" == "YES"  ]] && echo "NOT: $(pwd)"
-		chk_stat=3
+		[[ "$OPT_VERBOSE" == "YES"  ]] && echo "NOT: $(pwd)"
 	fi
-	return $chk_stat
 }
 
 function chkgit_origin()
@@ -125,7 +111,34 @@ function chkgit_origin()
 			echo "$(basename $chk_path): No origin repo found!"
 		fi
 	else
-		echo "$(basename $chk_path): Not a git repo!"
+		[[ "$OPT_VERBOSE" == "YES"  ]] &&
+			echo "$(basename $chk_path): Not a git repo!"
+	fi
+}
+
+function chkgit_remote()
+{
+	local chk_origin chk_source chk_label
+	local chk_path=$(pwd)
+	if [[ -d .git ]]; then
+		local chk_ifs=$IFS
+		IFS=$'\n'
+		chk_origin=($($GIT_BIN remote -v | grep fetch))
+		IFS=$chk_ifs
+		if [[ ${#chk_origin[@]} -gt 0 ]]; then
+			for (( a=0;a<${#chk_origin[@]};a++ )); do
+				chk_label=${chk_origin[$a]%	*}
+				chk_source=${chk_origin[$a]##$chk_label	}
+				chk_source=${chk_source%% (*}
+				echo "$(basename $chk_path): '$chk_source' ($chk_label)"
+			done
+		else
+			[[ "$OPT_VERBOSE" == "YES"  ]] &&
+				echo "$(basename $chk_path): No remote repo found!"
+		fi
+	else
+		[[ "$OPT_VERBOSE" == "YES"  ]] &&
+			echo "$(basename $chk_path): Not a git repo!"
 	fi
 }
 
@@ -137,9 +150,10 @@ function chkgit_update()
 		[[ $? -ne 0 ]] &&
 			echo "$(basename $chk_path): Repo not clean! Skipped!" && return
 		echo "$(basename $chk_path): Running update..."
-		#$GIT_BIN pull
+		$GIT_BIN pull
 	else
-		echo "$(basename $chk_path): Not a git repo!"
+		[[ "$OPT_VERBOSE" == "YES"  ]] &&
+			echo "$(basename $chk_path): Not a git repo!"
 	fi
 }
 
@@ -157,6 +171,13 @@ elif [[ "$do_command" == "origin" ]]; then
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
 		chkgit_origin
+		cd $CURPATH
+	done
+elif [[ "$do_command" == "remote" ]]; then
+	# browse subfolders and report remote fetch url
+	for path in $(find * -maxdepth 0 -type d); do
+		cd $path
+		chkgit_remote
 		cd $CURPATH
 	done
 elif [[ "$do_command" == "create" ]]; then
