@@ -12,9 +12,18 @@ BALLSUFX=${BALLSUFX:=""}
 DATE_FMT=${DATE_FMT:="+%Y%m%d"}
 CHECKGIT=${CHECKGIT:="YES"}
 CHK_VERB=${CHK_VERB:="NO"}
-TAR_OPTS=${TAR_OPTS:="cjf"}
-CHK_COPY=${CHK_COPY:=""}
 NUM_COPY=${NUM_COPY:=0}
+TAR_EXEC=${TAR_EXEC:="tar"}
+TAR_OPTS=${TAR_OPTS:="cjf"}
+TAR_EXTN=${TAR_EXTN:=".tar.bz2"}
+ZIP_EXEC=${ZIP_EXEC:="zip"}
+ZIP_OPTS=${ZIP_OPTS:="-rq"}
+ZIP_EXTN=${ZIP_EXTN:=".zip"}
+DO_ZIP=${DO_ZIP:="NO"}
+CHK_EXEC=
+CHK_NAME=
+CHK_COPY=
+CHK_EXTN=
 
 while [[ "$1" != "" ]]; do
 	case $1 in
@@ -31,6 +40,14 @@ while [[ "$1" != "" ]]; do
 		--verbose|-v)
 			CHK_VERB="YES"
 			;;
+		--path)
+			shift
+			[[ ! -d "$1" ]] && echo "Path '$1' not found!"
+			[[ -d "$1" ]] && BALLPATH=$(cd $1;pwd)
+			;;
+		--zip)
+			DO_ZIP="YES"
+			;;
 		* )
 			echo "Unknown parameter ($1)!" && exit 1
 			;;
@@ -39,18 +56,32 @@ while [[ "$1" != "" ]]; do
 done
 
 [[ "$CHK_VERB" == "YES" ]] && TAR_OPTS="${TAR_OPTS}v"
+[[ "$CHK_VERB" == "YES" ]] && ZIP_OPTS="${ZIP_OPTS//q/}"
 
-[[ "$CHECKGIT" == "YES" ]] && [[ -d "$CURRPATH/.git" ]] && BALLSUFX="${BALLSUFX}_git"
+[[ "$CHECKGIT" == "YES" ]] &&
+	[[ -d "$CURRPATH/.git" ]] && BALLSUFX="${BALLSUFX}_git"
 
 [[ ! -d $BALLPATH ]] && mkdir -pv $BALLPATH
 
 if [[ -d $WORKPATH ]]; then
 	cd $WORKPATH
 	[[ "$CHK_VERB" == "NO" ]] && echo -n "Archiving ... "
-	while [[ -f ${BALLPATH}/${BALLNAME}${BALLSUFX}-$(date ${DATE_FMT})${CHK_COPY}.tar.bz2 ]]; do	
+	if [[ "$DO_ZIP" == "YES" ]]; then
+		CHK_EXEC="${ZIP_EXEC} ${ZIP_OPTS}"
+		CHK_NAME=${BALLNAME}${BALLSUFX}
+		CHK_EXTN=${ZIP_EXTN}
+	else
+		CHK_EXEC="${TAR_EXEC} ${TAR_OPTS}"
+		CHK_NAME=${BALLNAME}${BALLSUFX}
+		CHK_EXTN=${TAR_EXTN}
+	fi
+	CHK_COPY=${CHK_COPY}${CHK_EXTN}
+	while [[ -f ${BALLPATH}/${CHK_NAME}-$(date ${DATE_FMT})${CHK_COPY} ]]; do
 		(( NUM_COPY=NUM_COPY+1 ))
-		CHK_COPY="_${NUM_COPY}"
+		CHK_COPY="_${NUM_COPY}${CHK_EXTN}"
 	done
-	tar $TAR_OPTS ${BALLPATH}/${BALLNAME}${BALLSUFX}-$(date ${DATE_FMT})${CHK_COPY}.tar.bz2 ${BALLNAME}
+	CHK_EXTN=${CHK_COPY}
+	CHK_NAME=${CHK_NAME}-$(date ${DATE_FMT})${CHK_EXTN}
+	${CHK_EXEC} ${BALLPATH}/${CHK_NAME} ${BALLNAME}
 	[[ "$CHK_VERB" == "NO" ]] && echo "done."
 fi
