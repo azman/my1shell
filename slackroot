@@ -149,8 +149,6 @@ function rootfs_create()
 		esac
 		shift
 	done
-	# start main info msg
-	info_msg "Creating core root filesystem..."
 	# must be root to exec!
 	[[ "$chk_exec" == "--exec" ]] && must_be_root
 	# check in case we're simulating target root (need not exist!)
@@ -163,10 +161,11 @@ function rootfs_create()
 	# check paths
 	[[ ! -d "$pkg_path" ]] && error_exit "Cannot find pkg path '$pkg_path'!"
 	[[ -d "$chk_root" ]] && error_exit "Existing root path '$chk_root'!"
-	[[ "$chk_syyy" == "--verbose" ]] && echo # not on previous info_msg!
-	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Source path: '$pkg_path'\n"
-	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Target path: '$chk_root'\n"
-	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Pack option: '$pkg_opts'\n"
+	info_msg "Source path: '$pkg_path'\n"
+	info_msg "Target path: '$chk_root'\n"
+	info_msg "Pack option: '$pkg_opts'\n"
+	# start main info msg
+	info_msg "Creating core root filesystem..."
 	# if executing, check/create root path
 	if [[ "$chk_exec" == "--exec" ]] ; then
 		[[ "$chk_syyy" == "--verbose" ]] &&
@@ -247,32 +246,38 @@ SHUTDOWN_LINES
 	local do_echo="no"
 	# check fstab
 	if [[ "$(cat /etc/fstab | grep $chk_root)" == "" ]]; then
-		check_msg --no-tag "\n"
-		check_msg "Adding text to /etc/fstab:"
-		[[ "$chk_syyy" == "NO" ]] && echo -ne "\n$FSTAB_ENTRY"
+		if [[ "$chk_syyy" == "NO" ]] ; then
+			check_msg --no-tag "\n"
+			check_msg "Adding text to /etc/fstab:"
+			echo -ne "\n$FSTAB_ENTRY"
+			do_echo="yes"
+		fi
 		[[ "$chk_exec" == "YES" ]] &&
 			echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
-		do_echo="yes"
 	fi
 	# check sshd_config
 	if [[ "$(cat /etc/ssh/sshd_config | grep $chk_root)" == "" ]]; then
-		check_msg --no-tag "\n"
-		check_msg "Adding text to /etc/ssh/sshd_config:"
-		[[ "$chk_syyy" == "NO" ]] && echo -ne "\n$SSHD_ENTRY"
+		if [[ "$chk_syyy" == "NO" ]] ; then
+			check_msg --no-tag "\n"
+			check_msg "Adding text to /etc/ssh/sshd_config:"
+			echo -ne "\n$SSHD_ENTRY"
+			do_echo="yes"
+		fi
 		[[ "$chk_exec" == "YES" ]] &&
 			echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
-		do_echo="yes"
 	fi
 	# check shutdown
 	chk_file="/etc/rc.d/rc.local_shutdown"
-	[[ ! -f "$chk_file" ]] && touch $chk_file
-	if [[ "$(cat $chk_file | grep $chk_root/dev)" == "" ]]; then
-		check_msg --no-tag "\n"
-		check_msg "Adding text to $chk_file:"
-		[[ "$chk_syyy" == "NO" ]] && echo -ne "\n$SHUTDOWN_ENTRY"
+	[[ "$chk_exec" == "YES" ]] && [[ ! -f "$chk_file" ]] && touch $chk_file
+	if [[ ! -f "$chk_file" ]] || [[ "$(cat $chk_file | grep $chk_root/dev)" == "" ]]; then
+		if [[ "$chk_syyy" == "NO" ]] ; then
+			check_msg --no-tag "\n"
+			check_msg "Adding text to $chk_file:"
+			echo -ne "\n$SHUTDOWN_ENTRY"
+			do_echo="yes"
+		fi
 		[[ "$chk_exec" == "YES" ]] &&
 			echo -e "\n$SHUTDOWN_ENTRY" >> $chk_file
-		do_echo="yes"
 	fi
 	[[ "$do_echo" == "yes" ]] && check_msg --no-tag "\n"
 	# end main info msg
