@@ -9,8 +9,7 @@ MY1PATH="$(dirname $0)"
 CURPATH="$(pwd)"
 
 # look for config file
-for conffile in "$CURPATH/.$MY1TOOL" "$CURPATH/$MY1TOOL.conf" \
-		"$HOME/.$MY1TOOL" "$HOME/.$MY1TOOL.conf" ; do
+for conffile in "$CURPATH/.$MY1TOOL" "$HOME/.$MY1TOOL" ; do
 	[[ ! -f $conffile ]] && continue
 	source $conffile ; break
 done

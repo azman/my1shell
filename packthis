@@ -11,6 +11,7 @@ BALLNAME=$(basename $CURRPATH)
 BALLSUFX=${BALLSUFX:=""}
 DATE_FMT=${DATE_FMT:="+%Y%m%d"}
 CHECKGIT=${CHECKGIT:="YES"}
+BUNDLGIT=${BUNDLGIT:="NO"}
 CHK_VERB=${CHK_VERB:="NO"}
 NUM_COPY=${NUM_COPY:=0}
 TAR_EXEC=${TAR_EXEC:="tar"}
@@ -37,6 +38,9 @@ while [[ "$1" != "" ]]; do
 		--ignore-git)
 			CHECKGIT="NO"
 			;;
+		--bundle-git)
+			BUNDLGIT="YES"
+			;;
 		--verbose|-v)
 			CHK_VERB="YES"
 			;;
@@ -62,6 +66,15 @@ done
 	[[ -d "$CURRPATH/.git" ]] && BALLSUFX="${BALLSUFX}_git"
 
 [[ ! -d $BALLPATH ]] && mkdir -pv $BALLPATH
+
+if [[ "$BUNDLGIT" == "YES" ]]; then
+	[[ ! -d "$CURRPATH/.git" ]] &&
+		echo "Not a git repo! Cannot use 'git bundle'!" && exit 1
+	CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M).git
+	git bundle create ${BALLPATH}/${CHK_NAME} master
+	[[ $? -ne 0 ]] && echo "Error running git?" && exit 1
+	exit 0
+fi
 
 if [[ -d $WORKPATH ]]; then
 	cd $WORKPATH
