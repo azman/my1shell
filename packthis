@@ -39,6 +39,7 @@ while [[ "$1" != "" ]]; do
 			CHECKGIT="NO"
 			;;
 		--bundle-git)
+			CHECKGIT="NO"
 			BUNDLGIT="YES"
 			;;
 		--verbose|-v)
@@ -81,17 +82,17 @@ if [[ -d $WORKPATH ]]; then
 	[[ "$CHK_VERB" == "NO" ]] && echo -n "Archiving ... "
 	if [[ "$DO_ZIP" == "YES" ]]; then
 		CHK_EXEC="${ZIP_EXEC} ${ZIP_OPTS}"
-		CHK_NAME=${BALLNAME}${BALLSUFX}
+		CHK_NAME=${BALLNAME}
 		CHK_EXTN=${ZIP_EXTN}
 	else
 		CHK_EXEC="${TAR_EXEC} ${TAR_OPTS}"
-		CHK_NAME=${BALLNAME}${BALLSUFX}
+		CHK_NAME=${BALLNAME}
 		CHK_EXTN=${TAR_EXTN}
 	fi
-	CHK_COPY=${CHK_COPY}${CHK_EXTN}
+	CHK_COPY=${BALLSUFX}${CHK_COPY}${CHK_EXTN}
 	while [[ -f ${BALLPATH}/${CHK_NAME}-$(date ${DATE_FMT})${CHK_COPY} ]]; do
 		(( NUM_COPY=NUM_COPY+1 ))
-		CHK_COPY="_${NUM_COPY}${CHK_EXTN}"
+		CHK_COPY="${BALLSUFX}_${NUM_COPY}${CHK_EXTN}"
 	done
 	CHK_EXTN=${CHK_COPY}
 	CHK_NAME=${CHK_NAME}-$(date ${DATE_FMT})${CHK_EXTN}
