@@ -229,10 +229,13 @@ SSHD_LINES
 )
 local SHUTDOWN_ENTRY=$(cat <<SHUTDOWN_LINES
 # unbind $chk_root/dev 'recursively'
-umount \$(cat /proc/mounts|awk '{print \$2}'|grep "^$chk_root/dev"|sort -r)
+chkpath=$chk_root/dev
+[[ "\$(cat /proc/mounts|grep \$chkpath)" != "" ]] &&
+	umount \$(cat /proc/mounts|awk '{print \$2}'|grep "^$chk_root/dev"|sort -r)
 # unmount chroot mounts manually
 for a in etc tmp home sys proc; do
-	umount $chk_root/\$a
+	chkpath=$chk_root/$a
+	[[ "\$(cat /proc/mounts|grep \$chkpath)" != "" ]] && umount \$chkpath
 done
 SHUTDOWN_LINES
 )
