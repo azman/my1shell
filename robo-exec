@@ -10,9 +10,9 @@ ARCH_BITS=""
 [[ "$(uname -m)" == "x86_64" ]] && ARCH_BITS="64"
 
 export PLAYERPATH=${PLAY_PATH}/lib${ARCH_BITS}
-export STAGEPATH=${STAGE_PATH}/lib
+export STAGEPATH=${STAGE_PATH}/lib${ARCH_BITS}
 export LD_LIBRARY_PATH=${PLAYERPATH}:${STAGEPATH}
-export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${PLAYERPATH}/pkgconfig
+export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${PLAYERPATH}/pkgconfig:${STAGEPATH}/pkgconfig
 # start a shell
 THISPATH="$PLAY_PATH/bin:$STAGE_PATH/bin"
 export PATH=$THISPATH:$PATH
