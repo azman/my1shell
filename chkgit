@@ -3,7 +3,7 @@
 # chkgit
 # - written by azman@my1matrix.net
 # - browse folders in current path and check git repos
-# - create project copy from local repo
+# - create project from a git bundle
 
 MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(dirname $0)"
@@ -22,7 +22,7 @@ AHEAD_MSG="is ahead of"
 # tool & env setup
 GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
 [[ "$GIT_BIN" = "" ]] && echo "git binary NOT found! Aborting!" && exit 1
-PATH2REPO=${PATH2REPO:="$HOME/repository"}
+PATH2BUND=${PATH2BUND:="$HOME/project/zzzbundle"}
 PATH2PROJ=${PATH2PROJ:="$HOME/project"}
 PROJ_NAME=""
 PROJ_COPY=""
@@ -38,17 +38,9 @@ while  [[ "$1" != "" ]]; do
 			shift
 			PATH2PROJ=$1
 			;;
-		--project-name)
+		--bundle-path)
 			shift
-			PROJ_NAME=$1
-			;;
-		--project-copy)
-			shift
-			PROJ_COPY=$1
-			;;
-		--repo-path)
-			shift
-			PATH2REPO=$1
+			PATH2BUND=$1
 			;;
 		--verbose|-v)
 			OPT_VERBOSE="YES"
@@ -66,6 +58,8 @@ while  [[ "$1" != "" ]]; do
 					if [[ "$do_command" == "create" ]]; then
 						shift
 						PROJ_NAME=$1
+						shift
+						PROJ_COPY=$1
 					fi
 					break;
 				fi
@@ -181,24 +175,33 @@ elif [[ "$do_command" == "remote" ]]; then
 		cd $CURPATH
 	done
 elif [[ "$do_command" == "create" ]]; then
-	[[ ! -d "$PATH2REPO" ]] && echo "Invalid repo path '$PATH2REPO'!" && exit 1
+	[[ ! -d "$PATH2BUND" ]] &&
+		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
 	[[ ! -d "$PATH2PROJ" ]] &&
-		echo "Invalid project path '$PATH2REPO'!" && exit 1
+		echo "Invalid project path '$PATH2PROJ'!" && exit 1
 	[[ "$PROJ_NAME" == "" ]] && echo "No project name given!" && exit 1
-	[[ "$PROJ_COPY" == "" ]] && PROJ_COPY=$PROJ_NAME
 	cd $PATH2PROJ
+	FULL_PATH=${PATH2BUND}/${PROJ_NAME}.git
+	FULL_FIND=$(find ${PATH2BUND} -name ${PROJ_NAME}*.git)
+	for FULL_TEST in $FULL_FIND ; do
+		FULL_PATH=$FULL_TEST
+	done
+	if [[ ! -f "$FULL_PATH" ]] ; then
+		echo "Bundle '$FULL_PATH' not found!" && exit 1
+	fi
+	[[ "$PROJ_COPY" == "" ]] && PROJ_COPY=$(basename $FULL_PATH .git)
 	[[ -d "$PROJ_COPY" ]] &&
 		echo "'$PROJ_COPY' exists in '$PATH2PROJ'!" && exit 1
-	FULL_PATH=${PATH2REPO}/${PROJ_NAME}.git
-	FULL_TEST=${PATH2REPO}/${PROJ_NAME}
-	if [[ -d "$FULL_PATH" ]] ; then
-		FULL_TEST=$FULL_PATH # do nothing actually!
-	elif [[ -d "$FULL_TEST" ]]; then
-		FULL_PATH=$FULL_TEST
-	else
-		echo "Repository '$FULL_PATH'/'$FULL_TEST' not found!" && exit 1
-	fi
-	$GIT_BIN clone file://$FULL_PATH $PROJ_COPY
+	echo -n "Creating folder $PROJ_COPY... "
+	mkdir $PROJ_COPY >/dev/null
+	cd $PROJ_COPY
+	echo "done."
+	echo -n "Initializing git path... "
+	$GIT_BIN init >/dev/null
+	echo "done."
+	echo -n "Updating git path... "
+	$GIT_BIN pull $FULL_PATH master >/dev/null 2>&1
+	echo "done."
 elif [[ "$do_command" == "update" ]]; then
 	# browse subfolders and update
 	for path in $(find * -maxdepth 0 -type d); do
