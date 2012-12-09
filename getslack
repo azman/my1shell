@@ -83,8 +83,10 @@ function find_binary()
 function check_path()
 {
 	local chk_path=$1
-	[[ ! -d "$chk_path"  ]] &&
-		echo "Path '$chk_path' not found! Aborting!" && exit 1
+	if [[ ! -d "$chk_path"  ]]; then
+		echo "Path '$chk_path' not found! Aborting!"
+		exit 1
+	fi # bash doesn't like 'check &&  do_this && exit' at the end of a function?
 }
 
 # capture error in sub-shells
