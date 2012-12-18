@@ -4,6 +4,14 @@
 # - written by azman@my1matrix.net
 # - start xilinx apps or xilinx-env shell
 
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+# look for config file
+for conffile in "$(pwd)/.$MY1TOOL" "$HOME/.$MY1TOOL"; do
+	[[ ! -f $conffile ]] && continue
+	source $conffile ; break
+done
+
 XILINX_VERS=${XILINX_VERS:="12.1"}
 XILINX_PATH=${XILINX_PATH:="/home/share/application/xilinx-${XILINX_VERS}"}
 ARCH_BITS="32"
