@@ -15,7 +15,10 @@ done
 XILINX_VERS=${XILINX_VERS:="12.1"}
 XILINX_PATH=${XILINX_PATH:="/home/share/application/xilinx-${XILINX_VERS}"}
 ARCH_BITS="32"
-[[ "$(uname -m)" == "x86_64" ]] && ARCH_BITS="64"
+BIN_TYPE=$(file -L /bin/bash)
+if [[ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ]] ; then
+	ARCH_BITS="64"
+fi
 XILINX_ARCH=${XILINX_ARCH:="$ARCH_BITS"}
 XILINX_CONF=${XILINX_CONF:="${XILINX_PATH}/ISE/settings${XILINX_ARCH}.sh"}
 XILEDK_CONF=${XILEDK_CONF:="${XILINX_PATH}/EDK/settings${XILINX_ARCH}.sh"}
