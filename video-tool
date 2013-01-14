@@ -266,11 +266,11 @@ if [[ "$VF_SCALE" == "" ]] || [[ "$ASPECT_RATIO" == "" ]] || [[ "$AVI_BITRATE" =
 fi
 
 if [[ "$VFILTER_OPT" == "" ]]; then
-	if [[ "$VF_CROP" == "" ]]; then
-		VFILTER_OPT="-vf scale=${VF_SCALE}"
-	else
-		VFILTER_OPT="-vf crop=${VF_CROP},scale=${VF_SCALE}"
+	VFILTER_OPT="-vf pp=lb"
+	if [[ "$VF_CROP" != "" ]]; then
+		VFILTER_OPT="${VFILTER_OPT},crop=${VF_CROP}"
 	fi
+	VFILTER_OPT="${VFILTER_OPT},scale=${VF_SCALE}"
 else
 	VFILTER_OPT=""
 fi
