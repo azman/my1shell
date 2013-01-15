@@ -79,8 +79,6 @@ APP_LIBPATH=""
 APP_INCPATH=""
 APP_LIBS=""
 APP_LINKER_SCRIPT=""
-USR_SOURCES=""
-USR_HEADERS=""
 
 # user break
 trap trap_break INT
@@ -160,14 +158,38 @@ function check_deplist()
 # - creates main ngc file
 function build_sysnet()
 {
-	local NGC_WRAPPERS=""
-	if [[ -d "$IMP_TEMPPATH" ]]; then
-		NGC_WRAPPERS=$(find $IMP_TEMPPATH -maxdepth 1 -name *_wrapper.ngc)
-	fi
-
 	local USER_REPO_PATH=${USER_REPO_PATH:="$(pwd)"}
 	local USER_IPCORE_PATH=${USER_IPCORE_PATH:="$USER_REPO_PATH/pcores"}
 	local CORE_DEV_FILES=$(find $USER_IPCORE_PATH -name *.vhd*)
+	local NGC_WRAPPERS=""
+
+	# check coregen in user repo
+	local xco_path xco_file xco_name xco_pnet xco_ngcf xco_genp
+	for xco_full in $(find $USER_IPCORE_PATH -name *.xco); do
+		xco_file=$(basename $xco_full)
+		xco_path=$(dirname $xco_full)
+		xco_name=$(basename $xco_full .xco)
+		xco_pnet=$(dirname $xco_path)/netlist
+		xco_ngcf=${xco_name}.ngc
+		xco_genp=coregen.cgp
+		[[ -r "${xco_pnet}/${xco_ngcf}" ]] && continue
+		[[ ! -d "$xco_pnet" ]] && mkdir -p $xco_pnet >> $EDK_LOGFILE
+		cd $xco_pnet
+		[[ ! -r "$xco_genp" ]] &&
+			echo "Cannot find project file '$xco_genp'!" && exit 1
+		if [[ ! -r "$xco_ngcf" ]]; then
+			echo -n "Building CoreGen netlist from '$xco_file'... "
+			coregen -b $xco_full -p $xco_genp >> $EDK_LOGFILE
+			[[ ! -r "$xco_ngcf" ]] &&
+				echo "Cannot find file '$xco_ngcf'! CoreGen failed?" && exit 1
+			echo "done!"
+		fi
+		cd - >/dev/null
+	done
+
+	if [[ -d "$IMP_TEMPPATH" ]]; then
+		NGC_WRAPPERS=$(find $IMP_TEMPPATH -maxdepth 1 -name *_wrapper.ngc)
+	fi
 
 	if [[ "$NGC_WRAPPERS" != "" ]]; then
 		check_deplist $EDK_MHSFILE $CORE_DEV_FILES -option $XPS_PLATGEN_OPT -target $IMP_BMM_FILE $NGC_WRAPPERS $IMP_POSTSYN_NETLIST
@@ -257,6 +279,16 @@ function build_bit()
 # build software libraries
 function build_lib()
 {
+	# check driver updates in user repo
+	local USR_SOURCES=""
+	for c_src in $(find $(pwd)/drivers -name *.c); do
+		USR_SOURCES="$USR_SOURCES $c_src"
+	done
+	local USR_HEADERS=""
+	for c_hdr in $(find $(pwd)/drivers -name *.h); do
+		USR_HEADERS="$USR_HEADERS $c_hdr"
+	done
+
 	check_deplist ${EDK_MHSFILE} ${EDK_MSSFILE} ${APP_SOURCES} ${APP_HEADERS} ${USR_SOURCES} ${USR_HEADERS} -target $APP_LIBS
 	[[ $? -eq 0 ]] && echo "Nothing to do. Libraries are up-to-date!" && return
 
@@ -494,16 +526,6 @@ IFS=$SAVE_IFS
 			exit 1
 		fi
 		APP_HEADERS="$APP_HEADERS $tfile"
-	done
-
-	# check driver in user repo
-	USR_SOURCES=""
-	for c_src in $(find $(pwd)/drivers -name *.c); do
-		USR_SOURCES="$USR_SOURCES $c_src"
-	done
-	USR_HEADERS=""
-	for c_hdr in $(find $(pwd)/drivers -name *.h); do
-		USR_HEADERS="$USR_HEADERS $c_hdr"
 	done
 
 	# final assignment
