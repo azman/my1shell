@@ -20,7 +20,7 @@ done
 # tool & env setup
 RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
 RSYNCURL=${RSYNCURL:="user@server:/path/to/home/"}
-RSYNCOPT=${RSYNCOPT:="-e ssh --partial -rlptD --update --progress --dry-run"}
+RSYNCOPT=${RSYNCOPT:="-e ssh --partial -rlptD --progress --dry-run"}
 LOCALURL=${LOCALURL:="."}
 SKIP_2ND="YES"
 
