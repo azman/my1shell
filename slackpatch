@@ -288,8 +288,8 @@ function process_command()
 		esac
 		shift
 	done
-	# exit if no command...
-	[[ "$do_command" == "" ]] && echo -e "$MSG_THISHELP\n" && exit 0
+	# if no command given, show help AND do a check
+	[[ "$do_command" == "" ]] && echo -e "$MSG_THISHELP\n" && do_command="check"
 	# find patches
 	pat_list=$(check_patches $pkg_path)
 	SAVE_IFS=$IFS
