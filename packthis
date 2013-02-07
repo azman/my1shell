@@ -38,7 +38,7 @@ while [[ "$1" != "" ]]; do
 		--ignore-git)
 			CHECKGIT="NO"
 			;;
-		--bundle-git)
+		--bundle-git|--git)
 			CHECKGIT="NO"
 			BUNDLGIT="YES"
 			;;
@@ -76,6 +76,8 @@ if [[ "$BUNDLGIT" == "YES" ]]; then
 	[[ $? -ne 0 ]] && echo "Error running git?" && exit 1
 	exit 0
 fi
+
+[[ -L "$CURRPATH" ]] && CURRPATH=$(pwd -P) && WORKPATH=$(dirname $CURRPATH)
 
 if [[ -d $WORKPATH ]]; then
 	cd $WORKPATH
