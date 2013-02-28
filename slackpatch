@@ -24,6 +24,7 @@ done
 MY1_SLACKDIR=${MY1_SLACKDIR:="${SLACKROOTDIR}/${SLACKRELEASE}"}
 MY1_PATCHDIR=${MY1_PATCHDIR:="${MY1_SLACKDIR}/patches/packages"}
 MY1_LOG_FILE=${MY1_LOG_FILE:="${MY1_TOOLPATH}/${MY1_TOOLBASE%%.*}.log"}
+MY1_PATCHEXT=${MY1_PATCHEXT:="${MY1_TOOLPATH}/../slackpack"}
 # global options & settings
 OPT_FULLINFO="NO"
 OPT_AUTOPATCH="YES"
@@ -117,6 +118,12 @@ function check_patches()
 		pat_list="${pat_list}$(find_patches)"
 		cd $MY1_PATCHDIR
 	done
+	# look for extra custom package path
+	if [[ -d $MY1_PATCHEXT ]]; then
+		cd $MY1_PATCHEXT
+		pat_list="${pat_list}$(find_patches)"
+	fi
+	cd $MY1_PATCHDIR
 	# process extra paths
 	while [[ "$1" != "" ]]; do
 		pat_path=$(cd $1;pwd)
@@ -174,7 +181,7 @@ function display_patches()
 		pat_stat=${pat_temp[1]}
 		#pat_file=${pat_temp[2]}
 		pat_vers=${pat_temp[3]}
-		#echo "Check: ${pat_temp[0]}, (${pat_stat}:${pat_opts})"
+		#echo "Check: ${pat_temp[0]} (${pat_stat}:${pat_opts})"
 		if [[ "$pat_stat" == "$pat_opts" ]] ; then
 			chk_null="NO"
 			[[ "$OPT_FULLINFO" == "NO" ]] && echo -n "$pat_name "
