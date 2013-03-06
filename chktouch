@@ -1,0 +1,53 @@
+#!/bin/bash
+
+TOUCH_NAME=${TOUCH_NAME:="FSPPS/2 Sentelic FingerSensingPad"}
+DEVICE_CHK="Device Enabled"
+
+XINPUT_BIN="xinput"
+XINPUT_CHK=$(which $XINPUT_BIN 2>/dev/null)
+[[ ! -x "$XINPUT_CHK" ]] &&
+	echo "Cannot find binary '$XINPUT_BIN'!" && exit 1
+
+XINPUT_BIN=${XINPUT_CHK}
+XINPUT_CHK=$($XINPUT_BIN list "$TOUCH_NAME" 2>/dev/null)
+[[ $? -ne 0 ]] &&
+	echo "Cannot find touch device '$TOUCH_NAME'!" && exit 1
+
+do_command=""
+ok_command="toggle enable disable"
+
+# check parameters for command
+while  [[ "$1" != "" ]]; do
+	case $1 in
+		1)
+			do_command="enable"
+			;;
+		0)
+			do_command="disable"
+			;;
+		-*)
+			echo "Unknown parameter '$1'"
+			exit
+			;;
+		*)
+			[[ "$do_command" != "" ]] &&
+				echo "Command already given ($do_command)!" && exit 1
+			for a in $ok_command; do
+				if [[ $1 == $a ]]; then
+					do_command=$1
+					break;
+				fi
+			done
+			[[ "$do_command" == "" ]] && echo "Unknown command ($1)!" && exit 1
+			;;
+	esac
+	shift
+done
+
+[[ "$do_command" == "enable" ]] &&
+	$XINPUT_BIN set-prop "$TOUCH_NAME" "$DEVICE_CHK" 1
+[[ "$do_command" == "disable" ]] &&
+	$XINPUT_BIN set-prop "$TOUCH_NAME" "$DEVICE_CHK" 0
+
+XINPUT_CHK=$(xinput --list-props "$TOUCH_NAME"|grep "$DEVICE_CHK"|cut -f3)
+echo "Device '$TOUCH_NAME' Status: $XINPUT_CHK"
