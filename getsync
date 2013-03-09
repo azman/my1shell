@@ -22,7 +22,6 @@ RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
 RSYNCURL=${RSYNCURL:="user@server:/path/to/home/"}
 RSYNCOPT=${RSYNCOPT:="-e ssh --partial -rlptD --progress --dry-run"}
 LOCALURL=${LOCALURL:="."}
-SKIP_2ND="YES"
 
 # make sure rsync is available!
 [[ "$RSYNC" == "" ]] && echo "Cannot find rsync!" && exit 1
@@ -48,12 +47,11 @@ while  [[ "$1" != "" ]]; do
 		--reload)
 			RSYNCOPT="${RSYNCOPT} --delete-excluded"
 			;;
-		--delete)
-			RSYNCOPT="${RSYNCOPT} --delete"
+		--delete|--update)
+			RSYNCOPT="${RSYNCOPT} $1"
 			;;
 		--exec)
 			RSYNCOPT="${RSYNCOPT//--dry-run/}"
-			SKIP_2ND=""
 			;;
 		*)
 			echo "Unknown parameter '$1'"
@@ -65,9 +63,6 @@ done
 
 # start actual mirroring process
 echo "*** From ${RSYNCSRC} To ${RSYNCTGT} ***"
-$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCSRC} ${RSYNCTGT}
-[[ "$SKIP_2ND" == "YES" ]] && exit 0
-echo "*** From ${RSYNCSRC} To ${RSYNCTGT} - (2nd Run) ***"
 $RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCSRC} ${RSYNCTGT}
 echo "$(date) [$$]: Done mirroring (exit code $?)."
 
