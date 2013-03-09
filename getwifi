@@ -3,6 +3,7 @@
 # getwifi
 # - written by azman@my1matrix.net
 # - simple wifi connect script based on wpa utilities
+# - STILL TESTING FOR WPA??
 
 WIFI_DEV=${WIFI_DEV:="wlan0"}
 WIFI_ADD=${WIFI_ADD:="192.168.1.100"}

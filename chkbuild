@@ -2,7 +2,7 @@
 
 # chkbuild
 # - written by azman@my1matrix.net
-# - browse my1 Slackbuilds in current path and check with given reference
+# - browse my1 SlackBuilds in current path and check with given reference
 
 REF_BUILD=$1
 CURR_PATH=$(pwd)

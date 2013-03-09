@@ -2,7 +2,7 @@
 
 # bash-setup
 # - written by azman@my1matrix.net
-# - create useful bash startup file
+# - create useful bash config files
 
 MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(cd $(dirname $0);pwd)"

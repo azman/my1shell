@@ -2,7 +2,7 @@
 
 # packthis
 # - written by azman@my1matrix.net
-# - to pack current working directory into a tar.bz2 archive
+# - to pack current working directory
 
 CURRPATH=$(pwd)
 WORKPATH=$(dirname $CURRPATH)

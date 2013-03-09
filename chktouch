@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# chktouch
+# - written by azman@my1matrix.net
+# - to disable touchpad on asus eeepc x101h
+
 TOUCH_NAME=${TOUCH_NAME:="FSPPS/2 Sentelic FingerSensingPad"}
 DEVICE_CHK="Device Enabled"
 

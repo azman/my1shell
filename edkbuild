@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# edkbuild (by azman@my1matrix.net)
-# -> Xilinx EDK command-line project builder
-# -> tested on ISE Design Suite 10.1
+# edkbuild
+# - written by azman@my1matrix.net)
+# - Xilinx EDK command-line project builder
+# - tested on ISE Design Suite 10.1
 
 # check xilinx environment settings
 if [[ -z "$XILINX_EDK" ]] || [[ -z "$XILINX" ]]; then
