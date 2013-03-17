@@ -50,6 +50,9 @@ while  [[ "$1" != "" ]]; do
 		--delete|--update)
 			RSYNCOPT="${RSYNCOPT} $1"
 			;;
+		--update)
+			RSYNCOPT="${RSYNCOPT} --update"
+			;;
 		--exec)
 			RSYNCOPT="${RSYNCOPT//--dry-run/}"
 			;;
