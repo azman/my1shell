@@ -155,11 +155,10 @@ function file_browse_packages()
 	local tmp_list pkg_list pkg_file=$1
 	shift ; pkg_list="$@"
 	# get all packages on file
-	SAVE_IFS=$IFS
-	IFS='
-'
+	ifs_save=$IFS
+	IFS=$'\n'
 	tmp_list=($(cat $pkg_file))
-	IFS=$SAVE_IFS
+	IFS=$ifs_save
 	for (( x=0;x<${#tmp_list[@]};x++ )); do
 		pkg_temp=($(get_pkg_info ${tmp_list[$x]}))
 		pkg_name=${pkg_temp[0]}

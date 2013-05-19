@@ -487,12 +487,11 @@ function get_buildinfo()
 	APP_PROCESSOR=$(echo "$app_buffer" | grep "$proc_name_str")
 	APP_EXECUTABLE=$(echo "$app_buffer" | grep "$exec_name_str")
 	APP_LINKER_SCRIPT=$(echo "$app_buffer" | grep "$linker_name_str")
-local SAVE_IFS=$IFS
-IFS='
-'
+	local ifs_save=$IFS
+	IFS=$'\n'
 	tmp_sources=($(cat $xmp_file | grep "$source_name_str"))
 	tmp_headers=($(cat $xmp_file | grep "$header_name_str"))
-IFS=$SAVE_IFS
+	IFS=$ifs_save
 
 	# check consistencies
 	if [[ ! -d "$EDK_MOD_PATH" ]] || [[ "$APP_PROCESSOR" == "" ]] || [[ "$APP_EXECUTABLE" == "" ]]; then

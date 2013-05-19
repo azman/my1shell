@@ -89,11 +89,10 @@ function check_remote_mount()
 {
 	local repo_name=$1
 	local remote_name=$2
-local SAVE_IFS=$IFS
-IFS='
-'
+	local ifs_save=$IFS
+	IFS=$'\n'
 	local remote_list=($($GIT_SSH_GIT remote -v 2>&1 | grep "$remote_name"))
-IFS=$SAVE_IFS
+	IFS=$ifs_save
 	local push_str=" (push)"
 	local test_mount
 	local remote_mount=""

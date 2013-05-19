@@ -123,12 +123,11 @@ if [[ "$WIFI_DO_STOP" == "yes" ]]; then
 			fi
 		fi
 	fi
-SAVE_IFS=$IFS
-IFS='
-'
+	ifs_save=$IFS
+	IFS=$'\n'
 	tmp_lines=($(ps -ef | grep "dhcpcd"))
-IFS=$SAVE_IFS
-GO_FISH=""
+	IFS=$ifs_save
+	GO_FISH=""
 	# check currently running dhcpcd process
 	for (( a=0;a<${#tmp_lines[@]};a++ )); do
 		[[ "$(echo ${tmp_lines[$a]} | grep $WIFI_DEV)" == "" ]] && continue

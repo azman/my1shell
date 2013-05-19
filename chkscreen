@@ -7,11 +7,10 @@
 # example using xrandr tool
 # xrandr --output LVDS1 --auto --output VGA1 --mode 1024x768 --right-of LVDS1
 
-SAVE_IFS=$IFS
-IFS='
-'
+ifs_save=$IFS
+IFS=$'\n'
 DISP_STATS=($(xrandr -q | grep " connected"))
-IFS=$SAVE_IFS
+IFS=$ifs_save
 
 echo -n "We have ${#DISP_STATS[@]} connected display(s) ==>"
 for (( a=0;a<${#DISP_STATS[@]};a++ )); do

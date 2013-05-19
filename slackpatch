@@ -297,11 +297,10 @@ function process_command()
 	[[ "$do_command" == "" ]] && echo -e "$MSG_THISHELP\n" && do_command="check"
 	# find patches
 	pat_list=$(check_patches $pkg_path)
-	SAVE_IFS=$IFS
-	IFS='
-'
+	ifs_save=$IFS
+	IFS=$'\n'
 	pat_list=($(echo "$pat_list"))
-	IFS=$SAVE_IFS
+	IFS=$ifs_save
 	# display packages
 	[[ "$do_command" != "patch" ]] &&
 		display_patches $do_command "${pat_list[@]}"
