@@ -12,119 +12,27 @@ for conffile in "$(pwd)/.$MY1TOOL" "$HOME/.$MY1TOOL"; do
 	source $conffile ; break
 done
 
-MY1_GETSLACK_CONF=$(cat <<MY1CONF
-# checkout release & arch
-RSYNCURLROOT=\${RSYNCURLROOT:="slackware.mirrors.tds.net::slackware/"}
-#RSYNCURLROOT=\${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
-#RSYNCURLROOT=\${RSYNCURLROOT:="taper.alienbase.nl::mirrors/slackware/"}
-#RSYNCURLROOT=\${RSYNCURLROOT:="mirror.aarnet.edu.au::slackware/"}
-RELEASE=\${RELEASE:="13.37"}
-SLACKARCH=\${SLACKARCH:="\$(uname -m)"}
-SLACKFULL=\${SLACKFULL:="slackware"}
-[[ "\$SLACKARCH" == "x86_64" ]] && SLACKFULL="slackware64"
-# kde option?
-NO_KDE=\${NO_KDE:="no"}
-GO_BOOTSTRAP=\${GO_BOOTSTRAP:="no"}
-# include some wanted software in excluded path
-INCLUDES="\$INCLUDES --include=extra/PACKAGES.TXT"
-#INCLUDES="\$INCLUDES --include=extra/wicd/"
-#INCLUDES="\$INCLUDES --include=extra/jdk-6/"
-#INCLUDES="\$INCLUDES --include=extra/source/"
-#INCLUDES="\$INCLUDES --include=extra/source/flashplayer-plugin/"
-# exclude non-essentials
-#EXCLUDES="\$EXCLUDES --exclude=extra/"
-EXCLUDES="\$EXCLUDES --exclude=extra/*"
-#EXCLUDES="\$EXCLUDES --exclude=extra/source/*"
-# exclude non-standard
-EXCLUDES="\$EXCLUDES --exclude=pasture/ --exclude=testing/"
-# exclude extra installers
-EXCLUDES="\$EXCLUDES --exclude=usb-and-pxe-installers/"
-# exclude source
-EXCLUDES="\$EXCLUDES --exclude=source/"
-# exclude unwanted packages
-EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/e/ --exclude=\${SLACKFULL}/f/"
-EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/kdei/ --exclude=\${SLACKFULL}/y/"
-# exclude source for unwanted packages - in case source is included
-EXCLUDES="\$EXCLUDES --exclude=source/e/ --exclude=source/f/"
-EXCLUDES="\$EXCLUDES --exclude=source/kdei/ --exclude=source/y/"
-# if we don't need kde
-if [[ "\$NO_KDE" == "yes" ]]; then
-	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/kde/"
-	EXCLUDES="\$EXCLUDES --exclude=source/kde/"
-fi
-# if we want to bootstrap
-if [[ "\$GO_BOOTSTRAP" == "yes" ]]; then
-	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/d/ --exclude=source/d/"
-	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/k/ --exclude=source/k/"
-	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/t/ --exclude=source/t/"
-	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/tcl/ --exclude=source/tcl/"
-	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/x/ --exclude=source/x/"
-	EXCLUDES="\$EXCLUDES --exclude=\${SLACKFULL}/xap/ --exclude=source/xap/"
-fi
-MY1CONF
-)
-CFG_PATH=$HOME
-if [[ "$1" == "--config" ]]; then
-	[[ -d "$2" ]] && CFG_PATH=$(cd $2;pwd)
-	echo "$MY1_GETSLACK_CONF" >$CFG_PATH/.$MY1TOOL
-	echo "New config file ($CFG_PATH/.$MY1TOOL) written!"
-	exit 0
-fi
-
-function find_binary()
-{
-	local chk_exec=$1
-	local set_exec=$(which $chk_exec 2>/dev/null)
-	[[ "$set_exec" == "" ]] &&
-		echo "Binary '$chk_exec' not found! Aborting!" 1>&2 && exit 1
-	echo -n $set_exec
-}
-
-function check_path()
-{
-	local chk_path=$1
-	if [[ ! -d "$chk_path"  ]]; then
-		echo "Path '$chk_path' not found! Aborting!"
-		exit 1
-	fi # bash doesn't like 'check &&  do_this && exit' at the end of a function?
-}
-
 # capture error in sub-shells
 set -e # activates errexit
 
 # tool & env setup
 SLACKROOT=${SLACKROOT:="$(pwd)"}
+[[ -z "$SLACKARCH" ]] && [[ -n "$ARCH" ]] && SLACKARCH=$ARCH
 SLACKARCH=${SLACKARCH:="$(uname -m)"}
 SLACKSUFX=${SLACKSUFX:=""}
 [[ "$SLACKARCH" == "x86_64" ]] && SLACKSUFX="64"
 SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
-RELEASE=${RELEASE:="13.37"}
-SLACKRELEASE="${SLACKFULL}-${RELEASE}"
-SLACKPATH="${SLACKROOT}/${SLACKRELEASE}"
+[[ -z "$SLACKVERS" ]] && [[ -n "$RELEASE" ]] && SLACKVERS=$RELEASE
+SLACKVERS=${SLACKVERS:="13.37"}
+SLACKFULL="${SLACKFULL}-${SLACKVERS}"
+SLACKPATH="${SLACKROOT}/${SLACKFULL}"
+# setup rsync parameters
 RSYNCURLROOT=${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
-RSYNCURL=${RSYNCURL:="${RSYNCURLROOT}${SLACKRELEASE}"}
+RSYNCURL=${RSYNCURL:="${RSYNCURLROOT}${SLACKFULL}"}
 RSYNCOPT=${RSYNCOPT:="--delete --delete-excluded --partial -rlptD --progress"}
 # check required binary
-RSYNC=${RSYNC:="$(find_binary rsync)"}
-
-# option to create iso - helping o-thers... local mirror must exist!
-if [[ "$1" == "--mkiso" ]]; then
-	MKISOFS=${MKISOFS:="$(find_binary mkisofs)"}
-	ISOPATH=${ISOPATH:="$HOME/temp"}
-	check_path $ISOPATH
-	check_path $SLACKPATH
-	cd $SLACKPATH
-	echo -n "Creating ISO from $SLACKPATH... "
-	$MKISOFS -o $ISOPATH/${SLACKRELEASE}-install.iso \
-		-V "${SLACKRELEASE} Install DVD" \
-		-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N -v -v -no-emul-boot \
-		-boot-load-size 32 -boot-info-table -sort isolinux/iso.sort \
-		-b isolinux/isolinux.bin -c isolinux/isolinux.boot \
-		-A "${SLACKRELEASE} Install DVD (build $(date +%Y%m%d))" . \
-		> $ISOPATH/${SLACKRELEASE}-install_build.log 2>&1
-	echo "done!"
-	exit 0
-fi
+RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
+[[ "$RSYNC" == "" ]] && echo "Cannot find rsync! Aborting!" && exit 1
 
 # customized default sync list
 EXCLUDES=${EXCLUDES:="--exclude=pasture/ --exclude=testing/ --exclude=source/"}
@@ -133,7 +41,6 @@ INCLUDES=${INCLUDES:=""}
 [[ -r "$INCLUDEFILE" ]] && INCLUDES="--include-from=$INCLUDEFILE"
 
 # start actual mirroring process - reduced version of alien_bob's script
-
 echo -e "#\n# Checking and changing to $SLACKPATH ...\n#"
 [[ ! -d $SLACKPATH ]] && mkdir -pv $SLACKPATH
 cd $SLACKPATH
@@ -143,6 +50,6 @@ echo "*** Using ${RSYNCURL} ***"
 $RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ .
 echo "*** Using ${RSYNCURL} - (2nd Run) ***"
 $RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ .
-echo "$(date) [$$]: Done mirroring ${SLACKRELEASE} (exit code $?)."
+echo "$(date) [$$]: Done mirroring ${SLACKFULL} (exit code $?)."
 
 exit 0
