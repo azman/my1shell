@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# slack2iso
+# - written by azman@my1matrix.net
+# - a section from alien_bob's mirror_slackware_current.sh
+
+if [[ -d "$1" ]]; then
+	SLACKISOPATH="$(cd $1;pwd)"
+fi
+TARGETISO=${TARGETISO:="$HOME/temp"}
+SLACKROOT=${SLACKROOT:="$(pwd)"}
+[[ -z "$SLACKARCH" ]] && [[ -n "$ARCH" ]] && SLACKARCH=$ARCH
+SLACKARCH=${SLACKARCH:="$(uname -m)"}
+SLACKSUFX=${SLACKSUFX:=""}
+[[ "$SLACKARCH" == "x86_64" ]] && SLACKSUFX="64"
+SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
+[[ -z "$SLACKVERS" ]] && [[ -n "$RELEASE" ]] && SLACKVERS=$RELEASE
+SLACKVERS=${SLACKVERS:="13.37"}
+SLACKFULL="${SLACKFULL}-${SLACKVERS}"
+SLACKPATH="${SLACKROOT}/${SLACKFULL}"
+
+[[ ! -d "$SLACKPATH" ]] &&
+	echo "Path to Slackware '$SLACKPATH' not found!" && exit 1
+MKISOFS=$(which mkisofs 2>/dev/null)
+[[ "$MKISOFS" == "" ]] &&
+	echo "Cannot find mkisofs! Aborting!" && exit 1
+[[ ! -d "$TARGETISO" ]] &&
+	echo "Creating target ISO path '$TARGETISO'... " && mkdir -p $TARGETISO
+
+cd $SLACKPATH
+echo -n "Creating ISO in '$TARGETISO' from '$SLACKPATH'... "
+$MKISOFS -o $TARGETISO/${SLACKFULL}-install.iso \
+	-V "${SLACKFULL} Install DVD" \
+	-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N -v -v -no-emul-boot \
+	-boot-load-size 32 -boot-info-table -sort isolinux/iso.sort \
+	-b isolinux/isolinux.bin -c isolinux/isolinux.boot \
+	-A "${SLACKFULL} Install DVD (build $(date +%Y%m%d))" . \
+	> $TARGETISO/${SLACKFULL}-install_build.log 2>&1
+echo "done!"
+cd - >/dev/null
+
+exit 0
