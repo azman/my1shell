@@ -12,6 +12,7 @@ BALLSUFX=${BALLSUFX:=""}
 DATE_FMT=${DATE_FMT:="+%Y%m%d"}
 CHECKGIT=${CHECKGIT:="YES"}
 BUNDLGIT=${BUNDLGIT:="NO"}
+PATCHGIT=${PATCHGIT:="NO"}
 CHK_VERB=${CHK_VERB:="NO"}
 NUM_COPY=${NUM_COPY:=0}
 TAR_EXEC=${TAR_EXEC:="tar"}
@@ -41,6 +42,12 @@ while [[ "$1" != "" ]]; do
 		--bundle-git|--git)
 			CHECKGIT="NO"
 			BUNDLGIT="YES"
+			PATCHGIT="NO"
+			;;
+		--git-diff)
+			CHECKGIT="NO"
+			BUNDLGIT="NO"
+			PATCHGIT="YES"
 			;;
 		--verbose|-v)
 			CHK_VERB="YES"
@@ -73,6 +80,15 @@ if [[ "$BUNDLGIT" == "YES" ]]; then
 		echo "Not a git repo! Cannot use 'git bundle'!" && exit 1
 	CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M).git
 	git bundle create ${BALLPATH}/${CHK_NAME} master
+	[[ $? -ne 0 ]] && echo "Error running git?" && exit 1
+	exit 0
+fi
+
+if [[ "$PATCHGIT" == "YES" ]]; then
+	[[ ! -d "$CURRPATH/.git" ]] &&
+		echo "Not a git repo! Cannot use 'git diff'!" && exit 1
+	CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M).patch
+	git diff >${BALLPATH}/${CHK_NAME}
 	[[ $? -ne 0 ]] && echo "Error running git?" && exit 1
 	exit 0
 fi
