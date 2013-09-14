@@ -3,6 +3,7 @@
 # slackview
 # - written by azman@my1matrix.net
 # - slackware package info viewer
+# - finds installs and in slackware tree
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Package Viewer Tool"

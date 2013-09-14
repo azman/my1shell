@@ -3,6 +3,7 @@
 # slackpatch
 # - written by azman@my1matrix.net
 # - slackware patch manager
+# - using upgradepkg from pkgtools
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Patch Tool"

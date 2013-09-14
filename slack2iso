@@ -5,7 +5,7 @@
 # - a section from alien_bob's mirror_slackware_current.sh
 
 if [[ -d "$1" ]]; then
-	SLACKISOPATH="$(cd $1;pwd)"
+	TARGETISO="$(cd $1;pwd)"
 fi
 TARGETISO=${TARGETISO:="$HOME/temp"}
 SLACKROOT=${SLACKROOT:="$(pwd)"}

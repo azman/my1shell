@@ -50,7 +50,10 @@ function do_root_install()
 	[[ "$chk_exec" == "YES" ]] &&
 		must_have_path "$chk_root" "Root path '$chk_root' not found!"
 	# install packages in list to given root
-	[[ "$chk_exec" == "YES" ]] && echo -n "" >$MY1_TOOL_LOG
+	if [[ "$chk_exec" == "YES" ]]; then
+		echo "$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)" >$MY1_TOOL_LOG
+		echo "ExecTime: $(date +%Y%m%d%H%M)" >>$MY1_TOOL_LOG
+	fi
 	for pkg_file in $pkg_list; do
 		[[ "$chk_syyy" != "YES" ]] &&
 			info_msg "Installing $(basename $pkg_file) to $chk_root ..."
