@@ -77,21 +77,30 @@ function view_find_package()
 
 function file_insert_package()
 {
-	local pkg_temp pkg_test
+	local pkg_temp pkg_test pkg_list
 	local pkg_file=$1
 	local pkg_name=$2
-	pkg_test=$(find_infile $pkg_file $pkg_name)
+	local ifs_save=$IFS
+	IFS=$'\n'
+	pkg_list=($(cat $pkg_file | grep "$pkg_name"))
+	IFS=$ifs_save
+	for (( x=0;x<${#pkg_list[@]};x++ )); do
+		pkg_temp=${pkg_list[$x]}
+		[[ "$pkg_temp" == "$pkg_name" ]] && pkg_test=${pkg_list[$x]} && break
+		pkg_temp=($(get_pkg_info ${pkg_list[$x]}))
+		[[ "${pkg_temp[0]}" == $pkg_name ]] && pkg_test=${pkg_list[$x]} && break
+	done
 	pkg_temp=$(find_package $pkg_name)
 	if [[ "$pkg_test" == "" ]]; then
 		echo $pkg_temp >>$pkg_file
 		echo "Package '$pkg_temp' added to $pkg_file."
 	else
 		# insert/update?
-		sed -i -e "\|^$pkg_name|c\\$pkg_temp" $pkg_file
+		sed -i -e "\|^$pkg_test\$|c\\$pkg_temp" $pkg_file
 		if [[ $? -ne 0 ]]; then
-			echo "Error replacing package '$pkg_temp'! [$pkg_name]"
+			echo "Error replacing package '$pkg_name'! [$pkg_temp]"
 		else
-			echo "Package '$pkg_temp' updated in $pkg_file."
+			echo "Package '$pkg_name' updated in $pkg_file. [$pkg_temp]"
 		fi
 	fi
 	echo
@@ -99,19 +108,28 @@ function file_insert_package()
 
 function file_remove_package()
 {
-	local pkg_temp
+	local pkg_temp pkg_list pkg_test
 	local pkg_file=$1
 	local pkg_name=$2
-	pkg_temp=$(find_infile $pkg_file $pkg_name)
-	if [[ "$pkg_temp" == "" ]]; then
+	local ifs_save=$IFS
+	IFS=$'\n'
+	pkg_list=($(cat $pkg_file | grep "$pkg_name"))
+	IFS=$ifs_save
+	for (( x=0;x<${#pkg_list[@]};x++ )); do
+		pkg_temp=${pkg_list[$x]}
+		[[ "$pkg_temp" == "$pkg_name" ]] && pkg_test=${pkg_list[$x]} && break
+		pkg_temp=($(get_pkg_info ${pkg_list[$x]}))
+		[[ "${pkg_temp[0]}" == $pkg_name ]] && pkg_test=${pkg_list[$x]} && break
+	done
+	if [[ "$pkg_test" == "" ]]; then
 		echo "Package '$pkg_name' not in file!"
 	else
 		# remove?
-		sed -i -e "\|^$pkg_temp|d" $pkg_file
+		sed -i -e "\|^$pkg_test\$|d" $pkg_file
 		if [[ $? -ne 0 ]]; then
-			echo "Error deleting package '$pkg_temp'! [$pkg_name]"
+			echo "Error deleting package '$pkg_name'! [$pkg_test]"
 		else
-			echo "Package '$pkg_temp' deleted from $pkg_file."
+			echo "Package '$pkg_test' deleted from $pkg_file."
 		fi
 	fi
 	echo
@@ -152,48 +170,101 @@ function file_option_package()
 function file_browse_packages()
 {
 	local pkg_name pkg_temp pkg_test pkg_full
-	local opt_more opt_init="[p]revious/[n]ext/[*]quit"
-	local tmp_list pkg_list pkg_file=$1
-	shift ; pkg_list="$@"
+	local opt_more opt_init="[p]revious/[n]ext/[q]uit"
+	local tmp_list pkg_list pkg_file=$1 do_select x y
+	shift ; pkg_list="$@" # list ignored for now
 	# get all packages on file
-	ifs_save=$IFS
+	local ifs_save=$IFS
 	IFS=$'\n'
 	tmp_list=($(cat $pkg_file))
 	IFS=$ifs_save
-	for (( x=0;x<${#tmp_list[@]};x++ )); do
-		pkg_temp=($(get_pkg_info ${tmp_list[$x]}))
+	# browse packages on file
+	for (( x=0;x<${#tmp_list[@]}; )); do
+		pkg_full=${tmp_list[$x]}
+		pkg_test=""
+		pkg_temp=($(get_pkg_info $pkg_full))
 		pkg_name=${pkg_temp[0]}
-		[[ "$(echo $pkg_list | grep '$pkg_name')" == "" ]] &&
-			pkg_list="$pkg_list $pkg_name"
-	done
-	# process the list
-	for pkg_name in $pkg_list ; do
-		pkg_full=$(find_infile $pkg_file $pkg_name)
+		echo -n "PACKAGE: ${pkg_full}"
+		[[ "${pkg_temp[1]}" == "${pkg_temp[0]}" ]] && pkg_name=$pkg_full &&
+			pkg_full=$(find_package $pkg_name) && pkg_test=" (${pkg_full})"
+		[[ "$pkg_full" == "" ]] && pkg_test=" (INVALID?)"
+		[[ "$pkg_test" != "" ]] && echo -n "$pkg_test"
 		# try to show details
-		pkg_test="pkgbase_${pkg_name//-/_}"
+		pkg_test="pkgdesc_${pkg_name//-/_}"
 		[[ -z "${!pkg_test}" ]] && pkg_db_package $pkg_name --all
 		if [[ -z "${!pkg_test}" ]] ; then
-			echo -n "Package: ${pkg_full} => "
+			echo -n " => "
+			opt_more=""
 		else
-			show_info $pkg_name
-			opt_more="[i]nsert/[d]elete/"
+			echo -e "\n\n${!pkg_test}\n"
+			opt_more="[u]pdate/[d]elete/"
 		fi
 		# navigation options
 		read -n 1 -p "Command (${opt_more}${opt_init}): " do_select
 		echo ; echo
 		if [[ "$do_select" == "n" ]]; then
-			[[ $x -lt ${#pkg_list[@]}-1 ]] && (( x++ ))
+			[[ $x -lt ${#tmp_list[@]}-1 ]] && (( x++ ))
 		elif [[ "$do_select" == "p" ]]; then
 			[[ $x -gt 0 ]] && (( x-- ))
-		else
-			if [[ "$opt_more" != "" ]] ; then
-				if [[ "$do_select" == "i" ]]; then
-					file_insert_package $pkg_file $pkg_name
-				elif [[ "$do_select" == "d" ]]; then
-					file_remove_package $pkg_file $pkg_name
-				fi
-			fi
+		elif [[ "$do_select" == "u" ]]; then
+			[[ "$opt_more" == "" ]] && continue
+			(( y=x ))
+			file_insert_package $pkg_file $pkg_name
+			(( x=y ))
+		elif [[ "$do_select" == "d" ]]; then
+			[[ "$opt_more" == "" ]] && continue
+			file_remove_package $pkg_file $pkg_name
 			break;
+		elif [[ "$do_select" == "q" ]]; then
+			break;
+		fi
+	done
+	echo
+}
+
+function file_update_packages()
+{
+	local pkg_name pkg_temp pkg_test pkg_full
+	local tmp_list tmp_stat do_select x y
+	# get all packages on file
+	local ifs_save=$IFS
+	IFS=$'\n'
+	tmp_list=($(cat $pkg_file))
+	IFS=$ifs_save
+	# browse packages on file
+	for (( x=0;x<${#tmp_list[@]};x++ )); do
+		pkg_test=${tmp_list[$x]}
+		pkg_full="$pkg_test"
+		pkg_temp=($(get_pkg_info $pkg_full))
+		pkg_name=${pkg_temp[0]}
+		tmp_stat=""
+		echo -n "PACKAGE: ${pkg_full}"
+		[[ "${pkg_temp[1]}" == "${pkg_temp[0]}" ]] && pkg_name=$pkg_full &&
+			pkg_full=$(find_package $pkg_name) && tmp_stat="$pkg_full"
+		[[ "$pkg_full" == "" ]] && tmp_stat="INVALID"
+		[[ "$tmp_stat" != "" ]] && echo -n " ($tmp_stat)"
+		echo -n " => "
+		# update if not the same
+		if [[ "$tmp_stat" == "INVALID" ]]; then
+			read -n 1 -p "Options ([d]elete/[i]gnore/[q]uit): " do_select
+			if [[ "$do_select" == "d" ]]; then
+				echo -e "\bDeleted!"
+				(( y=x ))
+				file_remove_package $pkg_file $pkg_name
+				(( x=y ))
+			elif [[ "$do_select" == "i" ]]; then
+				echo -e "\bIgnored!"
+			elif [[ "$do_select" == "q" ]]; then
+				echo -e "\bAborted!"
+				break;
+			fi
+		elif [[ "$pkg_full" != "$pkg_test" ]]; then
+			echo " Updated!"
+			(( y=x ))
+			file_insert_package $pkg_file $pkg_name
+			(( x=y ))
+		else
+			echo " OK!"
 		fi
 	done
 	echo
@@ -213,6 +284,9 @@ function view_file_package()
 				;;
 			--browse)
 				do_select="CHK"
+				;;
+			--update)
+				do_select="UPD"
 				;;
 			--name)
 				shift
@@ -241,6 +315,9 @@ function view_file_package()
 	[[ ! -f "$pkg_file" ]] && touch "$pkg_file"
 	[[ ! -r "$pkg_file" ]] &&
 		echo -e "[ERROR] Cannot read file '$pkg_file'!\n" && return
+	# check request to update file
+	[[ "$do_select" == "UPD" ]] &&
+		file_update_packages $pkg_file && return
 	# check request to browse file
 	[[ "$do_select" == "CHK" ]] &&
 		file_browse_packages $pkg_file $pkg_list && return
