@@ -27,6 +27,8 @@ MKISOFS=$(which mkisofs 2>/dev/null)
 	echo "Creating target ISO path '$ISOPATH'... " && mkdir -p $ISOPATH
 
 cd $SLACKPATH
+[[ ! -f "$ISOFILE" ]] &&
+	echo "Removing ISO '$ISOFILE' in '$ISOPATH'... " && rm -f $ISOFILE
 echo -n "Creating ISO in '$ISOPATH' from '$SLACKPATH'... "
 $MKISOFS -o $ISOPATH/$ISOFILE \
 	-V "${SLACKFULL} Install DVD" \
@@ -34,8 +36,8 @@ $MKISOFS -o $ISOPATH/$ISOFILE \
 	-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N -v \
 	-sort isolinux/iso.sort \
 	-b isolinux/isolinux.bin -c isolinux/isolinux.boot \
-	-no-emul-boot -boot-load-size 32 -boot-info-table \
-	. > $ISOPATH/${SLACKFULL}-install_build.log 2>&1
+	-no-emul-boot -boot-load-size 4 -boot-info-table \
+	. >$ISOPATH/${SLACKFULL}-install_build.log 2>&1
 echo "done!"
 cd - >/dev/null
 
@@ -43,8 +45,8 @@ ISOHYBRID=$(which isohybrid 2>/dev/null)
 if [[ -x "$ISOHYBRID" ]] ; then
 	cd $ISOPATH
 	echo -n "Making $ISOFILE in '$ISOPATH' an isohybrid... "
-	$ISOHYBRID $ISOFILE
-	echo "done!"
+	$ISOHYBRID $ISOFILE >>$ISOPATH/${SLACKFULL}-install_build.log 2>&1
+	if [[ $? -ne 0 ]] ; then echo "error??" ; else echo "done!" ; fi
 	cd - >/dev/null
 fi
 
