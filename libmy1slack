@@ -33,8 +33,9 @@ fi
 SLACKRELEASE=${SLACKRELEASE:="$SLACKNAME-$SLACKVERS"}
 SLACKROOTDIR=${SLACKROOTDIR:=""}
 if [[ "$SLACKROOTDIR" == "" ]]; then
-	SLACKFIND=${SLACKFIND:="/home"} # default path to look for
-	SLACKROOTDIR=$(find $SLACKFIND -maxdepth 3 -name "$SLACKRELEASE" -type d 2>/dev/null)
+	SLACKFINDDIR=${SLACKFINDDIR:="/home"} # default path to look for
+	SLACKFINDOPT="-maxdepth 3 -name $SLACKRELEASE"
+	SLACKROOTDIR=$(find $SLACKFINDDIR $SLACKFINDOPT -type d 2>/dev/null)
 	SLACKROOTDIR=${SLACKROOTDIR%"/$SLACKRELEASE"}
 fi
 SLACKRELPATH=${SLACKRELPATH:="${SLACKROOTDIR}/${SLACKRELEASE}"}
@@ -76,7 +77,7 @@ function debug_msg()
 {
 	local debug_tag="[DEBUG]"
 	local color_tag="33"
-	tag_msg "$check_tag" "$color_tag" "$@"
+	tag_msg "$debug_tag" "$color_tag" "$@"
 }
 
 function check_msg()

@@ -7,15 +7,12 @@
 MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(dirname $0)"
 # look for config file
-for conffile in "$(pwd)/.$MY1TOOL" "$HOME/.$MY1TOOL"; do
-	[[ ! -f $conffile ]] && continue
-	source $conffile ; break
+for config in $(pwd) $HOME; do
+	config=$config/.$MY1TOOL
+	[[ -r $config ]] && source $config && break
 done
 
-# capture error in sub-shells
-set -e # activates errexit
-
-# tool & env setup
+# setup path to slackware tree
 SLACKROOT=${SLACKROOT:="$(pwd)"}
 [[ -z "$SLACKARCH" ]] && [[ -n "$ARCH" ]] && SLACKARCH=$ARCH
 SLACKARCH=${SLACKARCH:="$(uname -m)"}
@@ -26,6 +23,9 @@ SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
 SLACKVERS=${SLACKVERS:="13.37"}
 SLACKFULL="${SLACKFULL}-${SLACKVERS}"
 SLACKPATH="${SLACKROOT}/${SLACKFULL}"
+
+# capture error in sub-shells
+set -e # activates errexit
 # setup rsync parameters
 RSYNCURLROOT=${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
 RSYNCURL=${RSYNCURL:="${RSYNCURLROOT}${SLACKFULL}"}

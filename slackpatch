@@ -7,19 +7,17 @@
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Patch Tool"
-MY1_TOOLVERS="2012.03.00"
+MY1_TOOLVERS="2013.10.00"
 MY1_TOOLBASE=$(basename $0 .sh)
 MY1_TOOLPATH=$(cd $(dirname $0);pwd)
 MY1_TOOL_LIB="libmy1slack"
 # look for config file
-for config in $(pwd) $MY1_TOOLPATH $HOME; do
+for config in $(pwd) $HOME; do
 	config=$config/.$MY1_TOOLBASE
-	[[ ! -f $config ]] && continue
-	source $config ; break
+	[[ -r $config ]] && source $config && break
 done
 # look for my1slack library
-[[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] &&
-	source $MY1_TOOLPATH/$MY1_TOOL_LIB
+[[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] && source $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 # my1slack tool specific
 MY1_SLACKDIR=${MY1_SLACKDIR:="${SLACKROOTDIR}/${SLACKRELEASE}"}
@@ -27,8 +25,7 @@ MY1_PATCHDIR=${MY1_PATCHDIR:="${MY1_SLACKDIR}/patches/packages"}
 MY1_LOG_FILE=${MY1_LOG_FILE:="${MY1_TOOLPATH}/${MY1_TOOLBASE%%.*}.log"}
 MY1_PATCHEXT=${MY1_PATCHEXT:="${MY1_TOOLPATH}/../slackpack"}
 # global options & settings
-OPT_FULLINFO="NO"
-OPT_AUTOPATCH="YES"
+OPT_VERBOSE="NO"
 OPT_LOGFILE="/dev/null"
 MSG_THISHELP=$(cat <<SETHELPMSG
 Usage:
@@ -39,13 +36,9 @@ Commands:
   nlist : List patches NOT in update list (not used)
   patch : Apply updates/patches
 Options:
-  --short  : Short Info
-  --full   : Full Info
-  --prompt : Prompt Before Patching
-  --auto   : Auto-Patch
-  --log    : Write to log file
-  --path <path_name> : Specify additional patch path
-  --pkg <package_name> : Auto-Patch Implied!
+  --verbose : Verbose mode (will also prompt patching!)
+  --path <path_name>   : Specify additional patch path
+  --pkg <package_name> : Check/update specific package
 Mirror Source:
   $MY1_SLACKDIR
 Log File:
@@ -148,7 +141,7 @@ function apply_patch()
 	[[ ! -r "$pat_file" ]] &&
 		error_exit "File '$pat_file' not found!"
 	# apply the patch!
-	if [[ "$OPT_AUTOPATCH" == "NO" ]] ; then
+	if [[ "$OPT_VERBOSE" == "YES" ]] ; then
 		read -n 1 -p "Update '$pat_name'? [y]/[*]/[q] : " do_update ; echo
 		if [[ "$do_update" == "y" ]]; then
 			echo -n "Updating '$pat_name'... "
@@ -158,7 +151,7 @@ function apply_patch()
 			warn_msg "Aborting on '$pat_name'!"
 			exit 0
 		fi
-	elif [[ "$OPT_AUTOPATCH" == "YES" ]] ; then
+	elif [[ "$OPT_VERBOSE" == "NO" ]] ; then
 		echo -n "Auto-updating '$pat_name'... "
 		/sbin/upgradepkg ${pat_file} >>$OPT_LOGFILE
 		echo "done."
@@ -183,13 +176,13 @@ function display_patches()
 		#echo "Check: ${pat_temp[0]} (${pat_stat}:${pat_opts})"
 		if [[ "$pat_stat" == "$pat_opts" ]] ; then
 			chk_null="NO"
-			[[ "$OPT_FULLINFO" == "NO" ]] && echo -n "$pat_name "
-			[[ "$OPT_FULLINFO" == "YES" ]] && echo "$pat_name: ${pat_vers}"
+			[[ "$OPT_VERBOSE" == "NO" ]] && echo -n "$pat_name "
+			[[ "$OPT_VERBOSE" == "YES" ]] && echo "$pat_name: ${pat_vers}"
 		fi
 	done
 	# prettify output
 	if [[ "$chk_null" == "NO" ]] ; then
-		[[ "$OPT_FULLINFO" != "YES" ]] && echo
+		[[ "$OPT_VERBOSE" == "NO" ]] && echo
 	else
 		[[ "$pat_opts" == "check" ]] && echo "** No updates found! **"
 		[[ "$pat_opts" == "pdone" ]] && echo "** No up2date patches! **"
@@ -249,17 +242,8 @@ function process_command()
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
-			--short)
-				OPT_FULLINFO="NO"
-				;;
-			--full)
-				OPT_FULLINFO="YES"
-				;;
-			--prompt)
-				OPT_AUTOPATCH="NO"
-				;;
-			--auto)
-				OPT_AUTOPATCH="YES"
+			--verbose)
+				OPT_VERBOSE="YES"
 				;;
 			--log)
 				OPT_LOGFILE="$MY1_LOG_FILE"
@@ -294,11 +278,11 @@ function process_command()
 		esac
 		shift
 	done
-	# if no command given, show help AND do a check
+	# if no command given, do a check
 	[[ "$do_command" == "" ]] && do_command="check"
 	# find patches
 	pat_list=$(check_patches $pkg_path)
-	ifs_save=$IFS
+	local ifs_save=$IFS
 	IFS=$'\n'
 	pat_list=($(echo "$pat_list"))
 	IFS=$ifs_save
@@ -316,3 +300,5 @@ echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 process_command "$@"
 
 # END MAIN SCRIPT
+
+exit 0
