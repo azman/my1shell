@@ -20,9 +20,9 @@ done
 [[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] && source $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 # my1slack tool specific
+MY1_TOOL_LOG=${MY1_TOOL_LOG:="/tmp/${MY1_TOOLBASE}.log"}
 MY1_SLACKDIR=${MY1_SLACKDIR:="${SLACKROOTDIR}/${SLACKRELEASE}"}
 MY1_PATCHDIR=${MY1_PATCHDIR:="${MY1_SLACKDIR}/patches/packages"}
-MY1_LOG_FILE=${MY1_LOG_FILE:="${MY1_TOOLPATH}/${MY1_TOOLBASE%%.*}.log"}
 MY1_PATCHEXT=${MY1_PATCHEXT:="${MY1_TOOLPATH}/../slackpack"}
 # global options & settings
 OPT_VERBOSE="NO"
@@ -37,12 +37,13 @@ Commands:
   patch : Apply updates/patches
 Options:
   --verbose : Verbose mode (will also prompt patching!)
+  --log     : Write process & results to log file
   --path <path_name>   : Specify additional patch path
   --pkg <package_name> : Check/update specific package
 Mirror Source:
   $MY1_SLACKDIR
 Log File:
-  $MY1_LOG_FILE
+  $MY1_TOOL_LOG
 SETHELPMSG
 )
 
@@ -188,7 +189,6 @@ function display_patches()
 		[[ "$pat_opts" == "pdone" ]] && echo "** No up2date patches! **"
 		[[ "$pat_opts" == "nlist" ]] && echo "** No unknown patches! **"
 	fi
-	echo
 }
 
 function execute_patches()
@@ -231,7 +231,6 @@ function execute_patches()
 	else
 		echo "** Nothing to patch/upgrade! **"
 	fi
-	echo
 }
 
 function process_command()
@@ -246,7 +245,7 @@ function process_command()
 				OPT_VERBOSE="YES"
 				;;
 			--log)
-				OPT_LOGFILE="$MY1_LOG_FILE"
+				OPT_LOGFILE="$MY1_TOOL_LOG"
 				;;
 			--path)
 				shift
@@ -298,7 +297,6 @@ function process_command()
 
 echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 process_command "$@"
+echo ; exit 0
 
 # END MAIN SCRIPT
-
-exit 0
