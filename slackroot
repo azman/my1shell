@@ -33,14 +33,11 @@ Commands:
   create : Create a custom root installation 
   config : Configure for chroot32 installation
   chroot : Do create & config in one command
-  livefs : Create live filesystem (NOT TESTED)
+  squash : Squash root installation (NOT TESTED)
 Options:
   --verbose : More info
   --exec    : Execute (else just dry run!)
   --root <path> : Specify root path (default: $MY1_ROOT_DEF)
-Options (livefs):
-  --live <path> : Specify live path (default: $MY1_LIVE_DEF)
-  --user <user> : Specify user name (default: $MY1_USER_DEF)
 Options (create):
   --path <path> : Specify path for packages
   --file <file> : Specify file containing package list
@@ -48,6 +45,10 @@ Options (create):
   --core-only : Select basic system tool packages
   --console   : Select console application packages 
   --desktop   : Select desktop application packages
+Options (squash):
+  --live <path> : Specify live path (default: $MY1_LIVE_DEF)
+  --user <user> : Specify user name (default: $MY1_USER_DEF)
+  --custom  : Customize root installation
 Log File:
   $MY1_TOOL_LOG
 SETHELPMSG
@@ -326,7 +327,8 @@ SHUTDOWN_LINES
 	# check shutdown
 	chk_file="/etc/rc.d/rc.local_shutdown"
 	[[ "$chk_exec" == "YES" ]] && [[ ! -f "$chk_file" ]] && touch $chk_file
-	local chk_out="$(cat $chk_file | grep $chk_root/dev)"
+	local chk_out=""
+	[[ -r "$chk_file" ]] && chk_out="$(cat $chk_file | grep $chk_root/dev)"
 	if [[ ! -f "$chk_file" ]] || [[ "$chk_out" == "" ]]; then
 		if [[ "$chk_syyy" == "NO" ]] ; then
 			check_msg --no-tag "\n"
@@ -476,7 +478,7 @@ function build_module()
 	local mods_file=${mod_label}.sfs
 	local MKSQUASHFS_BIN="mksquashfs"
 	# start main info msg
-	info_msg "Creating live module..."
+	info_msg "Creating module '$mods_file'..."
 	# check 'command-line'
 	shift # first param is mod_label
 	while [[ "$1" != "" ]]; do
@@ -503,29 +505,30 @@ function build_module()
 		MKSQUASHFS_BIN=$(find_binary $MKSQUASHFS_BIN)
 	# if executing, do a sanity check
 	mods_path=${path_live}/${mods_path}
-	mods_file=${mods_path}/${mods_file}
 	if [[ "$chk_exec" == "YES" ]] ; then
 		mkdir -p $mods_path
-		rm -f ${mods_file}
+		rm -f ${mods_path}/${mods_file}
 		[[ ! -d "$path_root" ]] && error_exit "Root '$path_root' NOT found!"
 	fi
 	# process!
-	[[ "$chk_syyy" == "NO" ]] && echo
+	[[ "$chk_syyy" == "NO" ]] && echo && info_msg "Module path: '$mods_path'\n"
 	[[ "$chk_syyy" == "NO" ]] && info_msg "Preparing module '$mods_file'..."
-	[[ "$chk_exec" == "YES" ]] && $MKSQUASHFS_BIN $path_root $mods_file \
+	[[ "$chk_exec" == "YES" ]] && $MKSQUASHFS_BIN $path_root \
+		$mods_path/$mods_file \
 		$opt_compress -e tmp dev proc sys $mods_path >/dev/null 2>&1
 	[[ "$chk_syyy" == "NO" ]] && info_msg --no-tag " done! ($?)\n"
 	# end main info msg
 	info_msg --no-tag "done!\n"
 }
 
-function livefs_create()
+function squash_create()
 {
 	local chk_root="$MY1_ROOT_DEF"
 	local chk_live="$MY1_LIVE_DEF"
 	local chk_user="user"
 	local chk_exec=""
 	local chk_syyy=""
+	local chk_init=""
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -551,6 +554,9 @@ function livefs_create()
 				shift
 				chk_user=$1
 				;;
+			--custom)
+				chk_init="YES"
+				;;
 			--verbose)
 				chk_syyy=$1
 				;;
@@ -564,14 +570,14 @@ function livefs_create()
 		shift
 	done
 	# do your thing!
-	rootfs_create --root $chk_root --core-only $chk_exec $chk_syyy
-	rootfs_custom $chk_root $chk_user $chk_exec $chk_syyy
+	[[ "$chk_init" == "YES" ]] &&
+		rootfs_custom $chk_root $chk_user $chk_exec $chk_syyy
 	build_module 00-core --root $chk_root --live $chk_live $chk_exec $chk_syyy
 }
 
 function process_command()
 {
-	local go_commands="create config chroot livefs"
+	local go_commands="create config chroot squash"
 	local chk_command=$1
 	local do_command
 	shift
@@ -585,7 +591,7 @@ function process_command()
 		create) rootfs_create $@ ;;
 		config) chroot_config $@ ;;
 		chroot) rootfs_create $@ ; chroot_config $@  ;;
-		livefs) livefs_create $@  ;;
+		squash) squash_create $@  ;;
 	esac
 }
 
