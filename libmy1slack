@@ -136,7 +136,7 @@ function must_be_root()
 
 function get_pkg_info()
 {
-	# get pkg info from name (i.e. filename minus extension!)
+	# get pkg info from basename (i.e. filename minus extension!)
 	local pkg_name pkg_vers pkg_arch pkg_extd pkg_temp
 	local pkg_base="$1"
 	pkg_extd="${pkg_base##*-}"
@@ -171,19 +171,19 @@ function get_softpack()
 
 function comp_package()
 {
-	# compare 2 packages (based on filename), returns 0 if the same!
-	local pkg1_file="$1"
-	local pkg2_file="$2"
+	# compare 2 package basenames, returns non-zero if different!
+	local pkg1_base="$1"
+	local pkg2_base="$2"
 	local pkg_temp
 	local pkg1_name pkg1_vers pkg1_arch pkg1_extd
 	local pkg2_name pkg2_vers pkg2_arch pkg2_extd
 	# extract info components
-	pkg_temp=($(get_pkg_info $pkg1_file))
+	pkg_temp=($(get_pkg_info $pkg1_base))
 	pkg1_name="${pkg_temp[0]}"
 	pkg1_vers="${pkg_temp[1]}"
 	pkg1_arch="${pkg_temp[2]}"
 	pkg1_extd="${pkg_temp[3]}"
-	pkg_temp=($(get_pkg_info $pkg2_file))
+	pkg_temp=($(get_pkg_info $pkg2_base))
 	pkg2_name="${pkg_temp[0]}"
 	pkg2_vers="${pkg_temp[1]}"
 	pkg2_arch="${pkg_temp[2]}"
@@ -197,160 +197,142 @@ function comp_package()
 	return 0
 }
 
-function pkg_db_package()
+function find_desc()
 {
-	# get package info from mirror tree and put into db!
+	# get package description from a PACKAGES.TXT file
 	local pkg_name="$1"
-	local pkg_flag="$2"
-	local pkg_info pkg_long pkg_file pkg_path
-	local pkg_size pkg_full pkg_base pkg_desc
-	local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
-	local pkg_test=$(cat $SLACKPKGFILE | grep -e "$pkg_temp" -A3)
-	if [[ "$pkg_test" = "" ]] ; then # look in extra, if available
-		[[ ! -f $SLACKEXTFILE ]] && return 1
-		pkg_test=$(cat $SLACKEXTFILE | grep -e "$pkg_temp" -A3)
-		[[ "$pkg_test" = "" ]] && return 1
-	fi
-	[[ "$pkg_flag" == "--check" ]] && echo -n "$pkg_name" && return 0
-	# extract info
-	pkg_file=$(echo "$pkg_test" | grep 'PACKAGE NAME')
-	pkg_file="${pkg_file##* }"
-	pkg_path=$(echo "$pkg_test" | grep 'PACKAGE LOCATION')
-	pkg_path="${pkg_path##*./}"
-	pkg_size=$(echo "$pkg_test" | grep 'PACKAGE SIZE (compressed)')
-	pkg_size="${pkg_size%% K*}"
-	pkg_size="${pkg_size##* }K"
-	pkg_full=$(echo "$pkg_test" | grep 'PACKAGE SIZE (uncompressed)')
-	pkg_full="${pkg_full%% K*}"
-	pkg_full="${pkg_full##* }K"
-	pkg_base=${pkg_file%.t[gx]z}
-	[[ "$pkg_flag" == "--all" ]] &&
-		pkg_desc=$(grep -e "^$pkg_name:" $SLACKPKGFILE)
-	# build db
-	eval pkgfile_${pkg_name//[-.]/_}="$pkg_file"
-	eval pkgpath_${pkg_name//[-.]/_}="$pkg_path"
-	eval pkgsize_${pkg_name//[-.]/_}="$pkg_size"
-	eval pkgfull_${pkg_name//[-.]/_}="$pkg_full"
-	eval pkgbase_${pkg_name//[-.]/_}="$pkg_base"
-	eval pkgdesc_${pkg_name//[-.]/_}='$pkg_desc'
-	# done!
-	return 0
+	local pkgs_txt="$2"
+	local pkg_desc=$(grep -e "^$pkg_name:" $pkgs_txt)
+	echo -n "$pkg_desc"
 }
 
-function pkg_db_install()
+function find_package_desc()
 {
-	# get package info from current installation and put into db!
-	# CHECKED20120324: HAVE TO DO THIS IN DIFFERENT FUNCTION FROM ABOVE!
+	# get package entry from mirror tree
 	local pkg_name="$1"
-	local pkg_flag="$2"
-	local pkg_base pkg_file pkg_path
-	local pkg_size pkg_full
-	local pkg_temp="\<${pkg_name}-[^-]*-[^-]*-[^-]*$"
-	local pkg_test=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
-	[[ "$pkg_test" = "" ]] && return 1
-	[[ "$pkg_flag" == "--check" ]] && echo -n "$pkg_name" && return 0
-	# extract info
-	pkg_temp="$SLACKINSTLOG/$pkg_test"
-	pkg_test=$(cat $pkg_temp | grep -e "^PACKAGE NAME:" -A3)
-	pkg_base=$(echo "$pkg_test" | grep 'PACKAGE NAME')
-	pkg_base="${pkg_base##* }"
-	pkg_file=$(echo "$pkg_test" | grep 'PACKAGE LOCATION')
-	pkg_file="${pkg_file##* }"
-	pkg_path=${pkg_file%${pkg_base}.t[gx]z}
-	[[ "$pkg_path" == "" ]] || pkg_file=${pkg_file##${pkg_path}}
-	pkg_size=$(echo "$pkg_test" | grep -e "^COMPRESSED PACKAGE SIZE")
-	pkg_size="${pkg_size##* }"
-	pkg_full=$(echo "$pkg_test" | grep -e "^UNCOMPRESSED PACKAGE SIZE")
-	pkg_full="${pkg_full##* }"
-	[[ "$pkg_flag" == "--all" ]] && pkg_desc=$(grep "$pkg_name:" $pkg_temp)
-	# build db
-	eval pkgfile_${pkg_name//[-.]/_}="$pkg_file"
-	eval pkgpath_${pkg_name//[-.]/_}="$pkg_path"
-	eval pkgsize_${pkg_name//[-.]/_}="$pkg_size"
-	eval pkgfull_${pkg_name//[-.]/_}="$pkg_full"
-	eval pkgbase_${pkg_name//[-.]/_}="$pkg_base"
-	eval pkgdesc_${pkg_name//[-.]/_}='$pkg_desc'
-	# done!
-	return 0
+	echo -n "$(find_desc $pkg_name $SLACKPKGFILE)"
 }
 
-function find_infile()
-{
-	# get package entry from a file
-	local pkg_base="$1"
-	local pkg_test="$2"
-	local pkg_temp="\<${pkg_test}-[^-]*-[^-]*-[^-]*$"
-	local pkg_file=$(cat $pkg_base | grep -e "$pkg_temp")
-	echo -n "$pkg_file"
-}
-
-function find_inpath()
-{
-	# get package entry from file(s) in a path (filename)
-	local pkg_test="$1"
-	local tgt_path="$2"
-	[[ -d "$tgt_path" ]] || tgt_path="."
-	local pkg_temp="\<${pkg_test}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
-	local pkg_file=$(find $tgt_path -name *.t[gx]z | grep -e "$pkg_temp")
-	echo -n "$pkg_file"
-}
-
-function find_install()
+function find_install_desc()
 {
 	# get package entry from current installation
-	local pkg_test="$1"
-	local pkg_temp="\<${pkg_test}-[^-]*-[^-]*-[^-]*$"
-	local pkg_file=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
-	echo -n "$pkg_file"
+	local pkg_name="$1"
+	local pkg_temp="\<${pkg_name}-[^-]*-[^-]*-[^-]*$"
+	local pkg_test=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
+	local pkgs_txt="$SLACKINSTLOG/$pkg_test"
+	[[ "$pkg_test" = "" ]] && return
+	echo -n "$(find_desc $pkg_name $pkgs_txt)"
+}
+
+function find_info()
+{
+	# get package info from a PACKAGES.TXT file or /var/log entry
+	local pkg_name="$1"
+	local pkgs_txt="$2"
+	# info structure?
+	local pkg_base pkg_file pkg_path pkg_size pkg_full
+	# pattern search?
+	#local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
+	#local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
+	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*$"
+	local pkg_test="$(cat $pkgs_txt | grep -e "$pkg_temp" -A3)"
+	[[ "$pkg_test" = "" ]] && return
+	# extract basic info
+	local chk_name="PACKAGE NAME:"
+	pkg_file=$(echo "$pkg_test" | grep "^$chk_name")
+	pkg_file="${pkg_file##${check_name}* }"
+	chk_name="PACKAGE LOCATION:"
+	pkg_path=$(echo "$pkg_test" | grep "^$chk_name")
+	pkg_path="${pkg_path##${check_name}* }"
+	# check if location provided by /var/log
+	if [[ "${pkg_path//\/var\/log\/mount\//}" != "${pkg_path}" ]] ; then
+		pkg_file=${pkg_path##*/}
+		pkg_path=${pkg_path%${pkg_file}}
+		pkg_path=${SLACKPKGPATH}/${pkg_path//\/var\/log\/mount\//}
+	elif [[ "${pkg_path:0:2}" == "./" ]] ; then
+		pkg_path="${SLACKRELPATH}/${pkg_path:2}"
+	fi
+	pkg_base=${pkg_file%.t[gx]z}
+	chk_name="PACKAGE SIZE (compressed): "
+	pkg_size=$(echo "$pkg_test" | grep "^$chk_name")
+	if [[ "$pkg_size" == "" ]] ; then
+		chk_name="COMPRESSED PACKAGE SIZE:"
+		pkg_size=$(echo "$pkg_test" | grep -e "^$chk_name")
+		pkg_size="${pkg_size##${chk_name}* }"
+	else
+		pkg_size="${pkg_size%% K*}"
+		pkg_size="${pkg_size##* }K"
+	fi
+	chk_name="PACKAGE SIZE (uncompressed):"
+	pkg_full=$(echo "$pkg_test" | grep "^$chk_name")
+	if [[ "$pkg_full" == "" ]] ; then
+		chk_name="UNCOMPRESSED PACKAGE SIZE:"
+		pkg_full=$(echo "$pkg_test" | grep -e "^$chk_name")
+		pkg_full="${pkg_full##${chk_name}* }"
+	else
+		pkg_full="${pkg_full%% K*}"
+		pkg_full="${pkg_full##* }K"
+	fi
+	# arrange output
+	echo -n "$pkg_base $pkg_file $pkg_path $pkg_size $pkg_full"
 }
 
 function find_package()
 {
 	# get package entry from mirror tree
-	local pkg_test="$1"
-	local pkg_temp="\<PACKAGE NAME:  ${pkg_test}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
-	local pkg_file=$(cat $SLACKPKGFILE | grep -e "$pkg_temp")
-	[[ "$pkg_file" == "" ]] && [[ -f $SLACKEXTFILE ]] &&
-		pkg_file=$(cat $SLACKEXTFILE | grep -e "$pkg_temp")
-	[[ "$pkg_file" == "" ]] && return
-	pkg_file="${pkg_file##* }"
-	pkg_file="${pkg_file%.t[gx]z}"
-	echo -n "$pkg_file"
+	local pkg_name="$1"
+	local pkg_flag="$2"
+	local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
+	local pkg_base=$(cat $SLACKPKGFILE | grep -e "$pkg_temp")
+	[[ "$pkg_base" == "" ]] &&
+		pkg_base=$(cat $SLACKEXTFILE | grep -e "$pkg_temp")
+	[[ "$pkg_base" == "" ]] && return
+	pkg_base="${pkg_base##* }"
+	pkg_base="${pkg_base%.t[gx]z}"
+	[[ "$pkg_flag" != "--full" ]] && echo -n "$pkg_base" && return
+	local pkg_test="$(find_info $pkg_name $SLACKPKGFILE)"
+	[[ "$pkg_test" = "" ]] && pkg_test="$(find_info $pkg_name $SLACKEXTFILE)"
+	echo -n "$pkg_test"
+}
+
+function find_install()
+{
+	# get package entry from current installation
+	local pkg_name="$1"
+	local pkg_flag="$2"
+	local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
+	local pkg_base=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
+	[[ "$pkg_base" == "" ]] && return
+	[[ "$pkg_flag" != "--full" ]] && echo -n "$pkg_base" && return
+	local pkgs_txt="$SLACKINSTLOG/$pkg_test"
+	echo -n "$(find_info $pkg_name $pkgs_txt)"
 }
 
 function show_info()
 {
-	# print package info (including desc entry!)
-	local pkg_test="$1"
-	local pkg_path pkg_size pkg_full
-	local pkg_stat pkg_flag pkg_base
-	local pkg_temp pkg_desc pkg_log pkg_file
-	local pkg_name pkg_vers pkg_arch pkg_extd
-	# extracting information
-	pkg_temp="pkgbase_${pkg_test//-/_}"
-	[[ -z "${!pkg_temp}" ]] && return
-	pkg_base="${!pkg_temp}"
+	# get package info
+	local pkg_name="$1"
+	local pkg_info="$(find_install $pkg_name --full)"
+	[[ "$pkg_info" == "" ]] && pkg_info="$(find_package $pkg_name --full)"
+	[[ "$pkg_info" == "" ]] && return
+	# info structure?
+	local pkg_temp pkg_test pkg_name pkg_vers pkg_arch pkg_extd 
+	local pkg_base pkg_file pkg_path pkg_size pkg_full
+	pkg_test=($(echo "$pkg_info"))
+	pkg_base="${pkg_test[0]}"
+	pkg_file="${pkg_test[1]}"
+	pkg_path="${pkg_test[2]}"
+	pkg_size="${pkg_test[3]}"
+	pkg_full="${pkg_test[4]}"
 	pkg_temp=($(get_pkg_info $pkg_base))
 	pkg_name="${pkg_temp[0]}"
 	pkg_vers="${pkg_temp[1]}"
 	pkg_arch="${pkg_temp[2]}"
 	pkg_extd="${pkg_temp[3]}"
-	pkg_temp="pkgfile_${pkg_test//-/_}"
-	pkg_file="${!pkg_temp}"
-	pkg_temp="pkgpath_${pkg_test//-/_}"
-	pkg_path="${!pkg_temp}"
-	pkg_temp="pkgsize_${pkg_test//-/_}"
-	pkg_size="${!pkg_temp}"
-	pkg_temp="pkgfull_${pkg_test//-/_}"
-	pkg_full="${!pkg_temp}"
-	pkg_temp="pkgdesc_${pkg_test//-/_}"
-	pkg_desc="${!pkg_temp}"
-	[[ "$pkg_path" == "" ]] && pkg_path="Unknown"
-	[[ "$pkg_size" == "" ]] && pkg_size="Unknown"
-	[[ "$pkg_full" == "" ]] && pkg_full="Unknown"
-	pkg_flag=""
+	# status flags
+	local pkg_flag=""
 	[[ "$(find_install $pkg_name)" == "" ]] && pkg_flag="NOT "
-		pkg_stat=""
+	local pkg_stat=""
 	[[ "$(find_package $pkg_name)" == "" ]] && pkg_stat=" (ALIEN!)"
 	# do the printing
 	local title="PACKAGE <$pkg_name> - BEGIN"
