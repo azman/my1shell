@@ -169,6 +169,22 @@ function get_softpack()
 	echo -n "$(get_pathpack ${SLACKPKGPATH}/$1)"
 }
 
+function get_packsoft()
+{
+	# get official software set for given package
+	local pkg_name="$1"
+	local pkg_soft="z" # defaulf unknown set
+	for pkg_path in ${SLACKPKGPATH}/* ; do
+		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z$"
+		local pkg_test=$(ls $pkg_path | grep -e "$pkg_temp")
+		if [[ "$pkg_test" != "" ]] ; then
+			pkg_soft="${pkg_path##*/}"
+			break
+		fi
+	done
+	echo -n "$pkg_soft"
+}
+
 function comp_package()
 {
 	# compare 2 package basenames, returns non-zero if different!
@@ -284,14 +300,15 @@ function find_package()
 	local pkg_flag="$2"
 	local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
 	local pkg_base=$(cat $SLACKPKGFILE | grep -e "$pkg_temp")
-	[[ "$pkg_base" == "" ]] &&
+	[[ "$pkg_base" == "" ]] && [[ -r "$SLACKEXTFILE" ]] &&
 		pkg_base=$(cat $SLACKEXTFILE | grep -e "$pkg_temp")
 	[[ "$pkg_base" == "" ]] && return
 	pkg_base="${pkg_base##* }"
 	pkg_base="${pkg_base%.t[gx]z}"
 	[[ "$pkg_flag" != "--full" ]] && echo -n "$pkg_base" && return
 	local pkg_test="$(find_info $pkg_name $SLACKPKGFILE)"
-	[[ "$pkg_test" = "" ]] && pkg_test="$(find_info $pkg_name $SLACKEXTFILE)"
+	[[ "$pkg_test" = "" ]] && [[ -r "$SLACKEXTFILE" ]] &&
+		pkg_test="$(find_info $pkg_name $SLACKEXTFILE)"
 	echo -n "$pkg_test"
 }
 
@@ -304,7 +321,7 @@ function find_install()
 	local pkg_base=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
 	[[ "$pkg_base" == "" ]] && return
 	[[ "$pkg_flag" != "--full" ]] && echo -n "$pkg_base" && return
-	local pkgs_txt="$SLACKINSTLOG/$pkg_test"
+	local pkgs_txt="$SLACKINSTLOG/$pkg_base"
 	echo -n "$(find_info $pkg_name $pkgs_txt)"
 }
 
@@ -314,7 +331,7 @@ function show_info()
 	local pkg_name="$1"
 	local pkg_info="$(find_install $pkg_name --full)"
 	[[ "$pkg_info" == "" ]] && pkg_info="$(find_package $pkg_name --full)"
-	[[ "$pkg_info" == "" ]] && return
+	[[ "$pkg_info" == "" ]] && return 1
 	# info structure?
 	local pkg_temp pkg_test pkg_name pkg_vers pkg_arch pkg_extd 
 	local pkg_base pkg_file pkg_path pkg_size pkg_full
@@ -352,7 +369,8 @@ function show_info()
 	echo "DESCRIPTION        : " && echo -e "$pkg_desc"
 	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
 	echo "$trail"
-	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo ; echo
+	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
+	return 0
 }
 
 function format_text()

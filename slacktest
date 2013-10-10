@@ -11,14 +11,12 @@ MY1_TOOLBASE=$(basename $0 .sh)
 MY1_TOOLPATH=$(cd $(dirname $0);pwd)
 MY1_TOOL_LIB="libmy1slack"
 # look for config file
-for config in $(pwd) $MY1_TOOLPATH $HOME; do
+for config in $(pwd) $HOME; do
 	config=$config/.$MY1_TOOLBASE
-	[[ ! -f $config ]] && continue
-	source $config ; break
+	[[ -r $config ]] && source $config && break
 done
 # look for my1slack library
-[[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] &&
-	source $MY1_TOOLPATH/$MY1_TOOL_LIB
+[[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] && source $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 # BEGIN MAIN SCRIPT
 
