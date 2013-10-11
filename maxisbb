@@ -14,7 +14,9 @@ FILE_DEVICE="$PATH_DEVICE/$NAME_DEVICE"
 FILE_CHATSQ="/etc/ppp/chat-maxisbb"
 
 if [[ "$1" == "cleanup" ]] ; then
+	echo -n "Deleting files $FILE_DEVICE & $FILE_CHATSQ... "
 	rm -rf $FILE_DEVICE $FILE_CHATSQ
+	echo "done!"
 	exit 0
 fi
 
@@ -29,8 +31,8 @@ if [[ "$1" == "down" ]] ; then
 	else
 		kill -s SIGKILL $DHCPD_PID
 	fi
-	bash /etc/rc.d/rc.firewall stop
-	bash /etc/rc.d/rc.ip_forward stop
+	#bash /etc/rc.d/rc.firewall stop
+	#bash /etc/rc.d/rc.ip_forward stop
 	exit 0
 fi
 
@@ -40,8 +42,8 @@ if [[ "$1" == "server" ]] ; then
 	echo "Running server at ethernet device '$ETH_DEV'"
 	/sbin/ifconfig $ETH_DEV up
 	/usr/sbin/dhcpd $ETH_DEV
-	bash /etc/rc.d/rc.ip_forward start
-	bash /etc/rc.d/rc.firewall start
+	#bash /etc/rc.d/rc.ip_forward start
+	#bash /etc/rc.d/rc.firewall start
 	exit 0
 fi
 
@@ -92,27 +94,35 @@ if [[ ! "$ETH_DEV" == "" ]] ; then
 	/sbin/ifconfig $ETH_DEV down
 fi
 
+[[ "$1" != "init" ]] && exit 0
+
 MY1_DEV_HUAWEI=$(cat <<MY1DEV1
-/dev/ttyUSB0 3600000
-connect '/usr/sbin/chat -v -f /etc/ppp/chat-maxisbb'
+/dev/ttyUSB0 460800 crtscts
+connect '/usr/sbin/chat -v -f $FILE_CHATSQ'
 defaultroute lock
 debug ipcp-accept-remote ipcp-accept-local
 persist usepeerdns noipdefault
-name maxis
-remotename MAXISBB
-password wap
+remotename maxisbb
 MY1DEV1
 )
 [[ ! -f "$FILE_DEVICE" ]] && mkdir -p $PATH_DEVICE &&
 	echo "$MY1_DEV_HUAWEI" >$FILE_DEVICE
 
 MY1_CHATSEQ=$(cat <<MY1CHAT
-ABORT 'BUSY'
-ABORT 'NO CARRIER'
-'' ATZ
-OK AT+CGDCONT=1,"IP","maxisbb"
-OK ATDT*99#
+ABORT ERROR
+ABORT BUSY
+ABORT "NO CARRIER"
+ABORT "NO DIALTONE"
+ABORT "NO ANSWER"
+ABORT "Username/Password Incorrect"
+ECHO OFF
+SAY "Dialling ISP... \n"
+'' ATDT*99#
 CONNECT ''
+SAY "Connected!\n"
+'name: ' 'maxis'
+'word: ' 'wap'
+SAY "Logged in!\n"
 MY1CHAT
 )
 [[ ! -f "$FILE_CHATSQ" ]] && echo "$MY1_CHATSEQ" >$FILE_CHATSQ
