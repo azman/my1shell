@@ -78,8 +78,10 @@ done
 if [[ "$BUNDLGIT" == "YES" ]]; then
 	[[ ! -d "$CURRPATH/.git" ]] &&
 		echo "Not a git repo! Cannot use 'git bundle'!" && exit 1
-	CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M).git
-	git bundle create ${BALLPATH}/${CHK_NAME} master
+	CHK_BRANCH="$(git branch|grep "* ")"
+	CHK_BRANCH="${CHK_BRANCH#* }"
+	CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M)_${CHK_BRANCH}.git
+	git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_BRANCH}
 	[[ $? -ne 0 ]] && echo "Error running git?" && exit 1
 	exit 0
 fi
