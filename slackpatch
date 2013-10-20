@@ -204,8 +204,6 @@ function execute_patches()
 	local pat_temp pat_name pat_stat pat_file pat_vers
 	local pat_opts pat_list pkg_list chk_list log_init
 	#echo "Parameter Count: ${#}"
-	# only root can apply patches!
-	must_be_root
 	# get pkg request list
 	while [[ "$1" != "" ]]; do
 		[[ "$1" == "--patches" ]] && break;
@@ -214,13 +212,14 @@ function execute_patches()
 	done
 	pkg_list=($(echo $pkg_list))
 	# get available patches list
-	shift && pat_list=("$@")
+	shift ; pat_list=("$@")
 	# check for requested package
 	for (( x=0,y=0;x<${#pat_list[@]};x++ )); do
 		pat_temp=($(echo ${pat_list[$x]}))
 		pat_name=${pat_temp[0]}
 		pat_stat=${pat_temp[1]}
 		pat_file=${pat_temp[2]}
+		[[ "$pat_stat" != "check" ]] && continue # patch not needed
 		if [[ ${#pkg_list[@]} -eq 0 ]] ||
 			[[ "$(echo ${pkg_list[@]} | grep $pat_name)" != "" ]] ; then
 			chk_list[$y]="$pat_name $pat_stat $pat_file"
@@ -230,6 +229,8 @@ function execute_patches()
 	#echo "Check Count: ${#chk_list[@]}"
 	# browse through the check list
 	if [[ ${#chk_list[@]} -gt 0 ]]; then
+		# only root can apply patches!
+		must_be_root
 		log_init="$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS) - $(date)\n"
 		echo -e $log_init >$OPT_LOGFILE
 		echo "Packages need updating:"
