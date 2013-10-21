@@ -25,14 +25,14 @@ XILEDK_CONF=${XILEDK_CONF:="${XILINX_PATH}/EDK/settings${XILINX_ARCH}.sh"}
 PATH_ARCH=""
 [[ "$XILINX_ARCH" == "64" ]] && PATH_ARCH=$XILINX_ARCH
 
-if [ -r $XILINX_CONF ] ; then
+if [[ -r $XILINX_CONF ]] ; then
 	source $XILINX_CONF
 else
 	echo "Cannot find $XILINX_CONF!"
 	exit 1
 fi
 
-if [ -r $XILEDK_CONF ] ; then
+if [[ -r $XILEDK_CONF ]] ; then
 	source $XILEDK_CONF
 else
 	echo "Cannot find $XILEDK_CONF!"
@@ -47,18 +47,20 @@ fi
 # added to use a working cable driver
 #export LD_PRELOAD="$LD_PRELOAD /home/ftp/software/usb-driver/libusb-driver.so"
 
-if [ "$1" == "" ] ; then
+THISPATH="$XILINX_PATH/EDK/gnu/microblaze/lin${PATH_ARCH}/bin"
+THISPATH="$THISPATH:$XILINX_PATH/EDK/gnu/powerpc-eabi/lin${PATH_ARCH}/bin"
+export PATH="$THISPATH:$PATH"
+
+if [[ "$1" == "" ]] ; then
 	# start a shell
-	THISPATH="$XILINX_PATH/EDK/gnu/microblaze/lin${PATH_ARCH}/bin:$XILINX_PATH/EDK/gnu/powerpc-eabi/lin${PATH_ARCH}/bin"
-	export PATH=$THISPATH:$PATH
 	exec env PS1="(XIL-EXEC) \u@\h:\w$ " KDE_SESSION_VERSION= $(which bash)
 else
 	target=$1
 	shift
-	[ "$target" == "edk" ] && xps $1
-	[ "$target" == "ise" ] && ise $1
-	[ "$target" == "imp" ] && impact $1
+	[[ "$target" == "edk" ]] && xps $@
+	[[ "$target" == "ise" ]] && ise $@
+	[[ "$target" == "imp" ]] && impact $@
+	[[ "$target" == "tcl" ]] && xtclsh $@
 fi
 
 exit 0
-
