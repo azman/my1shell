@@ -72,42 +72,57 @@ done
 
 # command functions
 
-function chkgit_clean()
+function chkgit_isclean()
 {
+	local chk_value=0
+	local chk_quiet="NO"
+	[[ "$1" == "--silent" ]] && chk_quiet="YES"
 	# do the actual checking
 	if [[ -d .git ]]; then
 		if [[ "$($GIT_BIN status | grep "$CLEAN_MSG")" == "" ]]; then
-			echo "Check: $(pwd) [unclean]"
+			[[ "$chk_quiet" != "YES" ]] && echo "Check: $(pwd) [unclean]"
+			chk_value=2
 		elif [[ "$($GIT_BIN status | grep "$AHEAD_MSG")" != "" ]]; then
-			echo "Check: $(pwd) [ahead]"
+			[[ "$chk_quiet" != "YES" ]] && echo "Check: $(pwd) [ahead]"
+			chk_value=3
 		elif [[ "$OPT_VERBOSE" = "YES" ]]; then
-			[[ "$OPT_VERBOSE" == "YES"  ]] && echo "GIT: $(pwd)"
+			[[ "$OPT_VERBOSE" == "YES"  ]] &&
+				[[ "$chk_quiet" != "YES" ]] && echo "GIT: $(pwd)"
 		fi
 	else
-		[[ "$OPT_VERBOSE" == "YES"  ]] && echo "NOT: $(pwd)"
+		[[ "$OPT_VERBOSE" == "YES"  ]] &&
+			[[ "$chk_quiet" != "YES" ]] && echo "NOT: $(pwd)"
+		chk_value=1
 	fi
+	return $chk_value
 }
 
 function chkgit_origin()
 {
 	local chk_origin chk_source
+	local chk_value=0
+	local chk_ifs=$IFS
 	local chk_path=$(pwd)
+	local chk_quiet="NO"
+	[[ "$1" == "--silent" ]] && chk_quiet="YES"
+	[[ "$chk_quiet" != "YES" ]] && echo -n "$(basename $chk_path): "
 	if [[ -d .git ]]; then
-		local chk_ifs=$IFS
 		IFS=$'\n'
 		chk_origin=($($GIT_BIN remote -v | grep origin))
 		IFS=$chk_ifs
 		if [[ ${#chk_origin[@]} -gt 0 ]]; then
 			chk_source=${chk_origin[0]##origin	}
 			chk_source=${chk_source%% (*}
-			echo "$(basename $chk_path): '$chk_source'"
+			[[ "$chk_quiet" != "YES" ]] && echo "'$chk_source'"
 		else
-			echo "$(basename $chk_path): No origin repo found!"
+			[[ "$chk_quiet" != "YES" ]] && echo "No origin repo found!"
+			chk_value=2
 		fi
 	else
-		[[ "$OPT_VERBOSE" == "YES"  ]] &&
-			echo "$(basename $chk_path): Not a git repo!"
+		[[ "$chk_quiet" != "YES" ]] && echo "Not a git repo!"
+		chk_value=1
 	fi
+	return $chk_value
 }
 
 function chkgit_remote()
@@ -139,16 +154,20 @@ function chkgit_remote()
 function chkgit_update()
 {
 	local chk_path=$(pwd)
-	if [[ -d .git ]]; then
-		chkgit_clean --silent
-		[[ $? -ne 0 ]] &&
-			echo "$(basename $chk_path): Repo not clean! Skipped!" && return
-		echo "$(basename $chk_path): Running update..."
-		$GIT_BIN pull
-	else
-		[[ "$OPT_VERBOSE" == "YES"  ]] &&
-			echo "$(basename $chk_path): Not a git repo!"
-	fi
+	local chk_value chk_source
+	echo -n "$(basename $chk_path): "
+	chkgit_isclean --silent
+	chk_value=$?
+	[[ $chk_value -eq 1 ]] && echo "Not a git repo!" && return
+	[[ $chk_value -eq 2 ]] && echo "Repo not clean! Skipped!" && return
+	[[ $chk_value -eq 3 ]] && echo "Repo is ahead!"
+	chkgit_origin --silent
+	chk_value=$?
+	[[ $chk_value -ne 0 ]] && echo "No origin found! Skipped!" && return
+	echo -n "Running update... "
+	ping google.com -c 1 >/dev/null 2>&1
+	[[ $? -ne 0 ]] && echo "No network connection? Abort!" && return
+	$GIT_BIN pull
 }
 
 # do your thing!
@@ -157,7 +176,7 @@ if [[ "$do_command" == "check" ]] || [[ "$do_command" == "" ]]; then #default!
 	# browse subfolders and report dirty repo!
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
-		chkgit_clean
+		chkgit_isclean
 		cd $CURPATH
 	done
 elif [[ "$do_command" == "origin" ]]; then
@@ -172,6 +191,13 @@ elif [[ "$do_command" == "remote" ]]; then
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
 		chkgit_remote
+		cd $CURPATH
+	done
+elif [[ "$do_command" == "update" ]]; then
+	# browse subfolders and update
+	for path in $(find * -maxdepth 0 -type d); do
+		cd $path
+		chkgit_update
 		cd $CURPATH
 	done
 elif [[ "$do_command" == "create" ]]; then
@@ -202,13 +228,6 @@ elif [[ "$do_command" == "create" ]]; then
 	echo -n "Updating git path... "
 	$GIT_BIN pull $FULL_PATH master >/dev/null 2>&1
 	echo "done."
-elif [[ "$do_command" == "update" ]]; then
-	# browse subfolders and update
-	for path in $(find * -maxdepth 0 -type d); do
-		cd $path
-		chkgit_update
-		cd $CURPATH
-	done
 fi
 
 exit 0
