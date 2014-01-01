@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# getslackpack
+# - written by azman@my1matrix.net
+# - personal getslack 'extension'
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+
+# determine slackware architecture, NOT machine's!
+SLACKARCH=${SLACKARCH:=""}
+case $SLACKARCH in
+	x86) SLACKARCH="" ;;
+	x86_64) SLACKARCH="64" ;;
+	*)
+		SLACKARCH=$(find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null)
+		if [[ "$SLACKARCH" == "/lib64" ]] ; then SLACKARCH="64"
+		else SLACKARCH="" ; fi ;;
+esac
+# get slackware release version - not sure if current is supported!
+SLACKNAME=${SLACKNAME:="slackware$SLACKARCH"}
+SLACKVERS=${SLACKVERS:=""}
+if [[ "$SLACKVERS" == "" ]]; then
+	SLACKVERS=$(cat /etc/slackware-version)
+	SLACKVERS=${SLACKVERS#Slackware }
+	SLACKVMAJ=${SLACKVERS%%.*}
+	SLACKVMIN=${SLACKVERS#*.}
+	[[ "${SLACKVMIN//./}" != "$SLACKVMIN" ]] && SLACKVMIN=${SLACKVMIN%%.*}
+	SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
+fi
+
+# setup rsync parameters
+RSYNCOPT=${RSYNCOPT:="-pt --no-motd --update --partial --progress --dry-run"}
+# check required binary
+RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
+[[ "$RSYNC" == "" ]] && echo "Cannot find rsync! Aborting!" && exit 1
+# setup log
+MY1FLOG="/tmp/${MY1TOOL}.log"
+echo -n "" >$MY1FLOG
+# exec option
+[[ "$1" == "--exec" ]] && RSYNCOPT=${RSYNCOPT// --dry-run/}
+
+# tell user what we're doing
+echo "Downloading slackpacks for Slackware$SLACKARCH $SLACKVERS:"
+
+RSYNCPKG="libreoffice"
+SLACKCHK="pkg${SLACKARCH}/${SLACKVERS}"
+RSYNCURL="taper.alienbase.nl::mirrors/people/alien/slackbuilds"
+RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
+echo -n "Updating $RSYNCPKG ... "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5 . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-dict-en*.txz . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-dict-en*.txz.md5 . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+echo "done."
+
+
+RSYNCPKG="openjdk"
+RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
+echo -n "Updating $RSYNCPKG ... "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5 . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+echo "done."
+
+RSYNCPKG="icedtea-web"
+RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
+echo -n "Updating $RSYNCPKG ... "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5 . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+echo "done."
+
+RSYNCPKG="rhino"
+RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
+echo -n "Updating $RSYNCPKG ... "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.t[gx]z . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.t[gx]z.md5 . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+echo "done."
+
+RSYNCPKG="apache-ant"
+RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
+echo -n "Updating $RSYNCPKG ... "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5 . >>$MY1FLOG 2>&1
+[ $? -ne 0 ] && echo -n "error? "
+echo "done."
+
+# display log?
+echo "PROCESS LOG:"
+cat $MY1FLOG
+
+exit 0
+
