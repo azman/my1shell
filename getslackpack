@@ -48,50 +48,41 @@ SLACKCHK="pkg${SLACKARCH}/${SLACKVERS}"
 RSYNCURL="taper.alienbase.nl::mirrors/people/alien/slackbuilds"
 RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
 echo -n "Updating $RSYNCPKG ... "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz . >>$MY1FLOG 2>&1
-[ $? -ne 0 ] && echo -n "error? "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5 . >>$MY1FLOG 2>&1
-[ $? -ne 0 ] && echo -n "error? "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-dict-en*.txz . >>$MY1FLOG 2>&1
-[ $? -ne 0 ] && echo -n "error? "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-dict-en*.txz.md5 . >>$MY1FLOG 2>&1
+CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5"
+CHK_PKGS+=" ${RSYNCDIR}${RSYNCPKG}-dict-en*.txz ${RSYNCDIR}${RSYNCPKG}-dict-en*.txz.md5"
+$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
 [ $? -ne 0 ] && echo -n "error? "
 echo "done."
-
 
 RSYNCPKG="openjdk"
 RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
 echo -n "Updating $RSYNCPKG ... "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz . >>$MY1FLOG 2>&1
-[ $? -ne 0 ] && echo -n "error? "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5 . >>$MY1FLOG 2>&1
+CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5"
+$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
 [ $? -ne 0 ] && echo -n "error? "
 echo "done."
 
 RSYNCPKG="icedtea-web"
 RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
 echo -n "Updating $RSYNCPKG ... "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz . >>$MY1FLOG 2>&1
-[ $? -ne 0 ] && echo -n "error? "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5 . >>$MY1FLOG 2>&1
+CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5"
+$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
 [ $? -ne 0 ] && echo -n "error? "
 echo "done."
 
 RSYNCPKG="rhino"
 RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
 echo -n "Updating $RSYNCPKG ... "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.t[gx]z . >>$MY1FLOG 2>&1
-[ $? -ne 0 ] && echo -n "error? "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.t[gx]z.md5 . >>$MY1FLOG 2>&1
+CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.t[gx]z ${RSYNCDIR}${RSYNCPKG}-[0-9]*.t[gx]z.md5"
+$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
 [ $? -ne 0 ] && echo -n "error? "
 echo "done."
 
 RSYNCPKG="apache-ant"
 RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
 echo -n "Updating $RSYNCPKG ... "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz . >>$MY1FLOG 2>&1
-[ $? -ne 0 ] && echo -n "error? "
-$RSYNC ${RSYNCOPT} ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5 . >>$MY1FLOG 2>&1
+CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5"
+$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
 [ $? -ne 0 ] && echo -n "error? "
 echo "done."
 
@@ -100,4 +91,3 @@ echo "PROCESS LOG:"
 cat $MY1FLOG
 
 exit 0
-
