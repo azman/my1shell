@@ -173,8 +173,8 @@ function build_sysnet()
 		xco_pnet=$(dirname $xco_path)/netlist
 		xco_ngcf=${xco_name}.ngc
 		xco_genp=coregen.cgp
+		[[ ! -d "$xco_pnet" ]] && continue
 		[[ -r "${xco_pnet}/${xco_ngcf}" ]] && continue
-		[[ ! -d "$xco_pnet" ]] && mkdir -p $xco_pnet >> $EDK_LOGFILE
 		cd $xco_pnet
 		[[ ! -r "$xco_genp" ]] &&
 			echo "Cannot find project file '$xco_genp'!" && exit 1
