@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# chkgit
+# - written by azman@my1matrix.net
+# - update git and hg repos in this folder
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+CURPATH="$(pwd)"
+
+# tool & env setup
+GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
+HG_BIN=${HG_BIN:="$(which hg 2>/dev/null)"}
+
+for a in $(find . -maxdepth 1 -type d); do
+	[[ ! -d $a/.git ]] && [[ ! -d $a/.hg ]] && continue
+	cd $a
+	echo "$(basename $a) =>"
+	[[ -d .git ]] && [[ -x "$GIT_BIN" ]] && git pull
+	[[ -d .hg ]] && [[ -x "$HG_BIN" ]] && hg pull && hg update
+	cd - >/dev/null
+done
+
+exit 0
