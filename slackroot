@@ -34,8 +34,8 @@ Commands:
   create : Create a custom root installation 
   config : Configure for chroot32 installation
   chroot : Do create & config in one command
-  squash : Squash root installation (NOT TESTED)
-  livefs : Do create & squash in one command (NOT TESTED)
+  squash : Squash root installation
+  livefs : Do create & squash in one command
 Options:
   --verbose : More info
   --exec    : Execute (else just dry run!)
@@ -477,7 +477,7 @@ function build_module()
 	local chk_exec="NO"
 	local chk_syyy="YES"
 	local opt_compress="-comp gzip" # or, "-comp xz -b 1M"
-	local mods_path="modules" # $path_live/optional
+	local mods_path="mods" # $path_live/optional
 	local mods_file=${mod_label}.sfs
 	local MKSQUASHFS_BIN="mksquashfs"
 	# start main info msg
@@ -608,7 +608,7 @@ function process_command()
 		create) rootfs_create $@ ;;
 		config) chroot_config $@ ;;
 		chroot) rootfs_create $@ ; chroot_config $@  ;;
-		squash) squash_create $@  ;;
+		squash) squash_create $@ ;;
 		livefs) rootfs_create $@ ; squash_create $@  ;;
 	esac
 }
