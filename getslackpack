@@ -27,7 +27,9 @@ SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
 SLACKVERS=${SLACKVERS:="current"}
 SLACKFULL=${SLACKFULL}-${SLACKVERS}
 SLACKPATH=${SLACKROOT}/slackpack
-THIS_CONF=${THIS_CONF:="--alien libreoffice libreoffice-dict-en openjdk icedtea-web rhino"}
+# these are MY personal default extensions
+ALIENPACK="libreoffice libreoffice-dict-en openjdk icedtea-web rhino"
+THIS_CONF=${THIS_CONF:="--alien $ALIENPACK"}
 
 function do_download()
 {
@@ -58,14 +60,24 @@ function go_packfile()
 	cd $pkg_temp
 	# if not found OR older than 120 minutes
 	if [ "$(find "$pkg_sums" -mmin +120 2>/dev/null)" == "" ]; then
-		do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
-		gzip -d $pkg_sums.gz
+		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1 
+		if [ $? -eq 0 ] ; then
+			do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
+			gzip -d $pkg_sums.gz
+		else
+			do_download $pkg_root/$pkg_sums $pkg_sums
+		fi
 		[ ! -r "$pkg_sums" ] && echo "Cannot find $pkg_sums!" && exit 1
 	fi
 	# if not found OR older than 120 minutes
 	if [ "$(find $pkg_file -mmin +120 2>/dev/null)" == "" ]; then
-		do_download $pkg_root/$pkg_file.gz $pkg_file.gz
-		gzip -d $pkg_file.gz
+		wget --spider $pkg_root/$pkg_file.gz >/dev/null 2>&1 
+		if [ $? -eq 0 ] ; then
+			do_download $pkg_root/$pkg_file.gz $pkg_file.gz
+			gzip -d $pkg_file.gz
+		else
+			do_download $pkg_root/$pkg_file $pkg_file
+		fi
 		[ ! -r "$pkg_file" ] && echo "Cannot find $pkg_file!" && exit 1
 		cat $pkg_sums | grep -e "^.*\./${pkg_file}$" >$pkg_file.md5
 		md5sum --check $pkg_file.md5 >/dev/null 2>&1
@@ -104,7 +116,8 @@ function go_findpack()
 		chk_name="PACKAGE LOCATION:"
 		pkg_path=$(echo "$pkg_test" | grep "^$chk_name")
 		pkg_path="${pkg_path##${check_name}* }"
-		[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
+		[ "$pkg_repo" != "slack" ] &&
+			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
 		pkg_base=${pkg_file%.t[gx]z}
 		chk_name="PACKAGE SIZE (compressed): "
 		pkg_size=$(echo "$pkg_test" | grep "^$chk_name")
@@ -149,8 +162,13 @@ function go_loadpack()
 	cd $pkg_temp
 	# if not found OR older than 120 minutes
 	if [ "$(find "$pkg_sums" -mmin +120 2>/dev/null)" == "" ]; then
-		do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
-		gzip -d $pkg_sums.gz
+		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1 
+		if [ $? -eq 0 ] ; then
+			do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
+			gzip -d $pkg_sums.gz
+		else
+			do_download $pkg_root/$pkg_sums $pkg_sums
+		fi
 		[ ! -r "$pkg_sums" ] && echo "Cannot find $pkg_sums!" && exit 1
 	fi
 	cat $pkg_sums | grep -e "^.*${pkg_rsrc}/${pkg_file}$" >$pkg_md5f
@@ -181,6 +199,11 @@ function do_readconf()
 				pkg_root="http://taper.alienbase.nl"
 				pkg_root="${pkg_root}/mirrors/people/alien/slackbuilds"
 				pkg_repo="alien"
+				;;
+			--slack)
+				pkg_root="http://mirrors.slackware.com"
+				pkg_root="${pkg_root}/slackware/$SLACKFULL"
+				pkg_repo="slack"
 				;;
 			-*)
 				echo "Unknown option '$1'!" && exit 1
