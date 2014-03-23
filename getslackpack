@@ -2,92 +2,236 @@
 
 # getslackpack
 # - written by azman@my1matrix.net
-# - personal getslack 'extension'
+# - standalone slackware package retriever
 
 MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(dirname $0)"
+# look for config file
+for config in $(pwd) $HOME; do
+	config=$config/.$MY1TOOL
+	[ -r $config ] && source $config && break
+done
 
-# determine slackware architecture, NOT machine's!
-SLACKARCH=${SLACKARCH:=""}
+# setup path to slackware tree
+SLACKROOT=${SLACKROOT:="$(pwd)"}
+[ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
+SLACKARCH=${SLACKARCH:="$(uname -m)"}
 case $SLACKARCH in
-	x86) SLACKARCH="" ;;
-	x86_64) SLACKARCH="64" ;;
-	*)
-		SLACKARCH=$(find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null)
-		if [[ "$SLACKARCH" == "/lib64" ]] ; then SLACKARCH="64"
-		else SLACKARCH="" ; fi ;;
+	x86|i*86) SLACKARCH="i486" ;;
+	x86_64|amd64) SLACKARCH="x86_64" ;;
 esac
-# get slackware release version - not sure if current is supported!
-SLACKNAME=${SLACKNAME:="slackware$SLACKARCH"}
-SLACKVERS=${SLACKVERS:=""}
-if [[ "$SLACKVERS" == "" ]]; then
-	SLACKVERS=$(cat /etc/slackware-version)
-	SLACKVERS=${SLACKVERS#Slackware }
-	SLACKVMAJ=${SLACKVERS%%.*}
-	SLACKVMIN=${SLACKVERS#*.}
-	[[ "${SLACKVMIN//./}" != "$SLACKVMIN" ]] && SLACKVMIN=${SLACKVMIN%%.*}
-	SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
-fi
+SLACKSUFX=${SLACKSUFX:=""}
+[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
+SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
+[ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
+SLACKVERS=${SLACKVERS:="current"}
+SLACKFULL=${SLACKFULL}-${SLACKVERS}
+SLACKPATH=${SLACKROOT}/slackpack
+THIS_CONF=${THIS_CONF:="--alien libreoffice libreoffice-dict-en openjdk icedtea-web rhino"}
 
-# setup rsync parameters
-RSYNCOPT=${RSYNCOPT:="-pt --no-motd --update --partial --progress --dry-run"}
-# check required binary
-RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
-[[ "$RSYNC" == "" ]] && echo "Cannot find rsync! Aborting!" && exit 1
-# setup log
-MY1FLOG="/tmp/${MY1TOOL}.log"
-echo -n "" >$MY1FLOG
-# exec option
-[[ "$1" == "--exec" ]] && RSYNCOPT=${RSYNCOPT// --dry-run/}
+function do_download()
+{
+	local fname="$1"
+	local label="$2"
+	local cpath="$(pwd)"
+	local cname=""
+	[ "$fname" == "" ] && exit 1 # shouldn't be here?
+	[ "$label" == "" ] && label="$fname"
+	[ "${fname//$label/}" == "${fname}" ] && cname="--output-document=$label"
+	echo -n "Downloading $label:     "
+	wget $cname --progress=dot "$fname" 2>&1 | \
+		grep --line-buffered "%" | sed -u -e "s,\.,,g" | \
+		awk '{printf("\b\b\b\b%4s", $2)}'
+	[ ! -r "$label" ] &&
+		echo -e "\nCannot download source $fname to $cpath/$label!" && exit 1
+	echo -ne "\b\b\b\b DONE!\n"
+}
 
-# tell user what we're doing
-echo "Downloading slackpacks for Slackware$SLACKARCH $SLACKVERS:"
+function go_packfile()
+{
+	local pkg_root=$1
+	local pkg_repo=$2
+	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
+	local pkg_file="PACKAGES.TXT"
+	local pkg_sums="CHECKSUMS.md5"
+	mkdir -p $pkg_temp
+	cd $pkg_temp
+	# if not found OR older than 120 minutes
+	if [ "$(find "$pkg_sums" -mmin +120 2>/dev/null)" == "" ]; then
+		do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
+		gzip -d $pkg_sums.gz
+		[ ! -r "$pkg_sums" ] && echo "Cannot find $pkg_sums!" && exit 1
+	fi
+	# if not found OR older than 120 minutes
+	if [ "$(find $pkg_file -mmin +120 2>/dev/null)" == "" ]; then
+		do_download $pkg_root/$pkg_file.gz $pkg_file.gz
+		gzip -d $pkg_file.gz
+		[ ! -r "$pkg_file" ] && echo "Cannot find $pkg_file!" && exit 1
+		cat $pkg_sums | grep -e "^.*\./${pkg_file}$" >$pkg_file.md5
+		md5sum --check $pkg_file.md5 >/dev/null 2>&1
+		[ $? -ne 0 ] && echo "$pkg_file: Checksum failed!" &&
+			rm -f $pkg_file && exit 1
+	fi
+	cd - >>/dev/null
+}
 
-RSYNCPKG="libreoffice"
-SLACKCHK="pkg${SLACKARCH}/${SLACKVERS}"
-RSYNCURL="taper.alienbase.nl::mirrors/people/alien/slackbuilds"
-RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
-echo -n "Updating $RSYNCPKG ... "
-CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5"
-CHK_PKGS+=" ${RSYNCDIR}${RSYNCPKG}-dict-en*.txz ${RSYNCDIR}${RSYNCPKG}-dict-en*.txz.md5"
-$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
-[ $? -ne 0 ] && echo -n "error? "
-echo "done."
+function go_findpack()
+{
+	local pkg_repo=$1
+	local pkg_name=$2
+	local pkg_arch=$3
+	local pkg_vers=$4
+	local pkg_temp=""
+	local pkgs_txt="/tmp/$MY1TOOL/$pkg_repo/PACKAGES.TXT"
+	# info structure?
+	local pkg_base pkg_file pkg_path pkg_size pkg_full
+	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*.t[gx]z$"
+	local pkg_text="$(cat $pkgs_txt | grep -e "$pkg_temp" -A3 | tr '\n' ';')"
+	[ "$pkg_text" = "" ] && return
+	local ifs_save=$IFS
+	IFS=$'\n'
+	local pkg_list=($(echo "${pkg_text}" | sed 's/--/\n/g'))
+	IFS=$ifs_save
+	local loop
+	for (( loop=0;loop<${#pkg_list[@]};loop++ )); do
+		local pkg_test="$(echo ${pkg_list[$loop]} | sed 's/;/\n/g')"
+		# extract basic info
+		local chk_name="PACKAGE NAME:"
+		pkg_file=$(echo "$pkg_test" | grep "^$chk_name")
+		pkg_file="${pkg_file##${check_name}* }"
+		[ "$(echo $pkg_file|grep -e "$pkg_arch")" == "" ] &&
+			[ "$(echo $pkg_file|grep -e "noarch")" == "" ] && continue;
+		chk_name="PACKAGE LOCATION:"
+		pkg_path=$(echo "$pkg_test" | grep "^$chk_name")
+		pkg_path="${pkg_path##${check_name}* }"
+		[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
+		pkg_base=${pkg_file%.t[gx]z}
+		chk_name="PACKAGE SIZE (compressed): "
+		pkg_size=$(echo "$pkg_test" | grep "^$chk_name")
+		if [[ "$pkg_size" == "" ]] ; then
+			chk_name="COMPRESSED PACKAGE SIZE:"
+			pkg_size=$(echo "$pkg_test" | grep -e "^$chk_name")
+			pkg_size="${pkg_size##${chk_name}* }"
+		else
+			pkg_size="${pkg_size%% K*}"
+			pkg_size="${pkg_size##* }K"
+		fi
+		chk_name="PACKAGE SIZE (uncompressed):"
+		pkg_full=$(echo "$pkg_test" | grep "^$chk_name")
+		if [[ "$pkg_full" == "" ]] ; then
+			chk_name="UNCOMPRESSED PACKAGE SIZE:"
+			pkg_full=$(echo "$pkg_test" | grep -e "^$chk_name")
+			pkg_full="${pkg_full##${chk_name}* }"
+		else
+			pkg_full="${pkg_full%% K*}"
+			pkg_full="${pkg_full##* }K"
+		fi
+		pkg_path=$(echo $pkg_path|sed 's/.//')
+		# arrange output
+		echo "$pkg_base $pkg_file $pkg_path $pkg_size $pkg_full"
+		break;
+	done
+}
 
-RSYNCPKG="openjdk"
-RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
-echo -n "Updating $RSYNCPKG ... "
-CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5"
-$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
-[ $? -ne 0 ] && echo -n "error? "
-echo "done."
+function go_loadpack()
+{
+	local pkg_root=$1
+	local pkg_rsrc=$2
+	local pkg_repo=$3
+	local pkg_path=$4
+	local pkg_file=$5
+	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
+	local pkg_sums="CHECKSUMS.md5"
+	local pkg_md5f="$pkg_path/$pkg_file.md5"
+	pkg_root=${pkg_root}${pkg_rsrc}
+	mkdir -p $pkg_path
+	mkdir -p $pkg_temp
+	cd $pkg_temp
+	# if not found OR older than 120 minutes
+	if [ "$(find "$pkg_sums" -mmin +120 2>/dev/null)" == "" ]; then
+		do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
+		gzip -d $pkg_sums.gz
+		[ ! -r "$pkg_sums" ] && echo "Cannot find $pkg_sums!" && exit 1
+	fi
+	cat $pkg_sums | grep -e "^.*${pkg_rsrc}/${pkg_file}$" >$pkg_md5f
+	[ $? -ne 0 ] && echo "Cannot create checksum for '$pkg_file'!" && exit 1
+	sed -i "s|${pkg_rsrc}||g" $pkg_md5f
+	cd - >>/dev/null
+	cd $pkg_path
+	if [ -r $pkg_file.md5 ]; then
+		md5sum --check $pkg_file.md5 >/dev/null 2>&1
+		[ $? -eq 0 ] && echo "Valid $pkg_file found!" &&
+			cd - >>/dev/null && return
+	fi
+	do_download $pkg_root/$pkg_file $pkg_file
+	[ ! -r "$pkg_file" ] && echo "Cannot find $pkg_file!" && exit 1
+	md5sum --check $pkg_file.md5 >/dev/null 2>&1
+	[ $? -ne 0 ] && echo "$pkg_file: Checksum failed!" &&
+		rm -f $pkg_file && exit 1
+	cd - >>/dev/null
+}
 
-RSYNCPKG="icedtea-web"
-RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
-echo -n "Updating $RSYNCPKG ... "
-CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5"
-$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
-[ $? -ne 0 ] && echo -n "error? "
-echo "done."
+function do_readconf()
+{
+	local pkg_root pkg_repo
+	# check parameters
+	while [[ "$1" != "" ]]; do
+		case "$1" in
+			--alien)
+				pkg_root="http://taper.alienbase.nl"
+				pkg_root="${pkg_root}/mirrors/people/alien/slackbuilds"
+				pkg_repo="alien"
+				;;
+			-*)
+				echo "Unknown option '$1'!" && exit 1
+				;;
+			*)
+				echo "${pkg_root},${pkg_repo},$1"
+				;;
+		esac
+		shift
+	done
+}
 
-RSYNCPKG="rhino"
-RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
-echo -n "Updating $RSYNCPKG ... "
-CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.t[gx]z ${RSYNCDIR}${RSYNCPKG}-[0-9]*.t[gx]z.md5"
-$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
-[ $? -ne 0 ] && echo -n "error? "
-echo "done."
+function do_execthis()
+{
+	local pkg_root pkg_repo pkg_name pkg_this
+	local pkg_file pkg_rsrc pkg_path=$SLACKPATH
+	local pkg_arch=$SLACKARCH
+	local pkg_vers=$SLACKVERS
+	local ifs_save=$IFS
+	IFS=$'\n'
+	local pkg_list=($(echo "$@" | sed 's/;/\n/g'))
+	IFS=$ifs_save
+	#echo "[INFO] Package Count: ${#pkg_list[@]}"
+	local loop
+	for (( loop=0;loop<${#pkg_list[@]};loop++ )); do
+		IFS=$'\n'
+		local pkg_test=($(echo "${pkg_list[$loop]}" | sed 's/,/\n/g'))
+		IFS=$ifs_save
+		pkg_root="${pkg_test[0]}"
+		pkg_repo="${pkg_test[1]}"
+		pkg_name="${pkg_test[2]}"
+		echo "[INFO] Looking in $pkg_repo repo for $pkg_name..."
+		go_packfile $pkg_root $pkg_repo
+		pkg_this=($(go_findpack $pkg_repo $pkg_name $pkg_arch $pkg_vers))
+		if [ "$pkg_this" != "" ]; then
+			#echo "BASE: ${pkg_this[0]}"
+			pkg_file=${pkg_this[1]}
+			pkg_rsrc=${pkg_this[2]}
+			#echo "SIZE: ${pkg_this[3]}"
+			#echo "FULL: ${pkg_this[4]}"
+			go_loadpack $pkg_root $pkg_rsrc $pkg_repo $pkg_path $pkg_file
+		else
+			echo "[INFO] Package '$pkg_name' not found!"
+		fi
 
-RSYNCPKG="apache-ant"
-RSYNCDIR="${RSYNCURL}/${RSYNCPKG}/${SLACKCHK}/"
-echo -n "Updating $RSYNCPKG ... "
-CHK_PKGS="${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz ${RSYNCDIR}${RSYNCPKG}-[0-9]*.txz.md5"
-$RSYNC ${RSYNCOPT} ${CHK_PKGS} . >>$MY1FLOG 2>$MY1FLOG.err
-[ $? -ne 0 ] && echo -n "error? "
-echo "done."
+	done
+}
 
-# display log?
-echo "PROCESS LOG:"
-cat $MY1FLOG
+# do your thing!
+do_execthis "$(do_readconf $THIS_CONF)"
+
+# look for duplicate and delete old???
 
 exit 0

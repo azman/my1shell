@@ -9,20 +9,20 @@ MY1PATH="$(dirname $0)"
 # look for config file
 for config in $(pwd) $HOME; do
 	config=$config/.$MY1TOOL
-	[[ -r $config ]] && source $config && break
+	[ -r $config ] && source $config && break
 done
 
 # setup path to slackware tree
 SLACKROOT=${SLACKROOT:="$(pwd)"}
-[[ -z "$SLACKARCH" ]] && [[ -n "$ARCH" ]] && SLACKARCH=$ARCH
+[ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
 SLACKARCH=${SLACKARCH:="$(uname -m)"}
 SLACKSUFX=${SLACKSUFX:=""}
-[[ "$SLACKARCH" == "x86_64" ]] && SLACKSUFX="64"
+[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
 SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
-[[ -z "$SLACKVERS" ]] && [[ -n "$RELEASE" ]] && SLACKVERS=$RELEASE
+[ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 SLACKVERS=${SLACKVERS:="current"}
-SLACKFULL="${SLACKFULL}-${SLACKVERS}"
-SLACKPATH="${SLACKROOT}/${SLACKFULL}"
+SLACKFULL=${SLACKFULL}-${SLACKVERS}
+SLACKPATH=${SLACKROOT}/${SLACKFULL}
 
 # capture error in sub-shells
 set -e # activates errexit
@@ -32,24 +32,24 @@ RSYNCURL=${RSYNCURL:="${RSYNCURLROOT}${SLACKFULL}"}
 RSYNCOPT=${RSYNCOPT:="--delete --delete-excluded --partial -rlptD --progress"}
 # check required binary
 RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
-[[ "$RSYNC" == "" ]] && echo "Cannot find rsync! Aborting!" && exit 1
+[ "$RSYNC" == "" ] && echo "Cannot find rsync! Aborting!" && exit 1
 
 # customized default sync list
 EXCLUDES=${EXCLUDES:="--exclude=pasture/ --exclude=testing/ --exclude=source/"}
 INCLUDES=${INCLUDES:=""}
-[[ -r "$EXCLUDEFILE" ]] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
-[[ -r "$INCLUDEFILE" ]] && INCLUDES="--include-from=$INCLUDEFILE"
+[ -r "$EXCLUDEFILE" ] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
+[ -r "$INCLUDEFILE" ] && INCLUDES="--include-from=$INCLUDEFILE"
 
 # start actual mirroring process - reduced version of alien_bob's script
 echo -e "#\n# Checking and changing to $SLACKPATH ...\n#"
-[[ ! -d $SLACKPATH ]] && mkdir -pv $SLACKPATH
+[ ! -d $SLACKPATH ] && mkdir -pv $SLACKPATH
 cd $SLACKPATH
 umask 022
 
 echo "*** Using ${RSYNCURL} ***"
-$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ .
+$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ ${SLACKPATH}
 echo "*** Using ${RSYNCURL} - (2nd Run) ***"
-$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ .
+$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ ${SLACKPATH}
 echo "$(date) [$$]: Done mirroring ${SLACKFULL} (exit code $?)."
 
 exit 0
