@@ -267,7 +267,7 @@ function do_execthis()
 
 function chk_param()
 {
-	local chk_valid=""
+	local chk_valid="--$DEF_REPO"
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -278,7 +278,7 @@ function chk_param()
 				chk_valid="$1"
 				;;
 			--default)
-				THIS_CONF="--alien $DEF_PACK ${THIS_CONF}"
+				THIS_CONF="--$DEF_REPO $DEF_PACK ${THIS_CONF}"
 				;;
 			--check)
 				OPT_CHECK="YES"
