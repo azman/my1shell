@@ -27,9 +27,14 @@ SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
 SLACKVERS=${SLACKVERS:="current"}
 SLACKFULL=${SLACKFULL}-${SLACKVERS}
 SLACKPATH=${SLACKROOT}/slackpack
-# these are MY personal default extensions
-ALIENPACK="libreoffice libreoffice-dict-en openjdk icedtea-web rhino"
-THIS_CONF=${THIS_CONF:="--alien $ALIENPACK"}
+
+# default repo - alien stuffs!
+DEF_ROOT="http://taper.alienbase.nl/mirrors/people/alien/slackbuilds"
+DEF_REPO="alien"
+DEF_PACK="libreoffice libreoffice-dict-en openjdk icedtea-web rhino"
+
+# tool options
+OPT_CHECK="NO"
 
 function do_download()
 {
@@ -60,7 +65,7 @@ function go_packfile()
 	cd $pkg_temp
 	# if not found OR older than 120 minutes
 	if [ "$(find "$pkg_sums" -mmin +120 2>/dev/null)" == "" ]; then
-		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1 
+		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
 			do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
 			gzip -d $pkg_sums.gz
@@ -71,7 +76,7 @@ function go_packfile()
 	fi
 	# if not found OR older than 120 minutes
 	if [ "$(find $pkg_file -mmin +120 2>/dev/null)" == "" ]; then
-		wget --spider $pkg_root/$pkg_file.gz >/dev/null 2>&1 
+		wget --spider $pkg_root/$pkg_file.gz >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
 			do_download $pkg_root/$pkg_file.gz $pkg_file.gz
 			gzip -d $pkg_file.gz
@@ -96,9 +101,9 @@ function go_findpack()
 	local pkg_temp=""
 	local pkgs_txt="/tmp/$MY1TOOL/$pkg_repo/PACKAGES.TXT"
 	# info structure?
-	local pkg_base pkg_file pkg_path pkg_size pkg_full
+	local pkg_file pkg_path
 	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*.t[gx]z$"
-	local pkg_text="$(cat $pkgs_txt | grep -e "$pkg_temp" -A3 | tr '\n' ';')"
+	local pkg_text="$(cat $pkgs_txt | grep -e "$pkg_temp" -A1 | tr '\n' ';')"
 	[ "$pkg_text" = "" ] && return
 	local ifs_save=$IFS
 	IFS=$'\n'
@@ -116,32 +121,11 @@ function go_findpack()
 		chk_name="PACKAGE LOCATION:"
 		pkg_path=$(echo "$pkg_test" | grep "^$chk_name")
 		pkg_path="${pkg_path##${check_name}* }"
+		pkg_path=$(echo $pkg_path|sed 's/^.\(.*\)$/\1/')
 		[ "$pkg_repo" != "slack" ] &&
 			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
-		pkg_base=${pkg_file%.t[gx]z}
-		chk_name="PACKAGE SIZE (compressed): "
-		pkg_size=$(echo "$pkg_test" | grep "^$chk_name")
-		if [[ "$pkg_size" == "" ]] ; then
-			chk_name="COMPRESSED PACKAGE SIZE:"
-			pkg_size=$(echo "$pkg_test" | grep -e "^$chk_name")
-			pkg_size="${pkg_size##${chk_name}* }"
-		else
-			pkg_size="${pkg_size%% K*}"
-			pkg_size="${pkg_size##* }K"
-		fi
-		chk_name="PACKAGE SIZE (uncompressed):"
-		pkg_full=$(echo "$pkg_test" | grep "^$chk_name")
-		if [[ "$pkg_full" == "" ]] ; then
-			chk_name="UNCOMPRESSED PACKAGE SIZE:"
-			pkg_full=$(echo "$pkg_test" | grep -e "^$chk_name")
-			pkg_full="${pkg_full##${chk_name}* }"
-		else
-			pkg_full="${pkg_full%% K*}"
-			pkg_full="${pkg_full##* }K"
-		fi
-		pkg_path=$(echo $pkg_path|sed 's/.//')
-		# arrange output
-		echo "$pkg_base $pkg_file $pkg_path $pkg_size $pkg_full"
+		# first found - send and exit
+		echo "$pkg_file $pkg_path"
 		break;
 	done
 }
@@ -162,7 +146,7 @@ function go_loadpack()
 	cd $pkg_temp
 	# if not found OR older than 120 minutes
 	if [ "$(find "$pkg_sums" -mmin +120 2>/dev/null)" == "" ]; then
-		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1 
+		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
 			do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
 			gzip -d $pkg_sums.gz
@@ -191,7 +175,9 @@ function go_loadpack()
 
 function do_readconf()
 {
-	local pkg_root pkg_repo
+	# default repo
+	local pkg_root="$DEF_ROOT"
+	local pkg_repo="$DEF_REPO"
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -206,7 +192,7 @@ function do_readconf()
 				pkg_repo="slack"
 				;;
 			-*)
-				echo "Unknown option '$1'!" && exit 1
+				echo "Unknown repo '$1'!" >&2 && exit 1
 				;;
 			*)
 				echo "${pkg_root},${pkg_repo},$1"
@@ -224,9 +210,9 @@ function do_execthis()
 	local pkg_vers=$SLACKVERS
 	local ifs_save=$IFS
 	IFS=$'\n'
-	local pkg_list=($(echo "$@" | sed 's/;/\n/g'))
+	local pkg_list=($(echo "$@"))
 	IFS=$ifs_save
-	#echo "[INFO] Package Count: ${#pkg_list[@]}"
+	echo "[INFO] Package Count: ${#pkg_list[@]}"
 	local loop
 	for (( loop=0;loop<${#pkg_list[@]};loop++ )); do
 		IFS=$'\n'
@@ -239,12 +225,13 @@ function do_execthis()
 		go_packfile $pkg_root $pkg_repo
 		pkg_this=($(go_findpack $pkg_repo $pkg_name $pkg_arch $pkg_vers))
 		if [ "$pkg_this" != "" ]; then
-			#echo "BASE: ${pkg_this[0]}"
-			pkg_file=${pkg_this[1]}
-			pkg_rsrc=${pkg_this[2]}
-			#echo "SIZE: ${pkg_this[3]}"
-			#echo "FULL: ${pkg_this[4]}"
-			go_loadpack $pkg_root $pkg_rsrc $pkg_repo $pkg_path $pkg_file
+			pkg_file=${pkg_this[0]}
+			pkg_rsrc=${pkg_this[1]}
+			if [ "$OPT_CHECK" == "YES" ] ; then
+				echo "[INFO] Package '$pkg_name' found ('$pkg_file')!"
+			else
+				go_loadpack $pkg_root $pkg_rsrc $pkg_repo $pkg_path $pkg_file
+			fi
 		else
 			echo "[INFO] Package '$pkg_name' not found!"
 		fi
@@ -252,6 +239,37 @@ function do_execthis()
 	done
 }
 
+function chk_param()
+{
+	local chk_valid=""
+	# check parameters
+	while [[ "$1" != "" ]]; do
+		case "$1" in
+			--alien)
+				chk_valid="$1"
+				;;
+			--slack)
+				chk_valid="$1"
+				;;
+			--default)
+				THIS_CONF="--alien $DEF_PACK ${THIS_CONF}"
+				;;
+			--check)
+				OPT_CHECK="YES"
+				;;
+			-*)
+				echo "Unknown option '$1'!" >&2 && exit 1
+				;;
+			*)
+				THIS_CONF="${THIS_CONF} ${chk_valid} $1 "
+				;;
+		esac
+		shift
+	done
+}
+
+# duh!
+chk_param "$@"
 # do your thing!
 do_execthis "$(do_readconf $THIS_CONF)"
 
