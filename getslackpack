@@ -35,6 +35,7 @@ DEF_PACK="libreoffice libreoffice-dict-en openjdk icedtea-web rhino"
 
 # tool options
 OPT_CHECK="NO"
+OPT_CLEAN="NO"
 
 function do_download()
 {
@@ -46,7 +47,7 @@ function do_download()
 	[ "$label" == "" ] && label="$fname"
 	[ "${fname//$label/}" == "${fname}" ] && cname="--output-document=$label"
 	echo -n "Downloading $label:     "
-	wget $cname --progress=dot "$fname" 2>&1 | \
+	wget $cname --no-use-server-timestamps --progress=dot "$fname" 2>&1 | \
 		grep --line-buffered "%" | sed -u -e "s,\.,,g" | \
 		awk '{printf("\b\b\b\b%4s", $2)}'
 	[ ! -r "$label" ] &&
@@ -54,17 +55,22 @@ function do_download()
 	echo -ne "\b\b\b\b DONE!\n"
 }
 
-function go_packfile()
+function go_loadsums()
 {
 	local pkg_root=$1
 	local pkg_repo=$2
 	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
-	local pkg_file="PACKAGES.TXT"
 	local pkg_sums="CHECKSUMS.md5"
-	mkdir -p $pkg_temp
-	cd $pkg_temp
-	# if not found OR older than 120 minutes
-	if [ "$(find "$pkg_sums" -mmin +120 2>/dev/null)" == "" ]; then
+	# check clean option
+	if [ "$OPT_CLEAN" == "YES" ] ; then
+		rm -rf /tmp/$MY1TOOL
+		[ $? -ne 0 ] && OPT_CLEAN="NO"
+	fi
+	# prepare temp
+	mkdir -p $pkg_temp ; cd $pkg_temp
+	# if not found OR nothing modified last 120 minutes
+	if [ "$(find $pkg_sums -mmin -120 2>/dev/null)" == "" ]; then
+		rm -rf $pkg_sums # just in case, delete old one
 		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
 			do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
@@ -72,10 +78,28 @@ function go_packfile()
 		else
 			do_download $pkg_root/$pkg_sums $pkg_sums
 		fi
-		[ ! -r "$pkg_sums" ] && echo "Cannot find $pkg_sums!" && exit 1
+		# we must have it!
+		[ ! -r "$pkg_sums" ] &&
+			echo "[ERROR] Cannot find $pkg_sums!" >&2 && exit 1
 	fi
-	# if not found OR older than 120 minutes
-	if [ "$(find $pkg_file -mmin +120 2>/dev/null)" == "" ]; then
+	cd - >/dev/null
+}
+
+
+function go_loadinfo()
+{
+	local pkg_root=$1
+	local pkg_repo=$2
+	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
+	local pkg_sums="CHECKSUMS.md5"
+	local pkg_file="PACKAGES.TXT"
+	# obtain checksum
+	go_loadsums $pkg_root $pkg_repo
+	# prepare temp
+	mkdir -p $pkg_temp ; cd $pkg_temp
+	# if not found OR nothing modified last 120 minutes
+	if [ "$(find $pkg_file -mmin -120 2>/dev/null)" == "" ]; then
+		rm -rf $pkg_file # just in case, delete old one
 		wget --spider $pkg_root/$pkg_file.gz >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
 			do_download $pkg_root/$pkg_file.gz $pkg_file.gz
@@ -83,13 +107,16 @@ function go_packfile()
 		else
 			do_download $pkg_root/$pkg_file $pkg_file
 		fi
-		[ ! -r "$pkg_file" ] && echo "Cannot find $pkg_file!" && exit 1
-		cat $pkg_sums | grep -e "^.*\./${pkg_file}$" >$pkg_file.md5
+		# we must have it!
+		[ ! -r "$pkg_file" ] &&
+			echo "[ERROR] Cannot find $pkg_file!" >&2 && exit 1
+		# check validity
+		cat $pkg_sums | grep -e " ./${pkg_file}$" >$pkg_file.md5
 		md5sum --check $pkg_file.md5 >/dev/null 2>&1
-		[ $? -ne 0 ] && echo "$pkg_file: Checksum failed!" &&
-			rm -f $pkg_file && exit 1
+		[ $? -ne 0 ] && rm -f $pkg_file &&
+			echo "[ERROR] $pkg_file: Checksum failed!" >&2 && exit 1
 	fi
-	cd - >>/dev/null
+	cd - >/dev/null
 }
 
 function go_findpack()
@@ -140,37 +167,36 @@ function go_loadpack()
 	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
 	local pkg_sums="CHECKSUMS.md5"
 	local pkg_md5f="$pkg_path/$pkg_file.md5"
-	pkg_root=${pkg_root}${pkg_rsrc}
+	# obtain checksum
+	go_loadsums $pkg_root $pkg_repo
+	# prepare pack path for checksum
 	mkdir -p $pkg_path
-	mkdir -p $pkg_temp
-	cd $pkg_temp
-	# if not found OR older than 120 minutes
-	if [ "$(find "$pkg_sums" -mmin +120 2>/dev/null)" == "" ]; then
-		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1
-		if [ $? -eq 0 ] ; then
-			do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
-			gzip -d $pkg_sums.gz
-		else
-			do_download $pkg_root/$pkg_sums $pkg_sums
-		fi
-		[ ! -r "$pkg_sums" ] && echo "Cannot find $pkg_sums!" && exit 1
-	fi
+	# prepare temp
+	mkdir -p $pkg_temp ; cd $pkg_temp
+	# extract checksum for file
 	cat $pkg_sums | grep -e "^.*${pkg_rsrc}/${pkg_file}$" >$pkg_md5f
-	[ $? -ne 0 ] && echo "Cannot create checksum for '$pkg_file'!" && exit 1
+	[ $? -ne 0 ] &&
+		echo "[ERROR] Cannot create checksum for '$pkg_file'!" >&2 && exit 1
+	# fix path in checksum file
 	sed -i "s|${pkg_rsrc}||g" $pkg_md5f
 	cd - >>/dev/null
+	# go to package path
 	cd $pkg_path
+	# fix download path
+	pkg_root=${pkg_root}${pkg_rsrc}
+	# check if valid package exists
 	if [ -r $pkg_file.md5 ]; then
 		md5sum --check $pkg_file.md5 >/dev/null 2>&1
-		[ $? -eq 0 ] && echo "Valid $pkg_file found!" &&
-			cd - >>/dev/null && return
+		[ $? -eq 0 ] && echo "[INFO] Valid $pkg_file found!" && return
 	fi
+	# download if not found or invalid
 	do_download $pkg_root/$pkg_file $pkg_file
-	[ ! -r "$pkg_file" ] && echo "Cannot find $pkg_file!" && exit 1
+	[ ! -r "$pkg_file" ] && rm -f $pkg_file.md5 &&
+		echo "[ERROR] Cannot find $pkg_file!" >&2 && exit 1
 	md5sum --check $pkg_file.md5 >/dev/null 2>&1
-	[ $? -ne 0 ] && echo "$pkg_file: Checksum failed!" &&
-		rm -f $pkg_file && exit 1
-	cd - >>/dev/null
+	[ $? -ne 0 ] && rm -f $pkg_file && rm -f $pkg_file.md5 &&
+		echo "[ERROR] $pkg_file: Checksum failed!" >&2 && exit 1
+	cd - >/dev/null
 }
 
 function do_readconf()
@@ -221,8 +247,9 @@ function do_execthis()
 		pkg_root="${pkg_test[0]}"
 		pkg_repo="${pkg_test[1]}"
 		pkg_name="${pkg_test[2]}"
+		# load package info
+		go_loadinfo $pkg_root $pkg_repo
 		echo "[INFO] Looking in $pkg_repo repo for $pkg_name..."
-		go_packfile $pkg_root $pkg_repo
 		pkg_this=($(go_findpack $pkg_repo $pkg_name $pkg_arch $pkg_vers))
 		if [ "$pkg_this" != "" ]; then
 			pkg_file=${pkg_this[0]}
@@ -235,7 +262,6 @@ function do_execthis()
 		else
 			echo "[INFO] Package '$pkg_name' not found!"
 		fi
-
 	done
 }
 
@@ -257,8 +283,11 @@ function chk_param()
 			--check)
 				OPT_CHECK="YES"
 				;;
+			--clean)
+				OPT_CLEAN="YES"
+				;;
 			-*)
-				echo "Unknown option '$1'!" >&2 && exit 1
+				echo "[ERROR] Unknown option '$1'!" >&2 && exit 1
 				;;
 			*)
 				THIS_CONF="${THIS_CONF} ${chk_valid} $1 "
