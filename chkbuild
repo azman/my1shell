@@ -4,17 +4,15 @@
 # - written by azman@my1matrix.net
 # - browse my1 SlackBuilds in current path and check with given reference
 
-REF_BUILD=$1
-CURR_PATH=$(pwd)
+REF_BUILD="my1.SlackBuild"
+CURR_PATH="$(pwd)"
 
-[[ ! -r "$REF_BUILD" ]] &&
-	echo "Cannot read reference build '$REF_BUILD'!" && exit 1
-
-STR_BUILD="$(sed -n '/# ONLY TEMPLATES BELOW THIS LINE/,$ p' $REF_BUILD)"
 CHECKLIST=""
 OPT_DOFIX=""
 OPT_VERBO=""
-shift
+OPT_SHOWV=""
+OPT_SHOWF=""
+
 while [[ "$1" != "" ]] ; do
 	case $1 in
 		--all )
@@ -22,6 +20,15 @@ while [[ "$1" != "" ]] ; do
 			for slackbuild in *.SlackBuild ; do
 				CHECKLIST="$CHECKLIST $slackbuild"
 			done
+			;;
+		--ref )
+			REF_BUILD="$1"
+			;;
+		--showv )
+			OPT_SHOWV="YES"
+			;;
+		--showf )
+			OPT_SHOWF="YES"
 			;;
 		--fix )
 			OPT_DOFIX="YES"
@@ -37,17 +44,43 @@ while [[ "$1" != "" ]] ; do
 	shift
 done
 
+[[ ! -r "$REF_BUILD" ]] &&
+	echo "Cannot read reference build '$REF_BUILD'!" && exit 1
+
+STR_VARIA="$(sed -n '/# TEMPLATE VARIABLES/,/# CUSTOM BUILD/ p' $REF_BUILD)"
+STR_BUILD="$(sed -n '/# ONLY TEMPLATES BELOW THIS LINE/,$ p' $REF_BUILD)"
+
+[[ "$OPT_SHOWV" == "YES" ]] && echo "$STR_VARIA"
+
+[[ "$OPT_SHOWF" == "YES" ]] && echo "$STR_BUILD"
+
 [[ "$CHECKLIST" == "" ]] && echo "Nothing to check?!" && exit 1
 
 for slackbuild in $CHECKLIST ; do
 	[[ "$(basename $REF_BUILD)" == "$slackbuild" ]] && continue
+	CHK_VARIA=$(sed -n '/# TEMPLATE VARIABLES/,/# CUSTOM BUILD/ p' $slackbuild)
 	CHK_BUILD=$(sed -n '/# ONLY TEMPLATES BELOW THIS LINE/,$ p' $slackbuild)
 	CHK_ERROR=$(diff <(echo "$STR_BUILD") <(echo "$CHK_BUILD"))
-	[[ "$CHK_BUILD" == "" ]] && echo "$slackbuild: Not a my1 SlackBuild?" && continue;
+	CHK_ERROR=$(diff <(echo "$STR_VARIA") <(echo "$CHK_VARIA"))${CHK_ERROR}
+	[[ "$CHK_BUILD" == "" ]] &&
+		echo "$slackbuild: Not a my1 SlackBuild?" && continue;
 	if [[ "$CHK_ERROR" != "" ]]; then
-		[[ "$OPT_VERBO" == "YES" ]] && echo -ne "**DIFF-BEGIN** - $slackbuild\n$CHK_ERROR\n**DIFF-END** - $slackbuild\n"
-		[[ "$OPT_DOFIX" != "YES" ]] && echo "$slackbuild: Not up-to-date!" && continue
-		sed -i '/# ONLY TEMPLATES BELOW THIS LINE/,$ d' $slackbuild
+		if [[ "$OPT_VERBO" == "YES" ]] ; then
+			echo -ne "**DIFF-BEGIN** - $slackbuild\n"
+			echo -ne "$CHK_ERROR\n"
+			echo -ne "**DIFF-END** - $slackbuild\n"
+		fi
+		[[ "$OPT_DOFIX" != "YES" ]] &&
+			echo "$slackbuild: Not up-to-date!" && continue
+		# save custom build
+		CUS_BUILD=$(sed -n '/# CUSTOM BUILD/,/# ONLY TEMPLATES/ p' $slackbuild)
+		# delete all starting from template variables
+		sed -i '/# TEMPLATE VARIABLES/,$ d' $slackbuild
+		# write back in
+		echo "$STR_VARIA" >>$slackbuild
+		sed -i '/# CUSTOM BUILD/,$ d' $slackbuild
+		echo "$CUS_BUILD" >>$slackbuild
+		sed -i '/# ONLY TEMPLATES/,$ d' $slackbuild
 		echo "$STR_BUILD" >>$slackbuild
 		echo "FIXED THIS! $REF_BUILD => $slackbuild"
 	else
