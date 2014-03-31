@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# chkname
+# - written by azman@my1matrix.net
+# - check file/path name to remove whitespaces (option to convert lowercase)
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+CURPATH="$(pwd)"
+
+DO_LOWER=""
+DO_EXEC=""
+
+[ "$(echo $@|grep -- '--lowercase')" != "" ] && DO_LOWER="YES"
+[ "$(echo $@|grep -- '--exec')" != "" ] && DO_EXEC="YES"
+
+# check paths
+IFS_SAVE=$IFS
+IFS=$'\n'
+paths=($(find . -type d))
+IFS=$IFS_SAVE
+for (( loop=0;loop<${#paths[@]};loop++ )); do
+	tpath="${paths[$loop]}"
+	tconv="$(echo "$tpath"|tr ' ' '_')"
+	if [ "$tconv" != "$tpath" ] ; then
+		[ "$DO_LOWER" == "YES" ] && tconv="$(echo "$tconv"|tr '[A-Z]' '[a-z]')"
+		if [ "$DO_EXEC" == "YES" ]; then
+			mv "$tpath" "$tconv"
+		else
+			echo "Candidate => '$tpath' to '$tconv'"
+		fi
+	fi
+done
+
+# check files
+IFS_SAVE=$IFS
+IFS=$'\n'
+files=($(find . -type f))
+IFS=$IFS_SAVE
+for (( loop=0;loop<${#files[@]};loop++ )); do
+	tfile="${files[$loop]}"
+	tconv="$(echo "$tfile"|tr ' ' '_')"
+	if [ "$tconv" != "$tfile" ] ; then
+		[ "$DO_LOWER" == "YES" ] && tconv="$(echo "$tconv"|tr '[A-Z]' '[a-z]')"
+		if [ "$DO_EXEC" == "YES" ]; then
+			mv "$tfile" "$tconv"
+		else
+			echo "Candidate => '$tfile' to '$tconv'"
+		fi
+	fi
+done
+
+exit 0

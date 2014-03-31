@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# chkfdup
+# - written by azman@my1matrix.net
+# - find duplicate files in current folder
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+CURPATH="$(pwd)"
+
+# tool & env setup
+CMP_BIN=${CMP_BIN:="$(which cmp 2>/dev/null)"}
+[[ "$CMP_BIN" = "" ]] && echo "cmp binary NOT found! Aborting!" && exit 1
+CMP_CHK=""
+CMP_OK="YES"
+
+[ "$(echo $@|grep -- '--cmp')" != "" ] && CMP_CHK="YES"
+
+IFS_SAVE=$IFS
+IFS=$'\n'
+files=($(find . -type f))
+IFS=$IFS_SAVE
+
+for (( loop=0;loop<${#files[@]};loop++ )); do
+	tfile=${files[$loop]}
+	tname=$(basename $tfile)
+	tpath=$(dirname $tfile)
+	IFS_SAVE=$IFS
+	IFS=$'\n'
+	check=($(find . -name "$tname"))
+	IFS=$IFS_SAVE
+	if [ ${#check[@]} -gt 1 ] ; then
+		if [ "$CMP_CHK" == "YES" ]; then
+			for (( iter=0;iter<${#check[@]};iter++ )); do
+				cfile=${check[$iter]}
+				cname=$(basename $cfile)
+				cpath=$(dirname $cfile)
+				[ "$cpath" == "$tpath" ] && continue
+				cmp "$tfile" "$cfile" >/dev/null 2>&1
+				[ $? -ne 0 ] && CMP_OK="NO" && break
+			done
+		fi
+		[ "$CMP_OK" == "YES" ] && echo "Candidate => $tfile : ${check[@]}"
+	fi
+done
+
+exit 0
