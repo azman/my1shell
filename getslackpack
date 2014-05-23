@@ -97,8 +97,8 @@ function go_loadinfo()
 	go_loadsums $pkg_root $pkg_repo
 	# prepare temp
 	mkdir -p $pkg_temp ; cd $pkg_temp
-	# if not found OR nothing modified last 120 minutes
-	if [ "$(find $pkg_file -mmin -120 2>/dev/null)" == "" ]; then
+	# if not found OR nothing modified last 24x60 minutes
+	if [ "$(find $pkg_file -mmin -1440 2>/dev/null)" == "" ]; then
 		rm -rf $pkg_file # just in case, delete old one
 		wget --spider $pkg_root/$pkg_file.gz >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
