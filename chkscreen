@@ -61,6 +61,16 @@ if [[ ${#DISP_STATS[@]} -gt 1 ]] ; then
 		echo "Command '$1' unknown!"
 		exit 1
 	fi
+elif [[ "$1" == "hres" ]] ; then
+	MODE="1280x1024@75"
+	VCTO="138.75 1280 1368 1504 1728 1024 1027 1034 1072 -hsync +vsync"
+	if [ "$(xrandr | grep "1280x1024@75   74.9*")" == "" ]; then
+		xrandr --newmode ${MODE} ${VCTO}
+		xrandr --addmode ${DISP_NAME[0]} ${MODE}
+	fi
+	if [ "$(xrandr | grep "connected ${MODE}")" == "" ]; then
+		xrandr --output ${DISP_NAME[0]} --mode ${MODE} 
+	fi
 fi
 
 exit 0
