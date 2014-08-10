@@ -28,6 +28,9 @@ RUN_QUIET="-quiet"
 SINGLE_PASS_OPT=""
 SKIP_OPT=""
 STOP_OPT=""
+CHK_VOLUME=""
+CHK_SINGLE=""
+CHK_DELACE=""
 
 AVIGAIN_DB_VALUE="100"
 DO_AVIGAIN=""
@@ -143,6 +146,21 @@ while [[ "$1" != "" ]]; do
 		--do-avigain )
 			DO_AVIGAIN="YES"
 			;;
+		--volume )
+			shift
+			CHK_VOLUME=$1
+			;;
+		--single )
+			RUN_TESTCODE="YES"
+			CHK_SINGLE="YES"
+			;;
+		--single-high )
+			RUN_TESTCODE="YES"
+			CHK_SINGLE="HIGH"
+			;;
+		--deinterlace )
+			CHK_DELACE="YES"
+			;;
 		--skip-frame )
 			shift
 			if [[ "$1" == "" ]] ; then
@@ -172,34 +190,40 @@ while [[ "$1" != "" ]]; do
 			shift
 			VIDEO_OUTPUT=$1
 			;;
-		--hdmovie )
-			VF_SCALE=${VF_SCALE:="704:304"}
-			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
-			AVI_BITRATE=${AVI_BITRATE:="700"}
-			echo "HDMOVIE SETTINGS!"
+		--vga | --480p )
+			VF_SCALE=${VF_SCALE:="640:480"} # EnhancedDefinitionTV
+			ASPECT_RATIO=${ASPECT_RATIO:="4:3"}
+			AVI_BITRATE=${AVI_BITRATE:="700"} # in progress...
+			echo "VGA (480p) SETTINGS!"
 			;;
-		--hdtv )
-			VF_SCALE=${VF_SCALE:="640:352"}
+		--wvga )
+			VF_SCALE=${VF_SCALE:="848:480"} # should 854, keep mod16?
 			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
-			AVI_BITRATE=${AVI_BITRATE:="380"}
-			echo "HDTV SETTINGS!"
+			AVI_BITRATE=${AVI_BITRATE:="800"} # in progress...
+			echo "WVGA (480p) SETTINGS!"
+			;;
+		--hdreal | --720p )
+			VF_SCALE=${VF_SCALE:="1280:720"}
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="1500"} # in progress...
+			echo "HD (720p) SETTINGS!"
 			;;
 		-m | --movie )
-			VF_SCALE=${VF_SCALE:="704:304"}
+			VF_SCALE=${VF_SCALE:="704:304"} #mod16 resolution
 			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
-			AVI_BITRATE=${AVI_BITRATE:="400"}
+			AVI_BITRATE=${AVI_BITRATE:="500"}
 			echo "MOVIE SETTINGS!"
 			;;
 		-t | --tv )
-			VF_SCALE=${VF_SCALE:="512:384"}
+			VF_SCALE=${VF_SCALE:="512:384"} #mod16 resolution
 			ASPECT_RATIO=${ASPECT_RATIO:="4:3"}
 			AVI_BITRATE=${AVI_BITRATE:="350"}
 			echo "TV SETTINGS!"
 			;;
 		-p | --personal )
-			VF_SCALE=${VF_SCALE:="640:480"}
-			ASPECT_RATIO=${ASPECT_RATIO:="4:3"}
-			AVI_BITRATE=${AVI_BITRATE:="400"}
+			VF_SCALE=${VF_SCALE:="640:352"} #mod16 resolution
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="700"}
 			echo "PERSONAL SETTINGS!"
 			;;
 ## show help - end ##
@@ -265,46 +289,81 @@ if [[ "$VF_SCALE" == "" ]] || [[ "$ASPECT_RATIO" == "" ]] || [[ "$AVI_BITRATE" =
 	exit 1
 fi
 
+# set video filtering options
 if [[ "$VFILTER_OPT" == "" ]]; then
-	VFILTER_OPT="-vf pp=lb"
-	if [[ "$VF_CROP" != "" ]]; then
-		VFILTER_OPT="${VFILTER_OPT},crop=${VF_CROP}"
-	fi
-	VFILTER_OPT="${VFILTER_OPT},scale=${VF_SCALE}"
+	VFILTER_OPT="-vf "
+	[ "$CHK_DELACE" == "YES" ] && VFILTER_OPT="${VFILTER_OPT}pp=lb,"
+	[ "$VF_CROP" != "" ] && VFILTER_OPT="${VFILTER_OPT}crop=${VF_CROP},"
+	VFILTER_OPT="${VFILTER_OPT}scale=${VF_SCALE}"
 else
 	VFILTER_OPT=""
 fi
+[ "$SKIP_OPT" != "" ] && VFILTER_OPT="${VFILTER_OPT} $SKIP_OPT"
+[ "$STOP_OPT" != "" ] && VFILTER_OPT="${VFILTER_OPT} $STOP_OPT"
 
+# set audio filtering options
 if [[ "$AFILTER_OPT" == "" ]]; then
 	AFILTER_OPT="-af resample=48000:1:2"
 else
 	AFILTER_OPT=""
 fi
 
-XVID_PASS1_OPT="-ovc xvid -xvidencopts pass=1:aspect=${ASPECT_RATIO//://}:bitrate=${AVI_BITRATE}:bvhq=1:chroma_opt:quant_type=mpeg"
-XVID_PASS2_OPT="-ovc xvid -xvidencopts pass=2:aspect=${ASPECT_RATIO//://}:bitrate=${AVI_BITRATE}:bvhq=1:chroma_opt:quant_type=mpeg"
-LAME_PASS1_OPT="-nosound"
-LAME_PASS2_OPT="-oac mp3lame -lameopts br=56:cbr:mode=0"
+# set encoder options
+XVIDENC_OPT="bitrate=${AVI_BITRATE}:bvhq=1:chroma_opt:quant_type=mpeg"
+XVIDENC_OPT="${XVIDENC_OPT}:aspect=${ASPECT_RATIO//://}"
+LAMEENC_OPT="br=56:abr" # use average br instead of constant, what's mode?
+[ "$CHK_VOLUME" != "" ] && LAMEENC_OPT="${LAMEENC_OPT}:vol=${CHK_VOLUME}"
+
+XVID1_OPT="$VFILTER_OPT -ovc xvid -xvidencopts pass=1:$XVIDENC_OPT"
+XVID2_OPT="$VFILTER_OPT -ovc xvid -xvidencopts pass=2:$XVIDENC_OPT"
+LAME1_OPT="$AFILTER_OPT -nosound"
+LAME2_OPT="$AFILTER_OPT -oac mp3lame -lameopts $LAMEENC_OPT"
+
+FIXED_OPT="$RUN_QUIET $VIDEO_INPUT"
 VIDEO_OPT="-force-avi-aspect $ASPECT_RATIO -ofps 25"
+#VIDEO_OPT=""
 
-PASS1_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $SKIP_OPT $STOP_OPT $XVID_PASS1_OPT $AFILTER_OPT $LAME_PASS1_OPT $VIDEO_OPT -o /dev/null $DVD_SUBT_OPT"
-PASS2_OPT="$RUN_QUIET $VIDEO_INPUT $VFILTER_OPT $SKIP_OPT $STOP_OPT $XVID_PASS2_OPT $AFILTER_OPT $LAME_PASS2_OPT $VIDEO_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
+PASS1_OPT="$XVID1_OPT $LAME1_OPT $VIDEO_OPT -o /dev/null $DVD_SUBT_OPT"
+PASS2_OPT="$XVID2_OPT $LAME2_OPT $VIDEO_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
 
-TEST1_OPT="$PASS1_OPT"
-TEST2_OPT="$PASS2_OPT"
+SINGLE_OPT="$FIXED_OPT"
+SINGLE_OPT="$SINGLE_OPT $VFILTER_OPT"
+SINGLE_OPT="$SINGLE_OPT -ovc xvid -xvidencopts fixed_quant=4:autoaspect"
+[ "$CHK_SINGLE" == "HIGH" ] &&
+	SINGLE_OPT="${SINGLE_OPT//fixed_quant=4/fixed_quant=2}"
+SINGLE_OPT="$SINGLE_OPT $AFILTER_OPT"
+SINGLE_OPT="$SINGLE_OPT -oac mp3lame -lameopts q=0:aq=0"
+SINGLE_OPT="$SINGLE_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
+
+TEST1_OPT="$FIXED_OPT"
+TEST1_OPT="$TEST1_OPT $VFILTER_OPT"
+TEST1_OPT="$TEST1_OPT -ovc xvid -xvidencopts pass=1:turbo:autoaspect"
+TEST1_OPT="$TEST1_OPT $AFILTER_OPT"
+TEST1_OPT="$TEST1_OPT -nosound"
+TEST1_OPT="$TEST1_OPT -o /dev/null $DVD_SUBT_OPT"
+[ "$CHK_SINGLE" != "" ] && TEST1_OPT="$SINGLE_OPT"
+
+TEST2_OPT="$FIXED_OPT"
+TEST2_OPT="$TEST2_OPT $VFILTER_OPT"
+TEST2_OPT="$TEST2_OPT -ovc xvid -xvidencopts pass=2:autoaspect:bitrate=700"
+TEST2_OPT="$TEST2_OPT $AFILTER_OPT"
+TEST2_OPT="$TEST2_OPT -oac mp3lame -lameopts $LAMEENC_OPT"
+TEST2_OPT="$TEST2_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
 
 if [[ "$RUN_TESTCODE" == "YES" ]]; then
 	echo "[TESTCODE] - Processing ($VIDEO_INPUT)..."
-	mencoder $TEST2_OPT
+	mencoder $TEST1_OPT
+	[ "$CHK_SINGLE" == "" ] && mencoder $TEST2_OPT
 	if [[ "$RUN_QUIET" == "-really-quiet" ]]; then
 		echo "[TESTCODE] - Done."
 	else
-		echo "[TEST2_OPT] ==> $TEST2_OPT"
+		echo "[TEST1_OPT] ==> $TEST1_OPT"
+		[ "$CHK_SINGLE" == "" ] && echo "[TEST2_OPT] ==> $TEST2_OPT"
 	fi
 else
 	echo "[STD_CODE] - Processing ($VIDEO_INPUT)..."
-	mencoder $PASS1_OPT
-	mencoder $PASS2_OPT
+	mencoder $FIXED_OPT $PASS1_OPT
+	mencoder $FIXED_OPT $PASS2_OPT
 	if [[ "$RUN_QUIET" == "-really-quiet" ]]; then
 		echo "[STD_CODE] - Done."
 	else
@@ -314,4 +373,3 @@ else
 fi
 
 echo "[DONE] ==> $(basename $0)"
-
