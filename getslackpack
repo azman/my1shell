@@ -34,7 +34,7 @@ DEF_REPO="alien"
 DEF_PACK="libreoffice libreoffice-dict-en openjdk icedtea-web rhino"
 
 # tool options
-OPT_CHECK="NO"
+OPT_CHECK="YES"
 OPT_CLEAN="NO"
 
 function do_download()
@@ -85,7 +85,6 @@ function go_loadsums()
 	cd - >/dev/null
 }
 
-
 function go_loadinfo()
 {
 	local pkg_root=$1
@@ -112,9 +111,13 @@ function go_loadinfo()
 			echo "[ERROR] Cannot find $pkg_file!" >&2 && exit 1
 		# check validity
 		cat $pkg_sums | grep -e " ./${pkg_file}$" >$pkg_file.md5
-		md5sum --check $pkg_file.md5 >/dev/null 2>&1
-		[ $? -ne 0 ] && rm -f $pkg_file &&
-			echo "[ERROR] $pkg_file: Checksum failed!" >&2 && exit 1
+		if [ -r "${pkg_file}.md5" -a "$(cat ${pkg_file}.md5)" != "" ]; then
+			md5sum --check $pkg_file.md5 >/dev/null 2>&1
+			[ $? -ne 0 ] && rm -f $pkg_file &&
+				echo "[ERROR] $pkg_file: Checksum failed!" >&2 && exit 1
+		else
+			echo "[WARN] $pkg_file validity not checked! (no md5)"
+		fi
 	fi
 	cd - >/dev/null
 }
@@ -143,13 +146,16 @@ function go_findpack()
 		local chk_name="PACKAGE NAME:"
 		pkg_file=$(echo "$pkg_test" | grep "^$chk_name")
 		pkg_file="${pkg_file##${check_name}* }"
-		[ "$(echo $pkg_file|grep -e "$pkg_arch")" == "" ] &&
+		local tmp_arch=$pkg_arch
+		[ "$pkg_arch" == "i486" ] && [ "$pkg_repo" == "salix" ] &&
+			tmp_arch="i686"
+		[ "$(echo $pkg_file|grep -e "$tmp_arch")" == "" ] &&
 			[ "$(echo $pkg_file|grep -e "noarch")" == "" ] && continue;
 		chk_name="PACKAGE LOCATION:"
 		pkg_path=$(echo "$pkg_test" | grep "^$chk_name")
 		pkg_path="${pkg_path##${check_name}* }"
 		pkg_path=$(echo $pkg_path|sed 's/^.\(.*\)$/\1/')
-		[ "$pkg_repo" != "slack" ] &&
+		[ "$pkg_repo" == "alien" ] &&
 			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
 		# first found - send and exit
 		echo "$pkg_file $pkg_path"
@@ -179,23 +185,27 @@ function go_loadpack()
 		echo "[ERROR] Cannot create checksum for '$pkg_file'!" >&2 && exit 1
 	# fix path in checksum file
 	sed -i "s|${pkg_rsrc}||g" $pkg_md5f
-	cd - >>/dev/null
+	cd - >/dev/null
 	# go to package path
 	cd $pkg_path
 	# fix download path
 	pkg_root=${pkg_root}${pkg_rsrc}
+	local pkg_test="KO"
 	# check if valid package exists
 	if [ -r $pkg_file.md5 ]; then
 		md5sum --check $pkg_file.md5 >/dev/null 2>&1
-		[ $? -eq 0 ] && echo "[INFO] Valid $pkg_file found!" && return
+		[ $? -eq 0 ] && echo "[INFO] Valid local package found!" &&
+			pkg_test="OK"
 	fi
-	# download if not found or invalid
-	do_download $pkg_root/$pkg_file $pkg_file
-	[ ! -r "$pkg_file" ] && rm -f $pkg_file.md5 &&
-		echo "[ERROR] Cannot find $pkg_file!" >&2 && exit 1
-	md5sum --check $pkg_file.md5 >/dev/null 2>&1
-	[ $? -ne 0 ] && rm -f $pkg_file && rm -f $pkg_file.md5 &&
-		echo "[ERROR] $pkg_file: Checksum failed!" >&2 && exit 1
+	if [ "$pkg_test" != "OK" ]; then
+		# download if not found or invalid
+		do_download $pkg_root/$pkg_file $pkg_file
+		[ ! -r "$pkg_file" ] && rm -f $pkg_file.md5 &&
+			echo "[ERROR] Cannot find $pkg_file!" >&2 && exit 1
+		md5sum --check $pkg_file.md5 >/dev/null 2>&1
+		[ $? -ne 0 ] && rm -f $pkg_file && rm -f $pkg_file.md5 &&
+			echo "[ERROR] $pkg_file: Checksum failed!" >&2 && exit 1
+	fi
 	cd - >/dev/null
 }
 
@@ -204,6 +214,7 @@ function do_readconf()
 	# default repo
 	local pkg_root="$DEF_ROOT"
 	local pkg_repo="$DEF_REPO"
+	local pkg_rawp=""
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
@@ -211,21 +222,131 @@ function do_readconf()
 				pkg_root="http://taper.alienbase.nl"
 				pkg_root="${pkg_root}/mirrors/people/alien/slackbuilds"
 				pkg_repo="alien"
+				pkg_rawp=""
 				;;
 			--slack)
 				pkg_root="http://mirrors.slackware.com"
 				pkg_root="${pkg_root}/slackware/$SLACKFULL"
 				pkg_repo="slack"
+				pkg_rawp=""
+				;;
+			--salix)
+				pkg_root="http://download.salixos.org"
+				pkg_root="${pkg_root}/$SLACKARCH/$SLACKVERS"
+				pkg_repo="salix"
+				pkg_rawp=""
+				;;
+			--rwork)
+				pkg_root="http://rlworkman.net"
+				pkg_root="${pkg_root}/pkgs/$SLACKVERS/$SLACKARCH"
+				pkg_repo="rwork"
+				pkg_rawp=",go_raw"
 				;;
 			-*)
 				echo "Unknown repo '$1'!" >&2 && exit 1
 				;;
 			*)
-				echo "${pkg_root},${pkg_repo},$1"
+				echo "${pkg_root},${pkg_repo},$1${pkg_rawp}"
 				;;
 		esac
 		shift
 	done
+}
+
+function go_loadrawl()
+{
+	local pkg_root=$1
+	local pkg_repo=$2
+	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
+	local pkg_list="index.html"
+	# check clean option
+	if [ "$OPT_CLEAN" == "YES" ] ; then
+		rm -rf /tmp/$MY1TOOL
+		[ $? -ne 0 ] && OPT_CLEAN="NO"
+	fi
+	# prepare temp
+	mkdir -p $pkg_temp ; cd $pkg_temp
+	# if not found OR nothing modified last 120 minutes
+	if [ "$(find $pkg_list -mmin -120 2>/dev/null)" == "" ]; then
+		rm -rf $pkg_list # just in case, delete old one
+		wget --spider $pkg_root >/dev/null 2>&1
+		if [ $? -eq 0 ] ; then
+			do_download $pkg_root $pkg_list
+		fi
+		# we must have it!
+		[ ! -r "$pkg_list" ] &&
+			echo "[ERROR] Cannot get $pkg_list!" >&2 && exit 1
+	fi
+	cd - >/dev/null
+}
+
+function go_findrawl()
+{
+	local pkg_repo=$1
+	local pkg_name=$2
+	local pkg_arch=$3
+	local pkg_vers=$4
+	local pkgs_txt="/tmp/$MY1TOOL/$pkg_repo/index.html"
+	# info structure?
+	local pkg_temp="${pkg_name}-[^-]*-${pkg_arch}-[^-]*.t[gx]z "
+	local pkg_text="$(cat $pkgs_txt | sed -e :a -e 's/<[^>]*>//g;/</N;//ba')"
+	local pkg_test="$(echo "$pkg_text" | grep -e "$pkg_temp" )"
+	[ "$pkg_test" = "" ] && return
+	local pkg_file="$(echo ${pkg_test} | cut -d " " -f 1)"
+	[ "$pkg_file" = "" ] && return
+	# check for md5 file
+	pkg_temp="${pkg_name}-[^-]*-${pkg_arch}-[^-]*.t[gx]z.md5"
+	pkg_test="$(echo "$pkg_text" | grep -e "$pkg_temp" )"
+	local pkg_md5s="$(echo ${pkg_test} | cut -d " " -f 1)"
+	# send it out
+	[ "$pkg_md5s" != "" ] && pkg_md5s=",$pkg_md5s"
+	echo "${pkg_file}${pkg_md5s}"
+}
+
+function go_packrawl()
+{
+	local pkg_root=$1
+	local pkg_repo=$2
+	local pkg_path=$3
+	local pkg_file=$4
+	local pkg_rsrc=$5
+	local pkg_test="KO"
+	# prepare / change to pack path
+	mkdir -p $pkg_path ; cd $pkg_path
+	if [ -f "${pkg_file}.md5" ]; then
+		md5sum --check ${pkg_file}.md5 >/dev/null 2>&1
+		[ $? -eq 0 ] && pkg_test="OK"
+		if [ "$pkg_test" == "OK" ]; then
+			echo "[INFO] Valid local package found!"
+		else
+			rm -rf ${pkg_file}*
+			echo "[INFO] Invalid local package... deleted!"
+		fi
+	fi
+	if [ "$pkg_test" != "OK" ]; then
+		# download if old?
+		if [ "$(find $pkg_file -mmin -1440 2>/dev/null)" == "" ]; then
+			rm -rf $pkg_file # just in case, delete old one
+			do_download $pkg_root/$pkg_file $pkg_file
+			if [ "$pkg_rsrc" == "${pkg_file}.md5" ]; then
+				rm -rf $pkg_rsrc # just in case, delete old one
+				do_download $pkg_root/$pkg_rsrc $pkg_rsrc
+			fi
+			if [ ! -r "$pkg_file" ]; then
+				echo "[ERROR] Cannot find $pkg_file!" >&2
+			elif [ -r "$pkg_rsrc" ]; then
+				pkg_test="KO"
+				md5sum --check $pkg_rsrc >/dev/null 2>&1
+				[ $? -eq 0 ] && pkg_test="OK"
+				if [ "$pkg_test" != "OK" ]; then
+					echo "[ERROR] $pkg_file: Checksum failed!" >&2 &&
+						rm -f $pkg_file && rm -f $pkg_rsrc
+				fi
+			fi
+
+		fi
+	fi
+	cd - >/dev/null
 }
 
 function do_execthis()
@@ -247,20 +368,45 @@ function do_execthis()
 		pkg_root="${pkg_test[0]}"
 		pkg_repo="${pkg_test[1]}"
 		pkg_name="${pkg_test[2]}"
-		# load package info
-		go_loadinfo $pkg_root $pkg_repo
-		echo "[INFO] Looking in $pkg_repo repo for $pkg_name..."
-		pkg_this=($(go_findpack $pkg_repo $pkg_name $pkg_arch $pkg_vers))
-		if [ "$pkg_this" != "" ]; then
-			pkg_file=${pkg_this[0]}
-			pkg_rsrc=${pkg_this[1]}
-			if [ "$OPT_CHECK" == "YES" ] ; then
-				echo "[INFO] Package '$pkg_name' found ('$pkg_file')!"
+		pkg_rawp="${pkg_test[3]}"
+		#echo "[DEBUG] '$pkg_root','$pkg_repo','$pkg_name','$pkg_rawp'"
+		# going raw mode?
+		if [ "$pkg_rawp" == "go_raw" ]; then
+			echo "[INFO] Looking RAW in $pkg_repo repo for $pkg_name..."
+			go_loadrawl $pkg_root $pkg_repo
+			pkg_this="$(go_findrawl $pkg_repo $pkg_name $pkg_arch $pkg_vers)"
+			if [ "$pkg_this" != "" ]; then
+				if [ "${pkg_this//,/;}" != "${pkg_this}" ]; then
+					pkg_rsrc="$(echo ${pkg_this//,/;} | cut -d ";" -f 2)"
+					pkg_file="${pkg_this//,${pkg_rsrc}/}"
+				else
+					pkg_rsrc=""
+					pkg_file=${pkg_this}
+				fi
+				if [ "$OPT_CHECK" == "YES" ] ; then
+					echo "[INFO] Package '$pkg_name' found ('$pkg_file')!"
+				else
+				go_packrawl $pkg_root $pkg_repo $pkg_path $pkg_file $pkg_rsrc
+				fi
 			else
-				go_loadpack $pkg_root $pkg_rsrc $pkg_repo $pkg_path $pkg_file
+				echo "[INFO] Package '$pkg_name' not found!"
 			fi
 		else
-			echo "[INFO] Package '$pkg_name' not found!"
+			# load package info
+			go_loadinfo $pkg_root $pkg_repo
+			echo "[INFO] Looking in $pkg_repo repo for $pkg_name..."
+			pkg_this=($(go_findpack $pkg_repo $pkg_name $pkg_arch $pkg_vers))
+			if [ "$pkg_this" != "" ]; then
+				pkg_file=${pkg_this[0]}
+				pkg_rsrc=${pkg_this[1]}
+				if [ "$OPT_CHECK" == "YES" ] ; then
+					echo "[INFO] Package '$pkg_name' found ('$pkg_file')!"
+				else
+				go_loadpack $pkg_root $pkg_rsrc $pkg_repo $pkg_path $pkg_file
+				fi
+			else
+				echo "[INFO] Package '$pkg_name' not found!"
+			fi
 		fi
 	done
 }
@@ -277,11 +423,20 @@ function chk_param()
 			--slack)
 				chk_valid="$1"
 				;;
-			--default)
-				THIS_CONF="--$DEF_REPO $DEF_PACK ${THIS_CONF}"
+			--salix)
+				chk_valid="$1"
 				;;
-			--check)
-				OPT_CHECK="YES"
+			--rwork)
+				chk_valid="$1"
+				;;
+			--default)
+				THIS_CONF="${THIS_CONF} --$DEF_REPO $DEF_PACK"
+				;;
+			--xfburn)
+				THIS_CONF="${THIS_CONF} --rwork xfburn libburn libisofs"
+				;;
+			--exec)
+				OPT_CHECK="NO"
 				;;
 			--clean)
 				OPT_CLEAN="YES"
