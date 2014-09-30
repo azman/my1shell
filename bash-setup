@@ -27,7 +27,7 @@ MY1PROMPT="\u@\h:\w$ "
 [[ "\$PS1" =~ "\$MY1PROMPT" ]] || export PS1="\$MY1PROMPT"
 
 export VISUAL="\$(which vim)"
-export HISTIGNORE="&:[bf]g:exit:[ \t]*"
+export HISTIGNORE="&:[bf]g:exit:[ ]*"
 export LS_OPTIONS="-F -b -T 0 --color=auto"
 
 alias ls='ls \$LS_OPTIONS'
