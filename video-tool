@@ -26,6 +26,7 @@ VIDEO_OUTTMP=""
 RUN_TESTCODE=""
 RUN_QUIET="-quiet"
 SINGLE_PASS_OPT=""
+SECOND_PASS_CHK=""
 SKIP_OPT=""
 STOP_OPT=""
 CHK_VOLUME=""
@@ -149,6 +150,9 @@ while [[ "$1" != "" ]]; do
 		--volume )
 			shift
 			CHK_VOLUME=$1
+			;;
+		--chk2nd )
+			SECOND_PASS_CHK="YES"
 			;;
 		--single )
 			RUN_TESTCODE="YES"
@@ -362,7 +366,7 @@ if [[ "$RUN_TESTCODE" == "YES" ]]; then
 	fi
 else
 	echo "[STD_CODE] - Processing ($VIDEO_INPUT)..."
-	mencoder $FIXED_OPT $PASS1_OPT
+	[ "$SECOND_PASS_CHK" == "" ] && mencoder $FIXED_OPT $PASS1_OPT
 	mencoder $FIXED_OPT $PASS2_OPT
 	if [[ "$RUN_QUIET" == "-really-quiet" ]]; then
 		echo "[STD_CODE] - Done."
