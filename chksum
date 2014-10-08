@@ -11,17 +11,24 @@ MD5FILE=${MD5FILE:="check.md5"}
 
 # tool & env setup
 MD5SUM_BIN=${MD5SUM_BIN:="$(which md5sum 2>/dev/null)"}
-[[ "$MD5SUM_BIN" = "" ]] && echo "md5sum binary NOT found! Aborting!" && exit 1
+[ "$MD5SUM_BIN" = "" ] && echo "md5sum binary NOT found! Aborting!" && exit 1
 
 if [ "$(echo $@|grep -- '--create')" != "" ]; then
 	echo -n "" >$MD5FILE
 	for a in $(find . -type f); do
-		[[ "$(basename $a)" == "$MD5FILE" ]] && continue
+		[ "$(basename $a)" == "$MD5FILE" ] && continue
 		md5sum $a >>$MD5FILE
 	done
 else
-	[[ ! -r "$MD5FILE" ]] && echo "Cannot find '$MD5FILE'!" && exit 1
-	$MD5SUM_BIN --check $MD5FILE
+	if [ -r "$MD5FILE" ] ; then
+		$MD5SUM_BIN --check $MD5FILE
+	else
+		MD5LIST=$(find . -name "*.md5")
+		[ "$MD5LIST" == "" ] && echo "Cannot find any MD5 sum file!" && exit 1
+		for a in $MD5LIST; do
+			$MD5SUM_BIN --check $a
+		done
+	fi
 fi
 
 exit 0
