@@ -43,6 +43,14 @@ if [[ ${#DISP_STATS[@]} -gt 1 ]] ; then
 		echo -n "Applying dual-head configuration..."
 		xrandr $DISP1 $DISP0 $PLACE ${DISP_NAME[1]}
 		echo "done."
+	elif [[ "$1" == "multi" ]] ; then
+		echo -n "Applying multi-view configuration..."
+		for (( a=1;a<${#DISP_NAME[@]};a++ )); do
+			DISP1="${DISP_NAME[(($a-1))]}"
+			DISP0="$DISP0 --output ${DISP_NAME[$a]} --auto --right-of $DISP1"
+		done
+		xrandr $DISP0
+		echo "done."
 	elif [[ "$1" == "twin" ]] ; then
 		echo -n "Applying twin-view configuration..."
 		xrandr $DISP1 $DISP0 $PLACE ${DISP_NAME[1]}
