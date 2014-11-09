@@ -182,7 +182,7 @@ function go_loadpack()
 	# extract checksum for file
 	cat $pkg_sums | grep -e "^.*${pkg_rsrc}/${pkg_file}$" >$pkg_md5f
 	[ $? -ne 0 ] &&
-		echo "[ERROR] Cannot create checksum for '$pkg_file'!" >&2 && exit 1
+		echo "[ERROR]  Cannot create checksum for '$pkg_file'!" >&2 && exit 1
 	# fix path in checksum file
 	sed -i "s|${pkg_rsrc}||g" $pkg_md5f
 	cd - >/dev/null
@@ -194,17 +194,17 @@ function go_loadpack()
 	# check if valid package exists
 	if [ -r $pkg_file.md5 ]; then
 		md5sum --check $pkg_file.md5 >/dev/null 2>&1
-		[ $? -eq 0 ] && echo "[INFO] Valid local package found!" &&
+		[ $? -eq 0 ] && echo "[INFO]  Valid local package found!" &&
 			pkg_test="OK"
 	fi
-	if [ "$pkg_test" != "OK" ]; then
+	if [ "$OPT_CHECK" != "YES" ] && [ "$pkg_test" != "OK" ]; then
 		# download if not found or invalid
 		do_download $pkg_root/$pkg_file $pkg_file
 		[ ! -r "$pkg_file" ] && rm -f $pkg_file.md5 &&
-			echo "[ERROR] Cannot find $pkg_file!" >&2 && exit 1
+			echo "[ERROR]  Cannot find $pkg_file!" >&2 && exit 1
 		md5sum --check $pkg_file.md5 >/dev/null 2>&1
 		[ $? -ne 0 ] && rm -f $pkg_file && rm -f $pkg_file.md5 &&
-			echo "[ERROR] $pkg_file: Checksum failed!" >&2 && exit 1
+			echo "[ERROR]  $pkg_file: Checksum failed!" >&2 && exit 1
 	fi
 	cd - >/dev/null
 }
@@ -317,13 +317,13 @@ function go_packrawl()
 		md5sum --check ${pkg_file}.md5 >/dev/null 2>&1
 		[ $? -eq 0 ] && pkg_test="OK"
 		if [ "$pkg_test" == "OK" ]; then
-			echo "[INFO] Valid local package found!"
+			echo "[INFO]  Valid local package found!"
 		else
 			rm -rf ${pkg_file}*
-			echo "[INFO] Invalid local package... deleted!"
+			echo "[INFO]  Invalid local package... deleted!"
 		fi
 	fi
-	if [ "$pkg_test" != "OK" ]; then
+	if [ "$OPT_CHECK" != "YES" ] && [ "$pkg_test" != "OK" ]; then
 		# download if old?
 		if [ "$(find $pkg_file -mmin -1440 2>/dev/null)" == "" ]; then
 			rm -rf $pkg_file # just in case, delete old one
@@ -369,11 +369,11 @@ function do_execthis()
 		pkg_repo="${pkg_test[1]}"
 		pkg_name="${pkg_test[2]}"
 		pkg_rawp="${pkg_test[3]}"
+		pkg_file=""
 		#echo "[DEBUG] '$pkg_root','$pkg_repo','$pkg_name','$pkg_rawp'"
-		# going raw mode?
 		if [ "$pkg_rawp" == "go_raw" ]; then
-			echo "[INFO] Looking RAW in $pkg_repo repo for $pkg_name..."
 			go_loadrawl $pkg_root $pkg_repo
+			echo "[INFO] Looking RAW in $pkg_repo repo for '$pkg_name'..."
 			pkg_this="$(go_findrawl $pkg_repo $pkg_name $pkg_arch $pkg_vers)"
 			if [ "$pkg_this" != "" ]; then
 				if [ "${pkg_this//,/;}" != "${pkg_this}" ]; then
@@ -383,29 +383,23 @@ function do_execthis()
 					pkg_rsrc=""
 					pkg_file=${pkg_this}
 				fi
-				if [ "$OPT_CHECK" == "YES" ] ; then
-					echo "[INFO] Package '$pkg_name' found ('$pkg_file')!"
-				else
-				go_packrawl $pkg_root $pkg_repo $pkg_path $pkg_file $pkg_rsrc
-				fi
+				echo "[INFO]  Package '$pkg_file' found!"
 			else
-				echo "[INFO] Package '$pkg_name' not found!"
+				echo "[INFO]  Package '$pkg_name' not found!"
 			fi
+			[ "$OPT_CHECK" != "YES" ] && [ "$pkg_file" != "" ] &&
+				go_packrawl $pkg_root $pkg_repo $pkg_path $pkg_file $pkg_rsrc
 		else
-			# load package info
 			go_loadinfo $pkg_root $pkg_repo
-			echo "[INFO] Looking in $pkg_repo repo for $pkg_name..."
+			echo "[INFO] Looking in $pkg_repo repo for '$pkg_name'..."
 			pkg_this=($(go_findpack $pkg_repo $pkg_name $pkg_arch $pkg_vers))
 			if [ "$pkg_this" != "" ]; then
 				pkg_file=${pkg_this[0]}
 				pkg_rsrc=${pkg_this[1]}
-				if [ "$OPT_CHECK" == "YES" ] ; then
-					echo "[INFO] Package '$pkg_name' found ('$pkg_file')!"
-				else
+				echo "[INFO]  Package '$pkg_file' found!"
 				go_loadpack $pkg_root $pkg_rsrc $pkg_repo $pkg_path $pkg_file
-				fi
 			else
-				echo "[INFO] Package '$pkg_name' not found!"
+				echo "[INFO]  Package '$pkg_name' not found!"
 			fi
 		fi
 	done
