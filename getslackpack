@@ -384,11 +384,10 @@ function do_execthis()
 					pkg_file=${pkg_this}
 				fi
 				echo "[INFO]  Package '$pkg_file' found!"
+				go_packrawl $pkg_root $pkg_repo $pkg_path $pkg_file $pkg_rsrc
 			else
 				echo "[INFO]  Package '$pkg_name' not found!"
 			fi
-			[ "$OPT_CHECK" != "YES" ] && [ "$pkg_file" != "" ] &&
-				go_packrawl $pkg_root $pkg_repo $pkg_path $pkg_file $pkg_rsrc
 		else
 			go_loadinfo $pkg_root $pkg_repo
 			echo "[INFO] Looking in $pkg_repo repo for '$pkg_name'..."
