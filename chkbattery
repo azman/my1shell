@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# chkbattery
+# - written by azman@my1matrix.net
+# - simple script to check battery from /proc/acpi
+
+ACPI_PATH="/proc/acpi/battery"
+
+[ ! -d ${ACPI_PATH}/BAT0 ] && echo "No entry found in $ACPI_PATH!" &&
+	exit 1
+
+CURR_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "remaining capacity:")
+CURR_BATT=${CURR_BATT##*  }
+CURR_BATT=${CURR_BATT% *}
+
+FULL_BATT=$(cat ${ACPI_PATH}/BAT0/info | grep "design capacity:")
+FULL_BATT=${FULL_BATT##*  }
+FULL_BATT=${FULL_BATT% *}
+
+PREV_BATT=$(cat ${ACPI_PATH}/BAT0/info | grep "last full capacity:")
+PREV_BATT=${PREV_BATT##*  }
+PREV_BATT=${PREV_BATT% *}
+
+((CURR_PCTG=${CURR_BATT}*100/${PREV_BATT}))
+
+_CHARGING=$(cat ${ACPI_PATH}/BAT0/state | grep "charging state:")
+_CHARGING=${_CHARGING##*  }
+
+echo "$CURR_PCTG% <$_CHARGING> CURR=$CURR_BATT FULL=$FULL_BATT PREV=$PREV_BATT"
+
+exit 0
