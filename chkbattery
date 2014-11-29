@@ -25,6 +25,13 @@ PREV_BATT=${PREV_BATT% *}
 
 _CHARGING=$(cat ${ACPI_PATH}/BAT0/state | grep "charging state:")
 _CHARGING=${_CHARGING##*  }
+if [ "$_CHARGING" == "discharging" ] ; then
+	CHK_STATE="-$CURR_PCTG%"
+else
+	CHK_STATE="+$CURR_PCTG%"
+fi
+
+[ "$1" == "--state" ] && echo "$CHK_STATE" && exit 0
 
 echo "$CURR_PCTG% <$_CHARGING> CURR=$CURR_BATT FULL=$FULL_BATT PREV=$PREV_BATT"
 
