@@ -6,29 +6,31 @@
 
 ACPI_PATH="/proc/acpi/battery"
 
-[ ! -d ${ACPI_PATH}/BAT0 ] && echo "No entry found in $ACPI_PATH!" &&
-	exit 1
-
-CURR_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "remaining capacity:")
-CURR_BATT=${CURR_BATT##*  }
-CURR_BATT=${CURR_BATT% *}
-
-FULL_BATT=$(cat ${ACPI_PATH}/BAT0/info | grep "design capacity:")
-FULL_BATT=${FULL_BATT##*  }
-FULL_BATT=${FULL_BATT% *}
-
-PREV_BATT=$(cat ${ACPI_PATH}/BAT0/info | grep "last full capacity:")
-PREV_BATT=${PREV_BATT##*  }
-PREV_BATT=${PREV_BATT% *}
-
-((CURR_PCTG=${CURR_BATT}*100/${PREV_BATT}))
-
-_CHARGING=$(cat ${ACPI_PATH}/BAT0/state | grep "charging state:")
-_CHARGING=${_CHARGING##*  }
-if [ "$_CHARGING" == "discharging" ] ; then
-	CHK_STATE="-$CURR_PCTG%"
+if [ -d ${ACPI_PATH}/BAT0 ] ; then
+	CURR_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "remaining capacity:")
+	CURR_BATT=${CURR_BATT##*  }
+	CURR_BATT=${CURR_BATT% *}
+	FULL_BATT=$(cat ${ACPI_PATH}/BAT0/info | grep "design capacity:")
+	FULL_BATT=${FULL_BATT##*  }
+	FULL_BATT=${FULL_BATT% *}
+	PREV_BATT=$(cat ${ACPI_PATH}/BAT0/info | grep "last full capacity:")
+	PREV_BATT=${PREV_BATT##*  }
+	PREV_BATT=${PREV_BATT% *}
+	((CURR_PCTG=${CURR_BATT}*100/${PREV_BATT}))
+	_CHARGING=$(cat ${ACPI_PATH}/BAT0/state | grep "charging state:")
+	_CHARGING=${_CHARGING##*  }
+	if [ "$_CHARGING" == "discharging" ] ; then
+		CHK_STATE="$CURR_PCTG%--"
+	else
+		CHK_STATE="$CURR_PCTG%++"
+	fi
 else
-	CHK_STATE="+$CURR_PCTG%"
+	CURR_BATT="0"
+	FULL_BATT="0"
+	PREV_BATT="0"
+	CURR_PCTG="100"
+	_CHARGING="No battery!"
+	CHK_STATE=""
 fi
 
 [ "$1" == "--state" ] && echo "$CHK_STATE" && exit 0
