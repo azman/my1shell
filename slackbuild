@@ -1,0 +1,129 @@
+#!/bin/bash
+
+# slackbuild
+# - written by azman@my1matrix.net
+# - simple slackbuild manager
+
+# standard tool info
+MY1_TOOLNAME="my1 SlackBuild Manager"
+MY1_TOOLVERS="2015.01.00"
+MY1_TOOLBASE=$(basename $0)
+MY1_TOOLPATH=$(cd $(dirname $0);pwd)
+MY1_TOOL_LIB="libmy1slack"
+# look for config file
+for config in $(pwd) $HOME; do
+	config=$config/.$MY1_TOOLBASE
+	[ -r $config ] && source $config && break
+done
+# look for my1slack library
+[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && source $MY1_TOOLPATH/$MY1_TOOL_LIB
+
+# my1slack tool specific
+MY1_THISPATH=$(pwd)
+MY1_BUILDDIR=${MY1_BUILDDIR:="${MY1_TOOLPATH}/../slackbuilds"}
+# global options & settings
+OPT_INSTALL=""
+OPT_DEPENDS="NO"
+OPT_EXECUTE="NO"
+MSG_THISHELP=$(cat <<SETHELPMSG
+Usage:
+  $MY1_TOOLBASE [options] <pkg_name>
+Options:
+  --install : Install when (and if) the build completes
+  --depends : Check (and build) dependencies
+  --execute : Execute build (else, simply check)
+SETHELPMSG
+)
+
+function do_build()
+{
+	local pkg_name=$1
+	local opt_inst=$2
+	local chk_path=$(pwd)
+	local pkg_deps log_file inf_file
+	MY1_BUILDDIR=$(cd $MY1_BUILDDIR;pwd)
+	[ ! -d "$MY1_BUILDDIR" ] &&
+		error_exit "Path '$MY1_BUILDDIR' not found!"
+	cd $MY1_BUILDDIR
+	[ ! -f ${pkg_name}/${pkg_name}.SlackBuild ] &&
+		error_exit "SlackBuild for '$pkg_name' not found!"
+	inf_file="${pkg_name}/${pkg_name}.info"
+	[ ! -f ${inf_file} ] &&
+		error_exit "Info file for '$pkg_name' not found!"
+	# find deps
+	pkg_deps=$(cat ${inf_file} | grep REQUIRES)
+	pkg_deps=${pkg_deps#*=\"}
+	pkg_deps=${pkg_deps%\"}
+	# show this before dependencies if not building
+	if [ "$OPT_EXECUTE" != "YES" ]; then
+		echo -n "Package: $pkg_name"
+		[ "$pkg_deps" != "" ] && echo -n ", Requires: $pkg_deps" ; echo
+	fi
+	# iterate through dependencies, if requested
+	if [ "$OPT_DEPENDS" == "YES" ]; then
+		for pkg in $pkg_deps ; do
+			do_build $pkg --install
+		done
+	fi
+	# build only if explicitly requested
+	if [ "$OPT_EXECUTE" == "YES" ]; then
+		must_be_root
+		log_file=${MY1_THISPATH}/${pkg_name}.buildlog
+		echo -n "Building '$pkg_name' ... "
+		cd ${pkg_name}
+		sh ${pkg_name}.SlackBuild >${log_file} 2>&1
+		[ $? -ne 0 ] && error_exit "Error building '$pkg_name'!"
+		echo "done!"
+		if [ "$opt_inst" == "--install" ] ; then
+			pkg_file="$(cat $log_file | tail -n 2 | grep Slackware)"
+			pkg_file=${pkg_file#*package }
+			pkg_file=${pkg_file% created*}
+			echo -n "Installing '$pkg_file'... "
+			installpkg $pkg_file >>${log_file} 2>&1
+			[ $? -ne 0 ] && error_exit "Error installing '$pkg_file'!"
+			echo "done!"
+		fi
+	fi;
+	cd $chk_path
+}
+
+function process_command()
+{
+	local pkg_name
+	# check parameters
+	while [ "$1" != "" ]; do
+		case "$1" in
+			--install)
+				OPT_INSTALL="$1"
+				;;
+			--depends)
+				OPT_DEPENDS="YES"
+				;;
+			--execute)
+				OPT_EXECUTE="YES"
+				;;
+			-*)
+				echo -e "$MSG_THISHELP"
+				error_exit "Unknown option '$1'!"
+				;;
+			*)
+				[ ! -n $pkg_name ] &&
+					error_exit "Already specified!? [$pkg_name]"
+				pkg_name="$1"
+				;;
+		esac
+		shift
+	done
+	# check if name supplied
+	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
+	# do your thing!
+	do_build $pkg_name ${OPT_INSTALL}
+}
+
+# BEGIN MAIN SCRIPT
+
+echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+process_command "$@"
+echo ; exit 0
+
+# END MAIN SCRIPT
