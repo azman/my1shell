@@ -36,6 +36,7 @@ Commands:
   chroot : Do create & config in one command
   squash : Squash root installation
   livefs : Do create & squash in one command
+  update : Updates chroot installation
 Options:
   --verbose : More info
   --exec    : Execute (else just dry run!)
@@ -55,6 +56,48 @@ Log File:
   $MY1_TOOL_LOG
 SETHELPMSG
 )
+
+function do_root_update()
+{
+	local chk_root=$1
+	local chk_exec="NO"
+	local chk_syyy="YES"
+	local pkg_list pkg_temp pkg_opts="--reinstall --install-new"
+	# check 'command-line'
+	shift # first param is chk_root
+	while [[ "$1" != "" ]]; do
+		pkg_temp=$1
+		case $pkg_temp in
+			--exec) chk_exec="YES" ;;
+			--verbose) chk_syyy="NO" ;;
+			*)
+				if [[ ! -f $pkg_temp ]] ; then
+					warn_msg "File '$pkg_temp' not found! Not included!\n"
+				else
+					pkg_list="${pkg_list}$pkg_temp "
+				fi
+				;;
+		esac
+		shift
+	done
+	# check valid root path... if executing!
+	[[ "$chk_exec" == "YES" ]] &&
+		must_have_path "$chk_root" "Root path '$chk_root' not found!"
+	# install packages in list to given root
+	if [[ "$chk_exec" == "YES" ]]; then
+		echo "$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)" >$MY1_TOOL_LOG
+		echo "ExecTime: $(date +%Y%m%d%H%M)" >>$MY1_TOOL_LOG
+	fi
+	for pkg_file in $pkg_list; do
+		[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag "\n"
+		[[ "$chk_syyy" != "YES" ]] &&
+			info_msg "Updating $(basename $pkg_file) to $chk_root ..."
+		[[ "$chk_exec" == "YES" ]] &&
+			ROOT=$chk_root upgradepkg $pkg_opts $pkg_file >>$MY1_TOOL_LOG
+		[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag " done!"
+	done
+	[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag "\n"
+}
 
 function do_root_install()
 {
@@ -592,9 +635,124 @@ function squash_create()
 	build_module $chk_pack --root $chk_root --live $chk_live $chk_exec $chk_syyy
 }
 
+function find_patches_root()
+{
+	local pat_exts pat_base pat_name
+	local pat_vers pat_arch pat_extd
+	local pkg_temp pkg_base pkg_name
+	local pkg_vers pkg_arch pkg_extd
+	local chk_name chk_stat chk_file chk_vers
+	local pkg_path="$1"
+	local log_path="$2"
+	local pat_list pat_full pat_path
+	# look for all package files
+	for pat_full in $(find $pkg_path -name "*.t[gx]z" -type f); do
+		pat_file="$(basename $pat_full)"
+		pat_path="$(dirname $pat_full)"
+		# check extension first
+		pat_exts="${pat_file##*.}"
+		pat_base="${pat_file%%.${pat_exts}}"
+		# get particulars
+		pkg_temp=($(get_pkg_info $pat_base))
+		pat_name="${pkg_temp[0]}"
+		pat_vers="${pkg_temp[1]}"
+		pat_arch="${pkg_temp[2]}"
+		pat_extd="${pkg_temp[3]}"
+		# populate information
+		chk_name="$pat_name"
+		chk_file="$pat_full"
+		chk_vers="[${pat_vers}/${pat_extd}]"
+		# DEBUG debug_msg "$pat_full\n"
+		# find installed
+		pkg_temp="^${pat_name}-[^-]*-[^-]*-[^-]*$"
+		pkg_base=$(ls $log_path | grep -e "$pkg_temp")
+		[[ "$pkg_base" == "" ]] && continue
+		pkg_temp=($(get_pkg_info $pkg_base))
+		pkg_name="${pkg_temp[0]}"
+		pkg_vers="${pkg_temp[1]}"
+		pkg_arch="${pkg_temp[2]}"
+		pkg_extd="${pkg_temp[3]}"
+		# skip if for different arch!
+		[[ "$pkg_arch" != "$pat_arch" ]] && continue
+		# check version update
+		if [[ "$pkg_vers" == "$pat_vers" ]] &&
+			[[ "$pkg_extd" == "$pat_extd" ]]; then
+			chk_stat="pdone"
+		else
+			chk_stat="check"
+			chk_vers="[${pkg_vers}/${pkg_extd}]->[${pat_vers}/${pat_extd}]"
+		fi
+		echo "$chk_name $chk_stat $chk_file $chk_vers "
+	done
+}
+
+function rootfs_update()
+{
+	local pkg_path="$SLACKPKGPATH"
+	local chk_root="$MY1_ROOT_DEF"
+	local chk_exec=""
+	local chk_syyy=""
+	local pkg_list pkg_temp pkg_name pkg_base tmp_list chk_temp
+	# check parameters
+	while [[ "$1" != "" ]]; do
+		case "$1" in
+			--path)
+				shift
+				pkg_path="$(cd $1;pwd)"
+				;;
+			--root)
+				shift
+				chk_root=$1
+				;;
+			--verbose)
+				chk_syyy="--verbose"
+				;;
+			--exec)
+				chk_exec="--exec"
+				;;
+			# ignore the rest!
+		esac
+		shift
+	done
+	# must be root to exec!
+	[[ "$chk_exec" == "--exec" ]] && must_be_root
+	# ensure full path for chk_root
+	if [[ "${chk_root:0:1}" != "/" ]] ; then
+		[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
+		chk_root="$(pwd)/${chk_root}"
+	fi
+	pkg_path="$(cd ${pkg_path}/../patches;pwd)"
+	# check paths
+	[[ ! -d "$pkg_path" ]] && error_exit "Cannot find pkg path '$pkg_path'!"
+	[[ ! -d "$chk_root" ]] && error_exit "Cannot find root path '$chk_root'!"
+	info_msg "Source path: '$pkg_path'\n"
+	info_msg "Target path: '$chk_root'\n"
+	# start main info msg
+	info_msg "Updating root filesystem... "
+	# find patches
+	pkg_list=$(find_patches_root $pkg_path ${chk_root}/var/log/packages)
+	local ifs_save=$IFS
+	IFS=$'\n'
+	tmp_list=($(echo "$pkg_list"))
+	IFS=$ifs_save
+	#echo "Patch Count: ${#tmp_list[@]}"
+	pkg_list=""
+	# extract packages list
+	for (( a=0;a<${#tmp_list[@]};a++ )); do
+		chk_temp=($(echo ${tmp_list[$a]}))
+		[ "${chk_temp[1]}" == "check" ] && pkg_list="${pkg_list}${chk_temp[2]} "
+	done
+	[ "$pkg_list" == "" ] &&
+		info_msg --no-tag "Nothing to update.\n" && return
+	# install the packages
+	do_root_update $chk_root $pkg_list $chk_syyy $chk_exec
+	# end main info msg
+	info_msg --no-tag "done.\n"
+}
+
 function process_command()
 {
-	local go_commands="create config chroot squash livefs"
+	local go_commands="create config chroot squash livefs update"
 	local chk_command=$1
 	local do_command
 	shift
@@ -610,6 +768,7 @@ function process_command()
 		chroot) rootfs_create $@ ; chroot_config $@  ;;
 		squash) squash_create $@ ;;
 		livefs) rootfs_create $@ ; squash_create $@  ;;
+		update) rootfs_update $@ ;;
 	esac
 }
 
