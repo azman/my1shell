@@ -2,10 +2,10 @@
 
 # slackbuild
 # - written by azman@my1matrix.net
-# - simple slackbuild manager
+# - execute slackbuild scripts with dependencies
 
 # standard tool info
-MY1_TOOLNAME="my1 SlackBuild Manager"
+MY1_TOOLNAME="my1 SlackBuild Executor"
 MY1_TOOLVERS="2015.01.00"
 MY1_TOOLBASE=$(basename $0)
 MY1_TOOLPATH=$(cd $(dirname $0);pwd)
