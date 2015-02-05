@@ -21,8 +21,12 @@ if [ -d ${ACPI_PATH}/BAT0 ] ; then
 	_CHARGING=${_CHARGING##*  }
 	if [ "$_CHARGING" == "discharging" ] ; then
 		CHK_STATE="$CURR_PCTG%--"
-	else
+	elif [ "$_CHARGING" == "charging" ] ; then
 		CHK_STATE="$CURR_PCTG%++"
+	elif [ "$_CHARGING" == "charged" ] ; then
+		CHK_STATE="$CURR_PCTG%##"
+	else
+		CHK_STATE="$CURR_PCTG%??"
 	fi
 else
 	CURR_BATT="0"
