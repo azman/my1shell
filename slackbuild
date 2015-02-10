@@ -35,11 +35,28 @@ Options:
 SETHELPMSG
 )
 
+function get_userngrp()
+{
+	local chk_this=$1
+	local chk_path
+	local chk_user chk_grpn
+	[ "$chk_this" == "." ] && chk_this=$(pwd)
+	[ "$chk_this" == ".." ] && chk_this=$(cd .. ;pwd)
+	[ ! -r "$chk_this" ] && echo -e "Cannot read '$chk_this'!" 1>&2 && return
+	chk_path=$(cd $(dirname $chk_this);pwd)
+	chk_this=$(basename $chk_this)
+	chk_user=$(ls -l "${chk_path}/" | grep -e "${chk_this}$")
+	set -- $chk_user
+	chk_user=$3
+	chk_grpn=$4
+	echo -n "$chk_user:$chk_grpn"
+}
+
 function do_build()
 {
 	local pkg_name=$1
 	local opt_inst=$2
-	local chk_path=$(pwd)
+	local chk_path=${MY1_THISPATH}
 	local pkg_deps log_file inf_file
 	MY1_BUILDDIR=$(cd $MY1_BUILDDIR;pwd)
 	[ ! -d "$MY1_BUILDDIR" ] &&
@@ -68,20 +85,26 @@ function do_build()
 	# build only if explicitly requested
 	if [ "$OPT_EXECUTE" == "YES" ]; then
 		must_be_root
-		log_file=${MY1_THISPATH}/${pkg_name}.buildlog
+		log_file=${chk_path}/${pkg_name}.buildlog
 		echo -n "Building '$pkg_name' ... "
 		cd ${pkg_name}
 		sh ${pkg_name}.SlackBuild >${log_file} 2>&1
 		[ $? -ne 0 ] && error_exit "Error building '$pkg_name'!"
 		echo "done!"
+		local pkg_file="$(cat $log_file | tail -n 2 | grep Slackware)"
+		pkg_file=${pkg_file#*package }
+		pkg_file=${pkg_file% created*}
 		if [ "$opt_inst" == "--install" ] ; then
-			pkg_file="$(cat $log_file | tail -n 2 | grep Slackware)"
-			pkg_file=${pkg_file#*package }
-			pkg_file=${pkg_file% created*}
 			echo -n "Installing '$pkg_file'... "
 			installpkg $pkg_file >>${log_file} 2>&1
 			[ $? -ne 0 ] && error_exit "Error installing '$pkg_file'!"
 			echo "done!"
+		fi
+		local chk_perm=$(get_userngrp $chk_path)
+		mv $pkg_file $chk_path
+		pkg_file=${chk_path}/$(basename $pkg_file)
+		if [ "$chk_perm" != "" ] ; then
+			chown $chk_perm $pkg_file $log_file
 		fi
 	fi;
 	cd $chk_path
