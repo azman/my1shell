@@ -29,9 +29,10 @@ MSG_THISHELP=$(cat <<SETHELPMSG
 Usage:
   $MY1_TOOLBASE [options] <pkg_name>
 Options:
+  --path </path/to/slackbuilds>
   --install : Install when (and if) the build completes
   --depends : Check (and build) dependencies
-  --execute : Execute build (else, simply check)
+  --execute : Execute build (else, simply check @ dry-run)
 SETHELPMSG
 )
 
@@ -124,6 +125,12 @@ function process_command()
 				;;
 			--execute)
 				OPT_EXECUTE="YES"
+				;;
+			--path)
+				shift
+				[ ! -d "$1" ] &&
+					error_exit "Invalid path!? [$1]"
+				MY1_BUILDDIR="$1"
 				;;
 			-*)
 				echo -e "$MSG_THISHELP"
