@@ -22,11 +22,13 @@ if [ "$(echo $@|grep -- '--create')" != "" ]; then
 else
 	if [ -r "$MD5FILE" ] ; then
 		$MD5SUM_BIN --check $MD5FILE
+		[ $? -ne 0 ] && echo "Checksum error found?!" && exit 1
 	else
 		MD5LIST=$(find . -name "*.md5")
 		[ "$MD5LIST" == "" ] && echo "Cannot find any MD5 sum file!" && exit 1
 		for a in $MD5LIST; do
 			$MD5SUM_BIN --check $a
+			[ $? -ne 0 ] && echo "Checksum error found?!" && exit 1
 		done
 	fi
 fi
