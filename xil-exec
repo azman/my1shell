@@ -34,9 +34,9 @@ fi
 
 if [[ -r $XILEDK_CONF ]] ; then
 	source $XILEDK_CONF
-else
-	echo "Cannot find $XILEDK_CONF!"
-	exit 1
+#else
+	#echo "Cannot find $XILEDK_CONF!"
+	#exit 1
 fi
 
 # allow ISE/EDK to use the USB Cable Driver
@@ -53,14 +53,14 @@ export PATH="$THISPATH:$PATH"
 
 if [[ "$1" == "" ]] ; then
 	# start a shell
-	exec env PS1="(XIL-EXEC) \u@\h:\w$ " KDE_SESSION_VERSION= $(which bash)
+	exec env PS1="(XIL-EXEC) \u@\h:\w$ " $(which bash)
 else
 	target=$1
 	shift
-	[[ "$target" == "edk" ]] && xps $@
-	[[ "$target" == "ise" ]] && ise $@
-	[[ "$target" == "imp" ]] && impact $@
-	[[ "$target" == "tcl" ]] && xtclsh $@
+	[[ "$target" == "edk" ]] && QT_PLUGIN_PATH= xps $@
+	[[ "$target" == "ise" ]] && QT_PLUGIN_PATH= ise $@
+	[[ "$target" == "imp" ]] && QT_PLUGIN_PATH= impact $@
+	[[ "$target" == "tcl" ]] && QT_PLUGIN_PATH= xtclsh $@
 fi
 
 exit 0
