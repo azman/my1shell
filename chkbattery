@@ -5,8 +5,16 @@
 # - simple script to check battery from /proc/acpi
 
 ACPI_PATH="/proc/acpi/battery"
+BATT_MISS="YES"
 
 if [ -d ${ACPI_PATH}/BAT0 ] ; then
+	TEST_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "present:")
+	TEST_BATT=${TEST_BATT##*  }
+	TEST_BATT=${TEST_BATT% *}
+	[ "$TEST_BATT" != "no" ] && BATT_MISS="NO"
+fi
+
+if [ "$BATT_MISS" == "NO" ] ; then
 	CURR_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "remaining capacity:")
 	CURR_BATT=${CURR_BATT##*  }
 	CURR_BATT=${CURR_BATT% *}
