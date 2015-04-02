@@ -32,6 +32,10 @@ SLACKPATH=${SLACKROOT}/slackpack
 DEF_ROOT="http://taper.alienbase.nl/mirrors/people/alien/slackbuilds"
 DEF_REPO="alien"
 DEF_PACK="libreoffice libreoffice-dict-en openjdk icedtea-web rhino"
+MTL_REPO="multilib"
+MTL_PACK="compat32-tools"
+MTL_PACK="$MTL_PACK glibc glibc-i18n glibc-profile glibc-solibs glibc-zoneinfo"
+MTL_PACK="$MTL_PACK gcc gcc-g++ gcc-gfortran gcc-gnat gcc-go gcc-java gcc-objc"
 
 # tool options
 OPT_CHECK="YES"
@@ -157,6 +161,8 @@ function go_findpack()
 		pkg_path=$(echo $pkg_path|sed 's/^.\(.*\)$/\1/')
 		[ "$pkg_repo" == "alien" ] &&
 			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
+		[ "$pkg_repo" == "multilib" ] &&
+			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
 		# first found - send and exit
 		echo "$pkg_file $pkg_path"
 		break;
@@ -241,6 +247,12 @@ function do_readconf()
 				pkg_root="${pkg_root}/pkgs/$SLACKVERS/$SLACKARCH"
 				pkg_repo="rwork"
 				pkg_rawp=",go_raw"
+				;;
+			--multilib)
+				pkg_root="http://taper.alienbase.nl"
+				pkg_root="${pkg_root}/mirrors/people/alien/multilib"
+				pkg_repo="multilib"
+				pkg_rawp=""
 				;;
 			-*)
 				echo "Unknown repo '$1'!" >&2 && exit 1
@@ -424,6 +436,9 @@ function chk_param()
 				;;
 			--default)
 				THIS_CONF="${THIS_CONF} --$DEF_REPO $DEF_PACK"
+				;;
+			--multilib)
+				THIS_CONF="${THIS_CONF} --$MTL_REPO $MTL_PACK"
 				;;
 			--xfburn)
 				THIS_CONF="${THIS_CONF} --rwork xfburn libburn libisofs"
