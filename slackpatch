@@ -7,7 +7,7 @@
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Patch Tool"
-MY1_TOOLVERS="2013.10.00"
+MY1_TOOLVERS="2015.04.00"
 MY1_TOOLBASE=$(basename $0 .sh)
 MY1_TOOLPATH=$(cd $(dirname $0);pwd)
 MY1_TOOL_LIB="libmy1slack"
@@ -26,7 +26,8 @@ MY1_PATCHDIR=${MY1_PATCHDIR:="${MY1_SLACKDIR}/patches/packages"}
 MY1_PATCHEXT=${MY1_PATCHEXT:="${MY1_TOOLPATH}/../slackpack"}
 # global options & settings
 OPT_VERBOSE="NO"
-OPT_LOGFILE="/dev/null"
+OPT_LOGFILE="$MY1_TOOL_LOG"
+OPT_UPGRADE=""
 MSG_THISHELP=$(cat <<SETHELPMSG
 Usage:
   $MY1_TOOLBASE <command> [options]
@@ -150,12 +151,14 @@ function apply_patch()
 	[[ "$pat_stat" != "check" ]] && return # patch not needed
 	[[ ! -r "$pat_file" ]] &&
 		error_exit "File '$pat_file' not found!"
+	# prepare log file?
+	echo -n "" >$OPT_LOGFILE
 	# apply the patch!
 	if [[ "$OPT_VERBOSE" == "YES" ]] ; then
 		read -n 1 -p "Update '$pat_name'? [y]/[*]/[q] : " do_update ; echo
 		if [[ "$do_update" == "y" ]]; then
 			echo -n "Updating '$pat_name'... "
-			/sbin/upgradepkg ${pat_file} >>$OPT_LOGFILE
+			/sbin/upgradepkg $OPT_UPGRADE ${pat_file} >>$OPT_LOGFILE
 			echo "done."
 		elif [[ "$do_update" == "q" ]]; then
 			warn_msg "Aborting on '$pat_name'!"
@@ -163,7 +166,7 @@ function apply_patch()
 		fi
 	elif [[ "$OPT_VERBOSE" == "NO" ]] ; then
 		echo -n "Auto-updating '$pat_name'... "
-		/sbin/upgradepkg ${pat_file} >>$OPT_LOGFILE
+		/sbin/upgradepkg $OPT_UPGRADE ${pat_file} >>$OPT_LOGFILE
 		echo "done."
 	fi
 }
@@ -255,6 +258,9 @@ function process_command()
 				;;
 			--log)
 				OPT_LOGFILE="$MY1_TOOL_LOG"
+				;;
+			--override)
+				OPT_UPGRADE="--reinstall --install-new"
 				;;
 			--path)
 				shift
