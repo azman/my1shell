@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# chkwifi
+# - written by azman@my1matrix.net
+# - simple script to check wifi from /proc/net/wireless
+
+WIFI_PATH="/proc/net/wireless"
+WIFI_MISS="YES"
+WIFI_DEVN=${WIFI_DEVN:="$1"}
+WIFI_MESG=""
+LINK_UMAX="70" # do not know if this is true - seems like it?
+
+shift
+WIFI_STAT=$(cat ${WIFI_PATH} | grep "$WIFI_DEVN")
+if [ "$WIFI_STAT" != "" ] ; then
+	while [ "${WIFI_STAT:0:1}" == " " ] ; do
+		WIFI_STAT=${WIFI_STAT:1}
+	done
+	WIFI_NAME=${WIFI_STAT%%: *}
+	WIFI_STAT=${WIFI_STAT#${WIFI_NAME}:}
+	while [ "${WIFI_STAT:0:1}" == " " ] ; do
+		WIFI_STAT=${WIFI_STAT:1}
+	done
+	WIFI_FLAG=${WIFI_STAT%% *}
+	WIFI_STAT=${WIFI_STAT#${WIFI_FLAG}}
+	while [ "${WIFI_STAT:0:1}" == " " ] ; do
+		WIFI_STAT=${WIFI_STAT:1}
+	done
+	WIFI_LINK=${WIFI_STAT%% *}
+	WIFI_STAT=${WIFI_STAT#${WIFI_LINK}}
+	while [ "${WIFI_STAT:0:1}" == " " ] ; do
+		WIFI_STAT=${WIFI_STAT:1}
+	done
+	WIFI_LINK=${WIFI_LINK//./}
+	((WIFI_LQUA=${WIFI_LINK}*100/${LINK_UMAX}))
+	WIFI_SIGS=${WIFI_STAT%% *}
+	WIFI_STAT=${WIFI_STAT#${WIFI_SIGS}}
+	while [ "${WIFI_STAT:0:1}" == " " ] ; do
+		WIFI_STAT=${WIFI_STAT:1}
+	done
+	WIFI_SIGS=${WIFI_SIGS//./}
+	WIFI_NOIS=${WIFI_STAT%% *}
+	WIFI_STAT=${WIFI_STAT#${WIFI_NOIS}}
+	while [ "${WIFI_STAT:0:1}" == " " ] ; do
+		WIFI_STAT=${WIFI_STAT:1}
+	done
+	WIFI_NOIS=${WIFI_NOIS//./}
+	((WIFI_S2NR=${WIFI_SIGS}*100/${WIFI_NOIS}))
+	WIFI_MESG="{$WIFI_NAME:$WIFI_LQUA%:$WIFI_S2NR}"
+	WIFI_STAT="Link Up (Quality: $WIFI_LINK, Strength: $WIFI_SIGS dBm,"
+	WIFI_STAT="$WIFI_STAT Noise: $WIFI_NOIS dBm)"
+else
+	WIFI_MESG="{NoWiFi}"
+	WIFI_NAME=$WIFI_DEVN
+	WIFI_STAT="Link Down?"
+fi
+
+[ "$1" == "--state" ] && echo "$WIFI_MESG" && exit 0
+
+echo "${WIFI_NAME}: $WIFI_STAT"
+
+exit 0

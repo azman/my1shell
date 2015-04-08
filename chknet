@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# chknet
+# - written by azman@my1matrix.net
+# - simple script to check network from /sys/class/net/
+# - also checks wireless info
+
+INET_PATH="/sys/class/net"
+INET_MISS="YES"
+
+INET_DEVS=""
+WIFI_DEVS=""
+for dev in $(find $INET_PATH -type l -maxdepth 1); do
+	[ "$dev" == "${INET_PATH}/lo" ] && continue;
+	[ "$(cat ${dev}/carrier 2>/dev/null)" != "1" ] && continue;
+	[ -d "${dev}/wireless" ] && WIFI_DEVS="${WIFI_DEVS}${dev//$INET_PATH\//} "
+	[ -d "${dev}/wireless" ] || INET_DEVS="${INET_DEVS}${dev//$INET_PATH\//} "
+done
+INET_CHKS=( $INET_DEVS )
+INET_MAIN="${INET_CHKS[0]}"
+WIFI_CHKS=( $WIFI_DEVS )
+WIFI_MAIN="${WIFI_CHKS[0]}"
+
+if [ "$INET_MAIN" != "" ] ; then
+	INET_MESG="{ONLINE:$INET_MAIN}"
+elif [ "$WIFI_MAIN" != "" ] ; then
+	INET_MESG="{ONLINE:$(chkwifi $WIFI_MAIN --state)}"
+else
+	INET_MESG="{OFFLINE}"
+fi
+
+[ "$1" == "--state" ] && echo "$INET_MESG" && exit 0
+
+echo -n "Ethernet: $INET_MAIN (${#INET_CHKS[@]}), "
+echo "WiFi: $WIFI_MAIN (${#WIFI_CHKS[@]})"
+
+exit 0
