@@ -22,11 +22,11 @@ WIFI_CHKS=( $WIFI_DEVS )
 WIFI_MAIN="${WIFI_CHKS[0]}"
 
 if [ "$INET_MAIN" != "" ] ; then
-	INET_MESG="{ONLINE:$INET_MAIN}"
+	INET_MESG="ONLINE:$INET_MAIN"
 elif [ "$WIFI_MAIN" != "" ] ; then
-	INET_MESG="{ONLINE:$(chkwifi $WIFI_MAIN --state)}"
+	INET_MESG="ONLINE:$(chkwifi $WIFI_MAIN --state)"
 else
-	INET_MESG="{OFFLINE}"
+	INET_MESG="OFFLINE"
 fi
 
 [ "$1" == "--state" ] && echo "$INET_MESG" && exit 0
