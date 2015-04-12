@@ -40,6 +40,8 @@ MTL_PACK="$MTL_PACK gcc gcc-g++ gcc-gfortran gcc-gnat gcc-go gcc-java gcc-objc"
 # tool options
 OPT_CHECK="YES"
 OPT_CLEAN="NO"
+# allow config file to set this...
+THIS_CONF=${THIS_CONF:=""}
 
 function do_download()
 {
