@@ -3,7 +3,6 @@
 # getwifi
 # - written by azman@my1matrix.net
 # - simple wifi connect script based on wpa utilities
-# - STILL TESTING FOR WPA??
 
 WIFI_DEV=${WIFI_DEV:="wlan0"}
 WIFI_ADD=${WIFI_ADD:="192.168.1.100"}
@@ -19,6 +18,7 @@ WIFI_RUN_DHCP="yes" # use dhcp by default
 WIFI_DO_STOP=""
 MSG_NO_WPA_SUPPLICANT="Failed to connect to wpa_supplicant"
 OPT_WRITECFG_WPA=""
+OPT_SCAN_WIFI="no"
 
 function must_be_root()
 {
@@ -32,6 +32,7 @@ while [ "$1" != "" ]; do
 			echo "  $(basename $0) [parameters] ..."
 			echo "The script's parameters are:"
 			echo "  --help           This help."
+			echo "  --scan           Scan broadcasted SSID."
 			echo "  --ssid [ssid]    Specify SSID."
 			echo "  --key [pass]     Specify key/passphrase."
 			echo "  --wpa            Flag WPA usage."
@@ -41,6 +42,9 @@ while [ "$1" != "" ]; do
 			echo "  --stop           Stop the service."
 			echo "  --write-wpacfg   Write WPA configuration."
 			exit
+			;;
+		--scan)
+			OPT_SCAN_WIFI="yes"
 			;;
 		--ssid)
 			shift
@@ -149,6 +153,12 @@ echo -n "Looking for $WIFI_DEV..."
 [ "$(iwconfig 2>/dev/null | grep "$WIFI_DEV")" == "" ] &&
 	echo "NOT FOUND! Exiting!" && exit 0
 echo "found."
+
+if [ "$OPT_SCAN_WIFI" == "yes" ]; then
+	ifconfig $WIFI_DEV up
+	iwlist $WIFI_DEV scanning | grep -A5 Cell
+	exit 0
+fi
 
 # configure for static if DHCP NOT requested
 if [ "$WIFI_RUN_DHCP" == "yes" ] ; then
