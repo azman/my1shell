@@ -13,6 +13,7 @@ WIFI_DEVS=""
 for dev in $(find $INET_PATH -type l -maxdepth 1); do
 	[ "$dev" == "${INET_PATH}/lo" ] && continue;
 	[ "$(cat ${dev}/carrier 2>/dev/null)" != "1" ] && continue;
+	[ "$(cat ${dev}/operstate 2>/dev/null)" == "down" ] && continue;
 	[ -d "${dev}/wireless" ] && WIFI_DEVS="${WIFI_DEVS}${dev//$INET_PATH\//} "
 	[ -d "${dev}/wireless" ] || INET_DEVS="${INET_DEVS}${dev//$INET_PATH\//} "
 done
