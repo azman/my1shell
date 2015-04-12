@@ -25,26 +25,48 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	CURR_BATT=${CURR_BATT##*  }
 	CURR_BATT=${CURR_BATT% *}
 	((CURR_PCTG=${CURR_BATT}*100/${PREV_BATT}))
+	RATE_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "present rate:")
+	RATE_BATT=${RATE_BATT##*  }
+	RATE_BATT=${RATE_BATT% *}
 	_CHARGING=$(cat ${ACPI_PATH}/BAT0/state | grep "charging state:")
 	_CHARGING=${_CHARGING##*  }
 	if [ "$_CHARGING" == "discharging" ] ; then
-		LESS_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "present rate:")
-		LESS_BATT=${LESS_BATT##*  }
-		LESS_BATT=${LESS_BATT% *}
-		((TIME1PART=${CURR_BATT}/${LESS_BATT}))
-		if [ $TIME1PART -ne 0 ] ; then
-			((TIME2PART=${CURR_BATT}-${TIME1PART}*${LESS_BATT}))
-			TIME2LIVE="${TIME1PART}H"
+		if [ "$RATE_BATT" -eq 0 ] ; then
+			CHK_STATE="$CURR_PCTG%**"
+			_CHARGING="$_CHARGING:AC"
 		else
-			TIME2PART=${CURR_BATT}
-			TIME2LIVE=""
+			((TIME1PART=${CURR_BATT}/${RATE_BATT}))
+			if [ $TIME1PART -ne 0 ] ; then
+				((TIME2PART=${CURR_BATT}-${TIME1PART}*${RATE_BATT}))
+				TIME2LIVE="${TIME1PART}H"
+			else
+				TIME2PART=${CURR_BATT}
+				TIME2LIVE=""
+			fi
+			((TIME2PART=${TIME2PART}*60/${RATE_BATT}))
+			TIME2LIVE="${TIME2LIVE}${TIME2PART}M"
+			CHK_STATE="$CURR_PCTG%-- ($TIME2LIVE)"
+			_CHARGING="$_CHARGING:${TIME2LIVE}"
 		fi
-		((TIME2PART=${TIME2PART}*60/${LESS_BATT}))
-		TIME2LIVE="${TIME2LIVE}${TIME2PART}M"
-		CHK_STATE="$CURR_PCTG%-- ($TIME2LIVE)"
-		_CHARGING="${TIME2LIVE}"
 	elif [ "$_CHARGING" == "charging" ] ; then
-		CHK_STATE="$CURR_PCTG%++"
+		if [ "$RATE_BATT" -eq 0 ] ; then
+			CHK_STATE="$CURR_PCTG%**"
+			_CHARGING="$_CHARGING:AC"
+		else
+			((LEFT_BATT=${FULL_BATT}-${CURR_BATT}))
+			((TIME1PART=${LEFT_BATT}/${RATE_BATT}))
+			if [ $TIME1PART -ne 0 ] ; then
+				((TIME2PART=${LEFT_BATT}-${TIME1PART}*${RATE_BATT}))
+				TIME2FULL="${TIME1PART}H"
+			else
+				TIME2PART=${LEFT_BATT}
+				TIME2FULL=""
+			fi
+			((TIME2PART=${TIME2PART}*60/${RATE_BATT}))
+			TIME2FULL="${TIME2FULL}${TIME2PART}M"
+			CHK_STATE="$CURR_PCTG%++ ($TIME2FULL)"
+			_CHARGING="$_CHARGING:${TIME2FULL}"
+		fi
 	elif [ "$_CHARGING" == "charged" ] ; then
 		CHK_STATE="$CURR_PCTG%##"
 	else
@@ -54,6 +76,7 @@ else
 	CURR_BATT="0"
 	FULL_BATT="0"
 	PREV_BATT="0"
+	RATE_BATT="0"
 	CURR_PCTG="100"
 	_CHARGING="No battery!"
 	CHK_STATE="AC"
@@ -61,6 +84,7 @@ fi
 
 [ "$1" == "--state" ] && echo "$CHK_STATE" && exit 0
 
-echo "$CURR_PCTG% <$_CHARGING> CURR=$CURR_BATT FULL=$FULL_BATT PREV=$PREV_BATT"
+echo "$CURR_PCTG% <$_CHARGING> CURR=$CURR_BATT RATE=$RATE_BATT" \
+	"FULL=$FULL_BATT PREV=$PREV_BATT"
 
 exit 0
