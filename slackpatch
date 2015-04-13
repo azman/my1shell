@@ -28,6 +28,8 @@ MY1_PATCHEXT=${MY1_PATCHEXT:="${MY1_TOOLPATH}/../slackpack"}
 OPT_VERBOSE="NO"
 OPT_LOGFILE="$MY1_TOOL_LOG"
 OPT_UPGRADE=""
+PKG_EXTPATH=${PKG_EXTPATH:=""} # extra package source to check
+PKG_IGNORED=${PKG_IGNORED:=""} # std package to ignore
 MSG_THISHELP=$(cat <<SETHELPMSG
 Usage:
   $MY1_TOOLBASE <command> [options]
@@ -67,8 +69,13 @@ function find_patches()
 		pat_vers="${pkg_temp[1]}"
 		pat_arch="${pkg_temp[2]}"
 		pat_extd="${pkg_temp[3]}"
-		# populate information
+		# check ignore list
 		chk_name="$pat_name"
+		for chk in $@ ; do
+			[ "$chk" == "$chk_name" ] && chk_name="" && break;
+		done
+		[ "$chk_name" == "" ] && continue;
+		# populate information
 		chk_file="${chk_path}/${pat_file}"
 		chk_vers="[${pat_vers}/${pat_extd}]"
 		# find installed
@@ -113,7 +120,7 @@ function check_patches()
 	[[ ! -d $MY1_PATCHDIR ]] &&
 		error_exit "Path '$MY1_PATCHDIR' not found!"
 	cd $MY1_PATCHDIR
-	pat_list=$(find_patches)
+	pat_list=$(find_patches $PKG_IGNORED)
 	# look for paths for kernel patches
 	lnx_path=$(find . -name "linux-*" -type d -maxdepth 1)
 	for path in $lnx_path; do
@@ -249,7 +256,9 @@ function process_command()
 {
 	local go_commands="check pdone nlist patch"
 	local do_command
-	local pkg_list pkg_path pkg_temp pat_list
+	local pkg_list pkg_temp pat_list
+	# default?
+	local pkg_path="$PKG_EXT_PATH"
 	# check parameters
 	while [[ "$1" != "" ]]; do
 		case "$1" in
