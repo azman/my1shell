@@ -7,7 +7,7 @@
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Patch Tool"
-MY1_TOOLVERS="2015.04.00"
+MY1_TOOLVERS="2015.04.01"
 MY1_TOOLBASE=$(basename $0 .sh)
 MY1_TOOLPATH=$(cd $(dirname $0);pwd)
 MY1_TOOL_LIB="libmy1slack"
