@@ -70,12 +70,9 @@ function find_patches()
 		pat_arch="${pkg_temp[2]}"
 		pat_extd="${pkg_temp[3]}"
 		# check ignore list
-		chk_name="$pat_name"
-		for chk in $@ ; do
-			[ "$chk" == "$chk_name" ] && chk_name="" && break;
-		done
-		[ "$chk_name" == "" ] && continue;
+		[ "$(echo "$@" | grep "$pat_name")" != "" ] && continue
 		# populate information
+		chk_name="$pat_name"
 		chk_file="${chk_path}/${pat_file}"
 		chk_vers="[${pat_vers}/${pat_extd}]"
 		# find installed
