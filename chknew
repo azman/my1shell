@@ -22,6 +22,11 @@ if [ "$NEWLIST" == "" ]; then
 else
 	for a in $NEWLIST; do
 		b=${a//.new/}
+		if [ ! -f "$b" ] ; then
+			echo "File '$b' not found! Run with '--switch' to use '$a'."
+			[ "$CHKLIST" == "--switch" ] && mv $a $b
+			continue;
+		fi
 		c="$(diff $b $a 2>&1)"
 		echo "==> File: $b"
 		[ "$CHKLIST" == "--list" ] && continue
