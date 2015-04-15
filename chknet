@@ -13,7 +13,7 @@ WIFI_DEVS=""
 for dev in $(find $INET_PATH -type l -maxdepth 1); do
 	[ "$dev" == "${INET_PATH}/lo" ] && continue;
 	[ "$(cat ${dev}/carrier 2>/dev/null)" != "1" ] && continue;
-	[ "$(cat ${dev}/operstate 2>/dev/null)" == "down" ] && continue;
+	[ "$(cat ${dev}/operstate 2>/dev/null)" != "up" ] && continue;
 	[ -d "${dev}/wireless" ] && WIFI_DEVS="${WIFI_DEVS}${dev//$INET_PATH\//} "
 	[ -d "${dev}/wireless" ] || INET_DEVS="${INET_DEVS}${dev//$INET_PATH\//} "
 done
@@ -23,7 +23,16 @@ WIFI_CHKS=( $WIFI_DEVS )
 WIFI_MAIN="${WIFI_CHKS[0]}"
 
 if [ "$INET_MAIN" != "" ] ; then
-	INET_MESG="ONLINE:$INET_MAIN"
+	# find ip address
+	CURR_IP="$(ifconfig | grep "$INET_MAIN" -A 2)"
+	if [ "$(echo "$CURR_IP" | grep 'net addr:')" != "" ] ; then
+		CURR_IP="${CURR_IP#*inet addr:}"
+	else
+		CURR_IP="$(echo "$CURR_IP" | grep -v inet6 | grep -v 127.0.0.1)"
+		CURR_IP="${CURR_IP#*inet }"
+	fi
+	CURR_IP="${CURR_IP%% *}"
+	INET_MESG="ONLINE:{$INET_MAIN:$CURR_IP}"
 elif [ "$WIFI_MAIN" != "" ] ; then
 	INET_MESG="ONLINE:$(chkwifi $WIFI_MAIN --state)"
 else
