@@ -31,7 +31,10 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	_CHARGING=$(cat ${ACPI_PATH}/BAT0/state | grep "charging state:")
 	_CHARGING=${_CHARGING##*  }
 	if [ "$_CHARGING" == "discharging" ] ; then
-		if [ "$RATE_BATT" -eq 0 ] ; then
+		if [ "$RATE_BATT" == "unknown" ] ; then
+			CHK_STATE="$CURR_PCTG%??"
+			_CHARGING="$_CHARGING:(unknown)"
+		elif [ "$RATE_BATT" -eq 0 ] ; then
 			CHK_STATE="$CURR_PCTG%**"
 			_CHARGING="$_CHARGING:AC"
 		else
@@ -49,7 +52,10 @@ if [ "$BATT_MISS" == "NO" ] ; then
 			_CHARGING="$_CHARGING:${TIME2LIVE}"
 		fi
 	elif [ "$_CHARGING" == "charging" ] ; then
-		if [ "$RATE_BATT" -eq 0 ] ; then
+		if [ "$RATE_BATT" == "unknown" ] ; then
+			CHK_STATE="$CURR_PCTG%??"
+			_CHARGING="$_CHARGING:(unknown)"
+		elif [ "$RATE_BATT" -eq 0 ] ; then
 			CHK_STATE="$CURR_PCTG%**"
 			_CHARGING="$_CHARGING:AC"
 		else
