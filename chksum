@@ -24,7 +24,7 @@ else
 		$MD5SUM_BIN --check $MD5FILE
 		[ $? -ne 0 ] && echo "Checksum error found?!" && exit 1
 	else
-		MD5LIST=$(find . -name "*.md5")
+		MD5LIST=$(find . -maxdepth 1 -name "*.md5")
 		[ "$MD5LIST" == "" ] && echo "Cannot find any MD5 sum file!" && exit 1
 		for a in $MD5LIST; do
 			$MD5SUM_BIN --check $a
