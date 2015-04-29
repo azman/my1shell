@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# chkgit
+# chkrepo
 # - written by azman@my1matrix.net
 # - update git and hg repos in this folder
 
@@ -12,12 +12,17 @@ CURPATH="$(pwd)"
 GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
 HG_BIN=${HG_BIN:="$(which hg 2>/dev/null)"}
 
-for a in $(find . -maxdepth 1 -type d); do
-	[[ ! -d $a/.git ]] && [[ ! -d $a/.hg ]] && continue
+for a in $(find $(pwd) -maxdepth 1 -type d); do
+	[ ! -d $a/.git ] && [ ! -d $a/.hg ] && continue
 	cd $a
 	echo "$(basename $a) =>"
-	[[ -d .git ]] && [[ -x "$GIT_BIN" ]] && git pull
-	[[ -d .hg ]] && [[ -x "$HG_BIN" ]] && hg pull && hg update
+	if [ -d .git -a -x "$GIT_BIN" ] ; then
+		git pull
+		if [ "$(git remote | grep backup)" != "" ] ; then
+			git push backup
+		fi
+	fi
+	[ -d .hg ] && [ -x "$HG_BIN" ] && hg pull && hg update
 	cd - >/dev/null
 done
 
