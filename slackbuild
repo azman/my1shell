@@ -149,7 +149,6 @@ function do_build()
 	local opt_inst=$2
 	local chk_path=${MY1_THISPATH}
 	local pkg_file pkg_deps log_file inf_file
-	MY1_BUILDDIR=$(cd $MY1_BUILDDIR;pwd)
 	[ ! -d "$MY1_BUILDDIR" ] && error_exit "Path '$MY1_BUILDDIR' not found!"
 	cd $MY1_BUILDDIR
 	if [ ! -f ${pkg_name}/${pkg_name}.SlackBuild ] ; then
