@@ -82,12 +82,13 @@ function do_lookup()
 		gzip -d $pkg_list.gz
 	fi
 	# we must have it!
-	[ ! -r "$pkg_list" ] && echo "[ERROR] Cannot get $pkg_list!" >&2 && exit 1
+	[ ! -r "$pkg_list" ] &&
+		echo "[ERROR] File '$pkg_list' not found!!" >&2 && exit 1
 	# look for pkg_name
 	local pkg_test="SLACKBUILD NAME: $pkg_name"
 	local pkg_text="$(cat $pkg_list|grep -e "${pkg_test}$" -A6|tr '\n' ';')"
 	[ "$pkg_text" == "" ] &&
-		echo "[ERROR] Cannot find slackbuild for '$pkg_name'!" >&2 && exit 1
+		echo "[ERROR] Cannot find SlackBuild for '$pkg_name'!" >&2 && exit 1
 	local pkg_path=${pkg_text##*SLACKBUILD LOCATION: }
 	pkg_path=${pkg_path%%;*}
 	pkg_path=${pkg_path//./$pkg_root}.tar.gz
@@ -99,7 +100,7 @@ function do_lookup()
 	pkg_file=${pkg_file%% *}
 	# look for it!
 	wget --spider $pkg_path >/dev/null 2>&1
-	[ $? -ne 0 ] && echo "[ERROR] Cannot get $pkg_path!" >&2 && exit 1
+	[ $? -ne 0 ] && echo "[ERROR] Cannot find $pkg_path!" >&2 && exit 1
 	do_download $pkg_path $pkg_test 2>/dev/null
 	[ ! -r "$pkg_test" ] &&
 		echo "[ERROR] Cannot download $pkg_test!" >&2 && exit 1
@@ -192,7 +193,6 @@ function do_build()
 		must_be_root
 		log_file=${chk_path}/${pkg_name}.buildlog
 		cd ${pkg_name}
-		do_loadball
 		echo -n "Building '$pkg_name' ... "
 		sh ${pkg_name}.SlackBuild >${log_file} 2>&1
 		[ $? -ne 0 ] && error_exit "Error building '$pkg_name'!"
