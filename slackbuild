@@ -22,7 +22,7 @@ done
 
 # my1slack tool specific
 MY1_THISPATH=$(pwd)
-MY1_BUILDDIR=${MY1_BUILDDIR:="${MY1_TOOLPATH}/../slackbuilds"}
+MY1_BUILDDIR=${MY1_BUILDDIR:="$(dirname $MY1_TOOLPATH)/slackbuilds"}
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 SLACKVERS=${SLACKVERS:="current"}
 # global options & settings
@@ -65,10 +65,12 @@ function do_lookup()
 	local pkg_vers=$1
 	local pkg_name=$2
 	local pkg_root="http://slackbuilds.org/slackbuilds/$pkg_vers"
-	local pkg_temp="/tmp/my1/$(whoami)/$MY1_TOOLBASE"
+	local pkg_temp="/tmp/$(whoami)/my1/$MY1_TOOLBASE"
 	local pkg_list="SLACKBUILDS.TXT"
 	# prepare temp
-	mkdir -p $pkg_temp ; cd $pkg_temp
+	mkdir -p $pkg_temp 2>/dev/null
+	[ $? -ne 0 ] && echo "[ERROR] Cannot create path '$pkg_temp'!" && exit 1
+	cd $pkg_temp
 	# if not found OR nothing modified last 120 minutes
 	if [ "$(find $pkg_list -mmin -120 2>/dev/null)" == "" ]; then
 		rm -rf $pkg_list $pkg_list.gz # just in case, delete old one
@@ -84,7 +86,9 @@ function do_lookup()
 	[ ! -r "$pkg_list" ] && echo "[ERROR] Cannot get $pkg_list!" >&2 && exit 1
 	# look for pkg_name
 	local pkg_test="SLACKBUILD NAME: $pkg_name"
-	local pkg_text="$(cat $pkg_list|grep -e "$pkg_test" -A6|tr '\n' ';')"
+	local pkg_text="$(cat $pkg_list|grep -e "${pkg_test}$" -A6|tr '\n' ';')"
+	[ "$pkg_text" == "" ] &&
+		echo "[ERROR] Cannot find slackbuild for '$pkg_name'!" >&2 && exit 1
 	local pkg_path=${pkg_text##*SLACKBUILD LOCATION: }
 	pkg_path=${pkg_path%%;*}
 	pkg_path=${pkg_path//./$pkg_root}.tar.gz
@@ -148,7 +152,7 @@ function do_build()
 	local pkg_name=$1
 	local opt_inst=$2
 	local chk_path=${MY1_THISPATH}
-	local pkg_file pkg_deps log_file inf_file
+	local pkg_file pkg_ball pkg_deps log_file inf_file
 	[ ! -d "$MY1_BUILDDIR" ] && error_exit "Path '$MY1_BUILDDIR' not found!"
 	cd $MY1_BUILDDIR
 	if [ ! -f ${pkg_name}/${pkg_name}.SlackBuild ] ; then
@@ -166,8 +170,9 @@ function do_build()
 	pkg_file=${pkg_file##*=\"}
 	pkg_file=${pkg_file%\"*}
 	pkg_file=${pkg_file%% *}
+	pkg_ball=$(basename $pkg_file)
 	[ "$OPT_GETTHAT" == "YES" ] &&
-		[ ! -f "${pkg_name}/${pkg_file}" ] && do_loadball $pkg_name $pkg_file
+		[ ! -f "${pkg_name}/${pkg_ball}" ] && do_loadball $pkg_name $pkg_file
 	# find deps
 	pkg_deps=$(cat ${inf_file} | grep REQUIRES)
 	pkg_deps=${pkg_deps#*=\"}
@@ -234,7 +239,7 @@ function process_command()
 				shift
 				[ ! -d "$1" ] &&
 					error_exit "Invalid path!? [$1]"
-				MY1_BUILDDIR="$1"
+				MY1_BUILDDIR="$(cd $1;pwd)"
 				;;
 			-*)
 				echo -e "$MSG_THISHELP"
