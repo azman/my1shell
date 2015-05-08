@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# slackbuild
+# getslackbuild
 # - written by azman@my1matrix.net
-# - execute slackbuild scripts
-# - lookup scripts from slackbuilds.org (SBo)
-# - supports SBo-stlye dependencies (.info file)
+# - get/execute slackbuild scripts from SlackBuilds.org
+# - builds dependencies (based on .info file) if requested
 
 # standard tool info
-MY1_TOOLNAME="my1 SlackBuild Executor"
-MY1_TOOLVERS="2015.04.00"
+MY1_TOOLNAME="my1 SlackBuilds.org Executor"
+MY1_TOOLVERS="2015.05.00"
 MY1_TOOLBASE=$(basename $0)
 MY1_TOOLPATH=$(cd $(dirname $0);pwd)
 MY1_TOOL_LIB="libmy1slack"
@@ -35,7 +34,7 @@ Usage:
   $MY1_TOOLBASE [options] <pkg_name>
 Options:
   --path </path/to/slackbuilds>
-  --lookup  : Download stuffs - refer to Slackbuilds.org
+  --lookup  : Download stuffs from Slackbuilds.org
   --install : Install when (and if) the build completes
   --depends : Check (and build) dependencies
   --execute : Execute build (else, simply check @ dry-run)
