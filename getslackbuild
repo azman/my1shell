@@ -6,24 +6,30 @@
 # - builds dependencies (based on .info file) if requested
 
 # standard tool info
-MY1_TOOLNAME="my1 SlackBuilds.org Executor"
-MY1_TOOLVERS="2015.05.00"
-MY1_TOOLBASE=$(basename $0)
-MY1_TOOLPATH=$(cd $(dirname $0);pwd)
-MY1_TOOL_LIB="libmy1slack"
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(cd $(dirname $0);pwd)"
 # look for config file
 for config in $(pwd) $HOME; do
-	config=$config/.$MY1_TOOLBASE
+	config=$config/.$MY1TOOL
 	[ -r $config ] && source $config && break
 done
-# look for my1slack library
-[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && source $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 # my1slack tool specific
+MY1_TOOLNAME="my1 SlackBuilds.org Executor"
+MY1_TOOLVERS="2015.05.00"
+MY1_BUILDDIR=${MY1_BUILDDIR:="$(dirname $MY1PATH)/slackbuilds"}
 MY1_THISPATH=$(pwd)
-MY1_BUILDDIR=${MY1_BUILDDIR:="$(dirname $MY1_TOOLPATH)/slackbuilds"}
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
-SLACKVERS=${SLACKVERS:="current"}
+SLACKVERS=${SLACKVERS:=""}
+if [ "$SLACKVERS" == "" ]; then
+	SLACKVERS=$(cat /etc/slackware-version)
+	SLACKVERS=${SLACKVERS#Slackware }
+	SLACKVMAJ=${SLACKVERS%%.*}
+	SLACKVMIN=${SLACKVERS#*.}
+	[ "${SLACKVMIN//./}" != "$SLACKVMIN" ] && SLACKVMIN=${SLACKVMIN%%.*}
+	SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
+fi
+
 # global options & settings
 OPT_INSTALL=""
 OPT_DEPENDS="NO"
@@ -31,7 +37,7 @@ OPT_EXECUTE="NO"
 OPT_GETTHAT="NO"
 MSG_THISHELP=$(cat <<SETHELPMSG
 Usage:
-  $MY1_TOOLBASE [options] <pkg_name>
+  $MY1TOOL [options] <pkg_name>
 Options:
   --path </path/to/slackbuilds>
   --lookup  : Download stuffs from Slackbuilds.org
@@ -64,7 +70,7 @@ function do_lookup()
 	local pkg_vers=$1
 	local pkg_name=$2
 	local pkg_root="http://slackbuilds.org/slackbuilds/$pkg_vers"
-	local pkg_temp="/tmp/$(whoami)/my1/$MY1_TOOLBASE"
+	local pkg_temp="/tmp/$(whoami)/my1/$MY1TOOL"
 	local pkg_list="SLACKBUILDS.TXT"
 	# prepare temp
 	mkdir -p $pkg_temp 2>/dev/null
@@ -153,13 +159,14 @@ function do_build()
 	local opt_inst=$2
 	local chk_path=${MY1_THISPATH}
 	local pkg_file pkg_ball pkg_deps log_file inf_file
-	[ ! -d "$MY1_BUILDDIR" ] && error_exit "Path '$MY1_BUILDDIR' not found!"
+	[ ! -d "$MY1_BUILDDIR" ] &&
+		echo "Path '$MY1_BUILDDIR' not found!" && exit 1
 	cd $MY1_BUILDDIR
 	if [ ! -f ${pkg_name}/${pkg_name}.SlackBuild ] ; then
 		if [ "$OPT_GETTHAT" == "YES" ] ; then
 			do_lookup ${SLACKVERS} $pkg_name
 		else
-			error_exit "SlackBuild for '$pkg_name' not found!"
+			echo "SlackBuild for '$pkg_name' not found!" ; exit 1
 		fi
 	fi
 	inf_file="${pkg_name}/${pkg_name}.info"
@@ -190,7 +197,7 @@ function do_build()
 	fi
 	# build only if explicitly requested
 	if [ "$OPT_EXECUTE" == "YES" ]; then
-		must_be_root
+		[ $UID -ne 0 ] && echo "Must run as root!" && exit 1
 		log_file=${chk_path}/${pkg_name}.buildlog
 		cd ${pkg_name}
 		echo -n "Building '$pkg_name' ... "
@@ -260,7 +267,7 @@ function process_command()
 
 # BEGIN MAIN SCRIPT
 
-echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+echo -e "\n$MY1TOOL - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 process_command "$@"
 echo ; exit 0
 
