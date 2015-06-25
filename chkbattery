@@ -7,28 +7,33 @@
 ACPI_PATH="/proc/acpi/battery"
 BATT_MISS="YES"
 
-if [ -d ${ACPI_PATH}/BAT0 ] ; then
-	TEST_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "present:")
-	TEST_BATT=${TEST_BATT##*  }
-	TEST_BATT=${TEST_BATT% *}
-	[ "$TEST_BATT" != "no" ] && BATT_MISS="NO"
+if [ -d ${ACPI_PATH} ] ; then
+	BATT_PATH="$(find ${ACPI_PATH} -name "BAT*" -maxdepth 1 -type d)"
+	BATT_PATH="${BATT_PATH%% *}"
+	BATT_NAME="${BATT_PATH#${ACPI_PATH}/}"
+	if [ ${BATT_NAME} != "" ] ; then
+		TEST_BATT=$(cat ${BATT_PATH}/state | grep "present:")
+		TEST_BATT=${TEST_BATT##*  }
+		TEST_BATT=${TEST_BATT% *}
+		[ "$TEST_BATT" != "no" ] && BATT_MISS="NO"
+	fi
 fi
 
 if [ "$BATT_MISS" == "NO" ] ; then
-	FULL_BATT=$(cat ${ACPI_PATH}/BAT0/info | grep "design capacity:")
+	FULL_BATT=$(cat ${BATT_PATH}/info | grep "design capacity:")
 	FULL_BATT=${FULL_BATT##*  }
 	FULL_BATT=${FULL_BATT% *}
-	PREV_BATT=$(cat ${ACPI_PATH}/BAT0/info | grep "last full capacity:")
+	PREV_BATT=$(cat ${BATT_PATH}/info | grep "last full capacity:")
 	PREV_BATT=${PREV_BATT##*  }
 	PREV_BATT=${PREV_BATT% *}
-	CURR_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "remaining capacity:")
+	CURR_BATT=$(cat ${BATT_PATH}/state | grep "remaining capacity:")
 	CURR_BATT=${CURR_BATT##*  }
 	CURR_BATT=${CURR_BATT% *}
 	((CURR_PCTG=${CURR_BATT}*100/${PREV_BATT}))
-	RATE_BATT=$(cat ${ACPI_PATH}/BAT0/state | grep "present rate:")
+	RATE_BATT=$(cat ${BATT_PATH}/state | grep "present rate:")
 	RATE_BATT=${RATE_BATT##*  }
 	RATE_BATT=${RATE_BATT% *}
-	_CHARGING=$(cat ${ACPI_PATH}/BAT0/state | grep "charging state:")
+	_CHARGING=$(cat ${BATT_PATH}/state | grep "charging state:")
 	_CHARGING=${_CHARGING##*  }
 	if [ "$_CHARGING" == "discharging" ] ; then
 		if [ "$RATE_BATT" == "unknown" ] ; then
@@ -91,6 +96,6 @@ fi
 [ "$1" == "--state" ] && echo "$CHK_STATE" && exit 0
 
 echo "$CURR_PCTG% <$_CHARGING> CURR=$CURR_BATT RATE=$RATE_BATT" \
-	"FULL=$FULL_BATT PREV=$PREV_BATT"
+	"FULL=$FULL_BATT PREV=$PREV_BATT [${BATT_NAME}]"
 
 exit 0
