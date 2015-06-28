@@ -47,6 +47,11 @@ while [ "$1" != "" ]; do
 			BUNDLGIT="YES"
 			PATCHGIT="NO"
 			;;
+		--patch-git)
+			CHECKGIT="NO"
+			BUNDLGIT="YES"
+			PATCHGIT="YES"
+			;;
 		--git-diff)
 			CHECKGIT="NO"
 			BUNDLGIT="NO"
@@ -86,11 +91,18 @@ done
 if [ "$BUNDLGIT" == "YES" ]; then
 	[ ! -d "$CURRPATH/.git" ] &&
 		echo "Not a git repo! Cannot use 'git bundle'!" && exit 1
-	CHK_BRANCH="$(git branch|grep "* ")"
-	CHK_BRANCH="${CHK_BRANCH#* }"
-	CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M)_${CHK_BRANCH}.git
-	git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_BRANCH}
-	[ $? -ne 0 ] && echo "Error running git?" && exit 1
+	if [ "$PATCHGIT" == "YES" ]; then
+		CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M)_patch.git
+		echo "git bundle create ${BALLPATH}/${CHK_NAME} HEAD^^^"
+		git bundle create ${BALLPATH}/${CHK_NAME} HEAD^^^ HEAD
+		[ $? -ne 0 ] && echo "Error running git?" && exit 1
+	else
+		CHK_BRANCH="$(git branch|grep "* ")"
+		CHK_BRANCH="${CHK_BRANCH#* }"
+		CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M)_${CHK_BRANCH}.git
+		git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_BRANCH}
+		[ $? -ne 0 ] && echo "Error running git?" && exit 1
+	fi
 	exit 0
 fi
 
