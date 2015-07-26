@@ -436,6 +436,9 @@ function chk_param()
 			--rwork)
 				chk_valid="$1"
 				;;
+			--reset)
+				THIS_CONF=""
+				;;
 			--default)
 				THIS_CONF="${THIS_CONF} --$DEF_REPO $DEF_PACK"
 				;;
