@@ -106,6 +106,7 @@ function find_patches()
 			chk_stat="nlist"
 		fi
 		echo "$chk_name $chk_stat $chk_file $chk_vers "
+		#echo "$pat_file $chk_stat" 1>&2
 	done
 }
 
@@ -122,15 +123,15 @@ function check_patches()
 	lnx_path=$(find . -name "linux-*" -type d -maxdepth 1)
 	for path in $lnx_path; do
 		cd $path
-		pat_list="${pat_list}$(find_patches)"
-		cd $MY1_PATCHDIR
+		pat_list="${pat_list}"$'\n'"$(find_patches $PKG_IGNORED)"
+		cd - > /dev/null
 	done
 	# look for extra custom package path
 	if [[ -d $MY1_PATCHEXT ]]; then
 		cd $MY1_PATCHEXT
-		pat_list="${pat_list}$(find_patches)"
+		pat_list="${pat_list}"$'\n'"$(find_patches $PKG_IGNORED)"
+		cd - > /dev/null
 	fi
-	cd $MY1_PATCHDIR
 	# process extra paths
 	while [[ "$1" != "" ]]; do
 		pat_path=$(cd $1;pwd)
@@ -141,6 +142,7 @@ function check_patches()
 		cd - >/dev/null
 		shift
 	done
+	#echo -n "=>$(echo "$pat_list"|wc -l) " 1>&2
 	echo -n "$pat_list"
 }
 
@@ -189,7 +191,7 @@ function display_patches()
 		pat_name=${pat_temp[0]}
 		pat_stat=${pat_temp[1]}
 		pat_vers=${pat_temp[3]}
-		#echo "Check: ${pat_temp[0]} (${pat_stat}:${pat_opts})"
+		#echo "Check: ${pat_temp[2]} (${pat_stat}:${pat_opts})[$a]"
 		if [[ "$pat_stat" == "$pat_opts" ]] ; then
 			chk_null="NO"
 			[[ "$OPT_VERBOSE" == "NO" ]] && echo -n "$pat_name "
