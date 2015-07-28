@@ -202,7 +202,7 @@ function go_loadpack()
 	# check if valid package exists
 	if [ -r $pkg_file.md5 ]; then
 		md5sum --check $pkg_file.md5 >/dev/null 2>&1
-		[ $? -eq 0 ] && echo "[INFO]  Valid local package found!" &&
+		[ $? -eq 0 ] && echo "[INFO]  VALID LOCAL COPY!" &&
 			pkg_test="OK"
 	fi
 	if [ "$OPT_CHECK" != "YES" ] && [ "$pkg_test" != "OK" ]; then
@@ -331,7 +331,7 @@ function go_packrawl()
 		md5sum --check ${pkg_file}.md5 >/dev/null 2>&1
 		[ $? -eq 0 ] && pkg_test="OK"
 		if [ "$pkg_test" == "OK" ]; then
-			echo "[INFO]  Valid local package found!"
+			echo "[INFO]  VALID LOCAL COPY!"
 		else
 			rm -rf ${pkg_file}*
 			echo "[INFO]  Invalid local package... deleted!"
