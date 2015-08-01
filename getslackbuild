@@ -171,7 +171,7 @@ function do_build()
 	fi
 	inf_file="${pkg_name}/${pkg_name}.info"
 	[ ! -f ${inf_file} ] &&
-		error_exit "Info file for '$pkg_name' not found!"
+		echo "[ERROR] Info file for '$pkg_name' not found!" ; exit 1
 	# check if tarball available?
 	pkg_file=$(cat ${inf_file} | grep DOWNLOAD=)
 	pkg_file=${pkg_file##*=\"}
@@ -229,38 +229,38 @@ function process_command()
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
-			--install)
+			--install|-i)
 				OPT_INSTALL="$1"
 				;;
-			--depends)
+			--depends|-d)
 				OPT_DEPENDS="YES"
 				;;
-			--execute)
+			--execute|-x)
 				OPT_EXECUTE="YES"
 				;;
-			--lookup)
+			--lookup|-l)
 				OPT_GETTHAT="YES"
 				;;
-			--path)
+			--path|-p)
 				shift
 				[ ! -d "$1" ] &&
 					error_exit "Invalid path!? [$1]"
 				MY1_BUILDDIR="$(cd $1;pwd)"
 				;;
 			-*)
-				echo -e "$MSG_THISHELP"
-				error_exit "Unknown option '$1'!"
+				echo -e "$MSG_THISHELP\n"
+				echo -e "[ERROR] Unknown option '$1'!\n" ; exit 1
 				;;
 			*)
 				[ ! -n $pkg_name ] &&
-					error_exit "Already specified!? [$pkg_name]"
+					echo -e "[ERROR] Multiple package!? [$pkg_name]\n" ; exit 1
 				pkg_name="$1"
 				;;
 		esac
 		shift
 	done
 	# check if name supplied
-	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
+	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" ; exit 0
 	# do your thing!
 	do_build $pkg_name ${OPT_INSTALL}
 }
