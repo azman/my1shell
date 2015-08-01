@@ -37,7 +37,7 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	_CHARGING=${_CHARGING##*  }
 	if [ "$_CHARGING" == "discharging" ] ; then
 		if [ "$RATE_BATT" == "unknown" ] ; then
-			CHK_STATE="$CURR_PCTG%??"
+			CHK_STATE="$CURR_PCTG%~~"
 			_CHARGING="$_CHARGING:(unknown)"
 		elif [ "$RATE_BATT" -eq 0 ] ; then
 			CHK_STATE="$CURR_PCTG%**"
@@ -58,7 +58,7 @@ if [ "$BATT_MISS" == "NO" ] ; then
 		fi
 	elif [ "$_CHARGING" == "charging" ] ; then
 		if [ "$RATE_BATT" == "unknown" ] ; then
-			CHK_STATE="$CURR_PCTG%??"
+			CHK_STATE="$CURR_PCTG%^^"
 			_CHARGING="$_CHARGING:(unknown)"
 		elif [ "$RATE_BATT" -eq 0 ] ; then
 			CHK_STATE="$CURR_PCTG%**"
