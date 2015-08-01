@@ -16,10 +16,6 @@ done
 SLACKROOT=${SLACKROOT:="$(pwd)"}
 [ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
 SLACKARCH=${SLACKARCH:="$(uname -m)"}
-case $SLACKARCH in
-	x86|i*86) SLACKARCH="i486" ;;
-	x86_64|amd64) SLACKARCH="x86_64" ;;
-esac
 SLACKSUFX=${SLACKSUFX:=""}
 [ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
 SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
@@ -27,6 +23,12 @@ SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
 SLACKVERS=${SLACKVERS:="current"}
 SLACKFULL=${SLACKFULL}-${SLACKVERS}
 SLACKPATH=${SLACKROOT}/slackpack
+
+# x86 packages usually target specific arch
+ARCH_X86=${ARCH_X86:="i486"}
+case $SLACKARCH in
+	x86|i*86) SLACKARCH=${ARCH_X86} ;;
+esac
 
 # default repo - alien stuffs!
 DEF_ROOT="http://taper.alienbase.nl/mirrors/people/alien/slackbuilds"
