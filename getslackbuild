@@ -18,7 +18,7 @@ done
 MY1_TOOLNAME="my1 SlackBuilds.org Executor"
 MY1_TOOLVERS="2015.05.00"
 MY1_BUILDDIR=${MY1_BUILDDIR:="$(dirname $MY1PATH)/slackbuilds"}
-MY1_THISPATH=$(pwd)
+MY1_THISPATH=$(pwd -P)
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 SLACKVERS=${SLACKVERS:=""}
 if [ "$SLACKVERS" == "" ]; then
@@ -141,8 +141,8 @@ function get_userngrp()
 	local chk_this=$1
 	local chk_path
 	local chk_user chk_grpn
-	[ "$chk_this" == "." ] && chk_this=$(pwd)
-	[ "$chk_this" == ".." ] && chk_this=$(cd .. ;pwd)
+	[ "$chk_this" == "." ] && chk_this=$(pwd -P)
+	[ "$chk_this" == ".." ] && chk_this=$(dirname $(pwd -P))
 	[ ! -r "$chk_this" ] && echo -e "Cannot read '$chk_this'!" 1>&2 && return
 	chk_path=$(cd $(dirname $chk_this);pwd)
 	chk_this=$(basename $chk_this)
@@ -171,7 +171,7 @@ function do_build()
 	fi
 	inf_file="${pkg_name}/${pkg_name}.info"
 	[ ! -f ${inf_file} ] &&
-		echo "[ERROR] Info file for '$pkg_name' not found!" ; exit 1
+		echo "[ERROR] Info file for '$pkg_name' not found!" && exit 1
 	# check if tarball available?
 	pkg_file=$(cat ${inf_file} | grep DOWNLOAD=)
 	pkg_file=${pkg_file##*=\"}
@@ -252,15 +252,15 @@ function process_command()
 				echo -e "[ERROR] Unknown option '$1'!\n" ; exit 1
 				;;
 			*)
-				[ ! -n $pkg_name ] &&
-					echo -e "[ERROR] Multiple package!? [$pkg_name]\n" ; exit 1
+				[ "$pkg_name" != "" ] &&
+					echo -e "[ERROR] Multiple package? [$pkg_name]\n" && exit 1
 				pkg_name="$1"
 				;;
 		esac
 		shift
 	done
 	# check if name supplied
-	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" ; exit 0
+	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
 	# do your thing!
 	do_build $pkg_name ${OPT_INSTALL}
 }
