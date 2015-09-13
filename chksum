@@ -14,11 +14,20 @@ MD5SUM_BIN=${MD5SUM_BIN:="$(which md5sum 2>/dev/null)"}
 [ "$MD5SUM_BIN" = "" ] && echo "md5sum binary NOT found! Aborting!" && exit 1
 
 if [ "$(echo $@|grep -- '--create')" != "" ]; then
-	echo -n "" >$MD5FILE
-	for a in $(find . -type f); do
-		[ "$(basename $a)" == "$MD5FILE" ] && continue
-		md5sum $a >>$MD5FILE
-	done
+	if [ "$(echo $@|grep -- '--bundle')" == "" ]; then
+		for a in $(find . -maxdepth 1 -type f); do
+			a=$(basename $a)
+			[ "$(echo $a|grep ".md5")" != "" ] && continue
+			md5sum $a >${a}.md5
+		done
+	else
+		echo -n "" >$MD5FILE
+		for a in $(find . -type f); do
+			a=$(basename $a)
+			[ "$a" == "$MD5FILE" ] && continue
+			md5sum $a >>$MD5FILE
+		done
+	fi
 else
 	if [ -r "$MD5FILE" ] ; then
 		$MD5SUM_BIN --check $MD5FILE
