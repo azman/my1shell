@@ -13,18 +13,16 @@ DATE_FMT=${DATE_FMT:="+%Y%m%d"}
 CHECKGIT=${CHECKGIT:="YES"}
 BUNDLGIT=${BUNDLGIT:="NO"}
 PATCHGIT=${PATCHGIT:="NO"}
+PATCHNUM=${PATCHNUM:="4"}
 CHK_VERB=${CHK_VERB:="NO"}
 NUM_COPY=${NUM_COPY:=0}
 TAR_EXEC=${TAR_EXEC:="tar"}
-TAR_OPTS=${TAR_OPTS:="cjf"}
-TAR_EXTN=${TAR_EXTN:=".tar.bz2"}
-TZR_OPTS=${TAR_OPTS:="czf"}
-TZR_EXTN=${TAR_EXTN:=".tar.gz"}
+TAR_OPTS=${TAR_OPTS:="czf"}
+TAR_EXTN=${TAR_EXTN:=".tar.gz"}
 ZIP_EXEC=${ZIP_EXEC:="zip"}
 ZIP_OPTS=${ZIP_OPTS:="-rq"}
 ZIP_EXTN=${ZIP_EXTN:=".zip"}
 DO_ZIP=${DO_ZIP:="NO"}
-DO_GZ=${DO_GZ:="NO"}
 CHK_EXEC=
 CHK_NAME=
 CHK_COPY=
@@ -51,6 +49,8 @@ while [ "$1" != "" ]; do
 			CHECKGIT="NO"
 			BUNDLGIT="YES"
 			PATCHGIT="YES"
+			shift
+			PATCHNUM=$1
 			;;
 		--git-diff)
 			CHECKGIT="NO"
@@ -65,9 +65,6 @@ while [ "$1" != "" ]; do
 			[ ! -d "$1" ] && echo "Path '$1' not found!"
 			[ -d "$1" ] && BALLPATH=$(cd $1;pwd)
 			;;
-		--gz)
-			DO_GZ="YES"
-			;;
 		--zip)
 			DO_ZIP="YES"
 			;;
@@ -78,7 +75,9 @@ while [ "$1" != "" ]; do
 	shift
 done
 
-[ "$DO_GZ" == "YES" ] && TAR_OPTS=$TZR_OPTS && TAR_EXTN=$TZR_EXTN
+# use xz when available
+[ "$(which xz 2>/dev/null)" != "" ] &&
+	TAR_OPTS=${TAR_OPTS//J/x} && TAR_EXTN=${TAR_EXTN//bz2/xz}
 
 [ "$CHK_VERB" == "YES" ] && TAR_OPTS="${TAR_OPTS}v"
 [ "$CHK_VERB" == "YES" ] && ZIP_OPTS="${ZIP_OPTS//q/}"
@@ -93,8 +92,8 @@ if [ "$BUNDLGIT" == "YES" ]; then
 		echo "Not a git repo! Cannot use 'git bundle'!" && exit 1
 	if [ "$PATCHGIT" == "YES" ]; then
 		CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M)_patch.git
-		echo "git bundle create ${BALLPATH}/${CHK_NAME} HEAD^^^"
-		git bundle create ${BALLPATH}/${CHK_NAME} HEAD^^^ HEAD
+		CHK_PREV="$(printf "HEAD%*s" $PATCHNUM "" | tr ' ' '^')";
+		git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_PREV} HEAD
 		[ $? -ne 0 ] && echo "Error running git?" && exit 1
 	else
 		CHK_BRANCH="$(git branch|grep "* ")"
