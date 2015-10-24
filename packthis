@@ -77,7 +77,7 @@ done
 
 # use xz when available
 [ "$(which xz 2>/dev/null)" != "" ] &&
-	TAR_OPTS=${TAR_OPTS//J/x} && TAR_EXTN=${TAR_EXTN//bz2/xz}
+	TAR_OPTS=${TAR_OPTS//z/J} && TAR_EXTN=${TAR_EXTN//gz/xz}
 
 [ "$CHK_VERB" == "YES" ] && TAR_OPTS="${TAR_OPTS}v"
 [ "$CHK_VERB" == "YES" ] && ZIP_OPTS="${ZIP_OPTS//q/}"
