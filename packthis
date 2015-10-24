@@ -22,6 +22,7 @@ TAR_EXTN=${TAR_EXTN:=".tar.gz"}
 ZIP_EXEC=${ZIP_EXEC:="zip"}
 ZIP_OPTS=${ZIP_OPTS:="-rq"}
 ZIP_EXTN=${ZIP_EXTN:=".zip"}
+DO_GZ=${DO_GZ:="NO"}
 DO_ZIP=${DO_ZIP:="NO"}
 CHK_EXEC=
 CHK_NAME=
@@ -68,6 +69,9 @@ while [ "$1" != "" ]; do
 		--zip)
 			DO_ZIP="YES"
 			;;
+		--gz)
+			DO_GZ="YES"
+			;;
 		* )
 			echo "Unknown parameter ($1)!" && exit 1
 			;;
@@ -75,8 +79,8 @@ while [ "$1" != "" ]; do
 	shift
 done
 
-# use xz when available
-[ "$(which xz 2>/dev/null)" != "" ] &&
+# use xz when available AND gz not specifically requested
+[ "$(which xz 2>/dev/null)" != "" -a "$DO_GZ" != "YES" ] &&
 	TAR_OPTS=${TAR_OPTS//z/J} && TAR_EXTN=${TAR_EXTN//gz/xz}
 
 [ "$CHK_VERB" == "YES" ] && TAR_OPTS="${TAR_OPTS}v"
