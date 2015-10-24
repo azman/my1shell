@@ -34,7 +34,19 @@ if [ "$INET_MAIN" != "" ] ; then
 	CURR_IP="${CURR_IP%% *}"
 	INET_MESG="ONLINE:{$INET_MAIN:$CURR_IP}"
 elif [ "$WIFI_MAIN" != "" ] ; then
-	INET_MESG="ONLINE:$(chkwifi $WIFI_MAIN --state)"
+	# find ip address
+	CURR_IP="$(ifconfig | grep "$WIFI_MAIN" -A 2)"
+	if [ "$(echo "$CURR_IP" | grep 'net addr:')" != "" ] ; then
+		CURR_IP="${CURR_IP#*inet addr:}"
+	else
+		CURR_IP="$(echo "$CURR_IP" | grep -v inet6 | grep -v 127.0.0.1)"
+		CURR_IP="${CURR_IP#*inet }"
+	fi
+	CURR_IP="${CURR_IP%% *}"
+	INET_MESG="$(chkwifi $WIFI_MAIN --state)"
+	INET_MESG="${INET_MESG#\{*:}"
+	INET_MESG="${INET_MESG%\}}"
+	INET_MESG="ONLINE:{$WIFI_MAIN:$CURR_IP:$INET_MESG}"
 else
 	INET_MESG="OFFLINE"
 fi
