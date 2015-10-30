@@ -8,11 +8,35 @@ MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(dirname $0)"
 CURPATH="$(pwd)"
 
+DO_HERE=""
 DO_LOWER=""
 DO_EXEC=""
 
+[ "$(echo $@|grep -- '--here')" != "" ] && DO_HERE="YES"
 [ "$(echo $@|grep -- '--lowercase')" != "" ] && DO_LOWER="YES"
 [ "$(echo $@|grep -- '--exec')" != "" ] && DO_EXEC="YES"
+
+# check this path and this path only
+if [ "$DO_HERE" == "YES" ]; then
+	IFS_SAVE=$IFS
+	IFS=$'\n'
+	paths=($(find . -maxdepth 1 -type f))
+	IFS=$IFS_SAVE
+	for (( loop=0;loop<${#paths[@]};loop++ )); do
+		tpath="$(basename "${paths[$loop]}")"
+		tconv="$(echo "$tpath"|tr ' ' '_')"
+		if [ "$tconv" != "$tpath" ] ; then
+			[ "$DO_LOWER" == "YES" ] &&
+				tconv="$(echo "$tconv"|tr '[A-Z]' '[a-z]')"
+			if [ "$DO_EXEC" == "YES" ]; then
+				mv "$tpath" "$tconv"
+			else
+				echo "Candidate => '$tpath' to '$tconv'"
+			fi
+		fi
+	done
+	exit 0
+fi
 
 # check paths
 IFS_SAVE=$IFS
