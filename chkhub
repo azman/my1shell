@@ -31,9 +31,13 @@ ORGS_URL="https://api.github.com/orgs/$ORGSNAME/repos"
 
 echo -n "Enter password for '$USERNAME': "
 curl -u $USERNAME $USRS_URL 2>/dev/null | grep full_name | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
+echo
 
-[ "$ORGSNAME" != "" ] && echo -n "Enter password for '$USERNAME': " &&
+if [ "$ORGSNAME" != "" ] ; then
+	echo -n "Enter password for '$USERNAME': " &&
 	curl -u $USERNAME $ORGS_URL 2>/dev/null | grep full_name | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
+	echo
+fi
 
 echo "Repository list saved in '$LISTNAME'."
 for a in $(cat $LISTNAME); do
