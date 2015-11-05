@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# chkgithub
+# - written by azman@my1matrix.net
+# - look up all repo on github belonging to a user account
+# - clone if not already locally available
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+CURPATH="$(pwd)"
+
+# look for config file
+for conffile in "$CURPATH/.$MY1TOOL" "$HOME/.$MY1TOOL" ; do
+	[[ ! -f $conffile ]] && continue
+	source $conffile ; break
+done
+
+USERNAME=${USERNAME:=""}
+ORGSNAME=${ORGSNAME:=""}
+LISTNAME=${LISTNAME:="/tmp/list.txt"}
+DO_CLONE=""
+
+[ "$USERNAME" == "" ] &&
+	echo "Missing user info... abort!" && exit 1
+echo -n "" >$LISTNAME
+[ "$1" == "--exec" ] && DO_CLONE="YES"
+
+
+USRS_URL="https://api.github.com/users/$USERNAME/repos"
+ORGS_URL="https://api.github.com/orgs/$ORGSNAME/repos"
+
+echo -n "Enter password for '$USERNAME': "
+curl -u $USERNAME $USRS_URL 2>/dev/null | grep full_name | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
+
+[ "$ORGSNAME" != "" ] && echo -n "Enter password for '$USERNAME': " &&
+	curl -u $USERNAME $ORGS_URL 2>/dev/null | grep full_name | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
+
+echo "Repository list saved in '$LISTNAME'."
+for a in $(cat $LISTNAME); do
+	b=${a#*/}
+	echo -n "Checking '$b'... "
+	[ -d "$b" ] && echo "found." && continue
+	[ "$DO_CLONE" != "YES" ] && echo "no local copy." && continue
+	echo "cloning this... "
+	git clone git@github.com:${a}.git
+done
+
+exit 0
