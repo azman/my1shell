@@ -19,27 +19,56 @@ USERNAME=${USERNAME:=""}
 ORGSNAME=${ORGSNAME:=""}
 LISTNAME=${LISTNAME:="/tmp/list.txt"}
 DO_CLONE=""
+DO_LOCAL=""
 
-[ "$USERNAME" == "" ] &&
-	echo "Missing user info... abort!" && exit 1
-echo -n "" >$LISTNAME
-[ "$1" == "--exec" ] && DO_CLONE="YES"
+while [ "$1" != "" ] ; do
+	case $1 in
+		--clone | --exec )
+			DO_CLONE="YES"
+			;;
+		--local )
+			shift
+			[ ! -f "$1" ] &&
+				echo "Local list file '$1' not found! Aborting..." && exit 1
+			LISTNAME=$1
+			DO_LOCAL="YES"
+			;;
+		--user )
+			shift
+			USERNAME="$1"
+			;;
+		--orgs )
+			shift
+			ORGSNAME="$1"
+			;;
+		* )
+			echo "Unknown parameter ($1)!" && exit 1
+			;;
+	esac
+	shift
+done
 
-
-USRS_URL="https://api.github.com/users/$USERNAME/repos"
-ORGS_URL="https://api.github.com/orgs/$ORGSNAME/repos"
-
-echo -n "Enter password for '$USERNAME': "
-curl -u $USERNAME $USRS_URL 2>/dev/null | grep full_name | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
-echo
-
-if [ "$ORGSNAME" != "" ] ; then
-	echo -n "Enter password for '$USERNAME': " &&
-	curl -u $USERNAME $ORGS_URL 2>/dev/null | grep full_name | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
+if [ "$DO_LOCAL" != "YES" ] ; then
+	[ "$USERNAME" == "" ] &&
+		echo "Missing user info... abort!" && exit 1
+	echo -n "" >$LISTNAME
+	USRS_URL="https://api.github.com/users/$USERNAME/repos"
+	ORGS_URL="https://api.github.com/orgs/$ORGSNAME/repos"
+	echo -n "Enter password for '$USERNAME': "
+	CHK_LIST="$(curl -u $USERNAME $USRS_URL 2>/dev/null|grep full_name)"
+	echo "$CHK_LIST"|sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
 	echo
+	if [ "$ORGSNAME" != "" ] ; then
+		echo -n "Enter password for '$USERNAME': "
+		CHK_LIST="$(curl -u $USERNAME $ORGS_URL 2>/dev/null|grep full_name)"
+		echo "$CHK_LIST"|sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
+		echo
+	fi
+	echo "Repository list saved in '$LISTNAME'."
+else
+	echo "Using repository list in '$LISTNAME'."
 fi
 
-echo "Repository list saved in '$LISTNAME'."
 for a in $(cat $LISTNAME); do
 	b=${a#*/}
 	echo -n "Checking '$b'... "
