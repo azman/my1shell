@@ -33,11 +33,13 @@ else
 		$MD5SUM_BIN --check $MD5FILE
 		[ $? -ne 0 ] && echo "Checksum error found?!" && exit 1
 	else
-		MD5LIST=$(find . -maxdepth 1 -name "*.md5")
-		[ "$MD5LIST" == "" ] && echo "Cannot find any MD5 sum file!" && exit 1
+		MD5LIST="$(find . -maxdepth 1 -name "*.md5")"
+		[ "$MD5LIST" == "" ] && echo "Cannot find any MD5 sum file!" && exit 0
 		for a in $MD5LIST; do
+			a=$(basename $a)
+			echo -n "Checking... "
 			$MD5SUM_BIN --check $a
-			[ $? -ne 0 ] && echo "Checksum error found?!" && exit 1
+			[ $? -ne 0 ] && echo "sum error?! ($a)" && continue
 		done
 	fi
 fi
