@@ -4,10 +4,16 @@
 # - written by azman@my1matrix.net
 # - start shell for android sdk (with some utilities for android dev)
 
-SDK_PATH=${SDK_PATH:="/home/share/application/android-sdk-linux"}
-TOOL_PATH=${TOOS_PATH:="${SDK_PATH}/platform-tools:${SDK_PATH}/tools"}
+# using gradle - installed separately from slackbuilds.org
+GRADLE_HOME=${GRADLE_HOME:="/usr/share/gradle"}
+GRADVERS=${GRADVERS:="1.5.0"}
+# set paths
+SDK_PATH=${SDK_PATH:="/home/share/tool/android-sdk"}
+TOOLPATH="${GRADLE_HOME}/bin:${SDK_PATH}/platform-tools:${SDK_PATH}/tools"
+# set home
+ANDROID_HOME=${ANDROID_HOME:="$SDK_PATH"}
 
-export PATH=$TOOL_PATH:$PATH
+export GRADLE_HOME PATH=$TOOLPATH:$PATH ANDROID_HOME
 
 if [ "$1" == "" ] ; then
 	# start a shell
@@ -18,14 +24,15 @@ else
 	case $COMMAND in
 		create)
 			PROJECT=${PROJECT:="$1"}
-			[[ "$PROJECT" == "" ]] && PROJECT="my1defpro"
-			TARGETP=${TARGETP:="android-16"}
+			[ "$PROJECT" == "" ] && PROJECT="my1defpro"
+			TARGETP=${TARGETP:="android-23"}
 			CHECKTGT="$(android list targets|grep $TARGETP)"
-			[[ "$CHECKTGT" == "" ]] &&
+			[ "$CHECKTGT" == "" ] &&
 				echo -e "Invalid target '$TARGETP'? Aborting!\n" && exit 1
 			android create project --target ${TARGETP} --name ${PROJECT} \
 				--path $(pwd)/${PROJECT} --activity MainActivity \
-				--package com.my1matrix.${PROJECT}
+				--package org.my1matrix.${PROJECT} \
+				--gradle --gradle-version ${GRADVERS}
 			;;
 		*)
 			echo "Unknown command(s) '$@'!"
