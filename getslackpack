@@ -456,6 +456,12 @@ function chk_param()
 			--clean)
 				OPT_CLEAN="YES"
 				;;
+			--path)
+				shift
+				[ ! -d "$1" ] &&
+					echo "[ERROR] Invalid path '$1'!" >&2 && exit 1
+				SLACKPATH="$(cd $1; pwd)"
+				;;
 			-*)
 				echo "[ERROR] Unknown option '$1'!" >&2 && exit 1
 				;;
