@@ -15,7 +15,7 @@ CFGFILE="$CURPATH/.$MY1TOOL"
 # tool & env setup
 RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
 RSYNCURL=${RSYNCURL:="user@server:/path/to/home/"}
-RSYNCOPT=${RSYNCOPT:="-e ssh -rpltD --partial --progress --dry-run --update"}
+RSYNCOPT=${RSYNCOPT:="-e ssh -rpltD --partial --progress --dry-run"}
 LOCALURL=${LOCALURL:="."}
 
 # make sure rsync is available!
