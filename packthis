@@ -95,9 +95,11 @@ if [ "$BUNDLGIT" == "YES" ]; then
 	[ ! -d "$CURRPATH/.git" ] &&
 		echo "Not a git repo! Cannot use 'git bundle'!" && exit 1
 	if [ "$PATCHGIT" == "YES" ]; then
-		CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M)_patch.git
-		CHK_PREV="$(printf "HEAD%*s" $PATCHNUM "" | tr ' ' '^')";
-		git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_PREV} HEAD
+		CHK_NAME=${BALLNAME}-$(date +%Y%m%d%H%M)_patches
+		rm -rf ${BALLPATH}/${CHK_NAME}
+		#CHK_PREV="$(printf "HEAD%*s" $PATCHNUM "" | tr ' ' '^')";
+		#git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_PREV} HEAD
+		git format-patch -o ${BALLPATH}/${CHK_NAME} -${PATCHNUM}
 		[ $? -ne 0 ] && echo "Error running git?" && exit 1
 	else
 		CHK_BRANCH="$(git branch|grep "* ")"
