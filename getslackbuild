@@ -61,7 +61,7 @@ function do_download()
 		grep --line-buffered "%" | sed -u -e "s,\.,,g" | \
 		awk '{printf("\b\b\b\b%4s", $2)}'
 	[ ! -r "$label" ] &&
-		echo -e "\nCannot download source $fname to $cpath/$label!" && exit 1
+		echo -e "\nCannot download source $fname to $cpath/$label!\n" && exit 1
 	echo -ne "\b\b\b\b DONE!\n"
 }
 
@@ -74,7 +74,8 @@ function do_lookup()
 	local pkg_list="SLACKBUILDS.TXT"
 	# prepare temp
 	mkdir -p $pkg_temp 2>/dev/null
-	[ $? -ne 0 ] && echo "[ERROR] Cannot create path '$pkg_temp'!" && exit 1
+	[ $? -ne 0 ] &&
+		echo -e "[ERROR] Cannot create path '$pkg_temp'!\n" && exit 1
 	cd $pkg_temp
 	# if not found OR nothing modified last 120 minutes
 	if [ "$(find $pkg_list -mmin -120 2>/dev/null)" == "" ]; then
@@ -84,17 +85,17 @@ function do_lookup()
 			do_download ${pkg_root}/$pkg_list.gz $pkg_list.gz
 		fi
 		[ ! -r "$pkg_list.gz" ] &&
-			echo "[ERROR] Cannot download $pkg_list.gz!" >&2 && exit 1
+			echo -e "[ERROR] Cannot download $pkg_list.gz!\n" >&2 && exit 1
 		gzip -d $pkg_list.gz
 	fi
 	# we must have it!
 	[ ! -r "$pkg_list" ] &&
-		echo "[ERROR] File '$pkg_list' not found!!" >&2 && exit 1
+		echo -e "[ERROR] File '$pkg_list' not found!\n" >&2 && exit 1
 	# look for pkg_name
 	local pkg_test="SLACKBUILD NAME: $pkg_name"
 	local pkg_text="$(cat $pkg_list|grep -e "${pkg_test}$" -A6|tr '\n' ';')"
 	[ "$pkg_text" == "" ] &&
-		echo "[ERROR] Cannot find SlackBuild for '$pkg_name'!" >&2 && exit 1
+		echo -e "[ERROR] Cannot find script for '$pkg_name'!\n" >&2 && exit 1
 	local pkg_path=${pkg_text##*SLACKBUILD LOCATION: }
 	pkg_path=${pkg_path%%;*}
 	pkg_path=${pkg_path//./$pkg_root}.tar.gz
@@ -106,15 +107,15 @@ function do_lookup()
 	pkg_file=${pkg_file%% *}
 	# look for it!
 	wget --spider $pkg_path >/dev/null 2>&1
-	[ $? -ne 0 ] && echo "[ERROR] Cannot find $pkg_path!" >&2 && exit 1
+	[ $? -ne 0 ] && echo -e "[ERROR] Cannot find $pkg_path!\n" >&2 && exit 1
 	do_download $pkg_path $pkg_test 2>/dev/null
 	[ ! -r "$pkg_test" ] &&
-		echo "[ERROR] Cannot download $pkg_test!" >&2 && exit 1
+		echo -e "[ERROR] Cannot download $pkg_test!\n" >&2 && exit 1
 	cd - >/dev/null
 	pkg_path=$pkg_temp/$pkg_test
 	# extract accordingly?
 	tar xf $pkg_path 2>/dev/null
-	[ $? -ne 0 ] && echo "[ERROR] Cannot extract $pkg_path!" >&2 && exit 1
+	[ $? -ne 0 ] && echo -e "[ERROR] Cannot extract $pkg_path!\n" >&2 && exit 1
 	# download source tarball
 	do_loadball $pkg_name $pkg_file
 	return 0
@@ -125,13 +126,14 @@ function do_loadball()
 	local pkg_path=$1
 	local pkg_file=$2
 	local pkg_ball=$(basename $pkg_file)
-	[ ! -d $pkg_path ] && echo "[ERROR] Cannot find $pkg_path!" >&2 && exit 1
+	[ ! -d $pkg_path ] &&
+		echo -e "[ERROR] Cannot find $pkg_path!\n" >&2 && exit 1
 	wget --spider $pkg_file >/dev/null 2>&1
-	[ $? -ne 0 ] && echo "[ERROR] Cannot get $pkg_file!" >&2 && exit 1
+	[ $? -ne 0 ] && echo -e "[ERROR] Cannot get $pkg_file!\n" >&2 && exit 1
 	cd $pkg_path
 	do_download $pkg_file $pkg_ball 2>/dev/null
 	[ ! -r $pkg_ball ] &&
-		echo "[ERROR] Cannot download $pkg_ball!" >&2 && exit 1
+		echo -e "[ERROR] Cannot download $pkg_ball!\n" >&2 && exit 1
 	cd - >/dev/null
 	return 0
 }
@@ -160,18 +162,18 @@ function do_build()
 	local chk_path=${MY1_THISPATH}
 	local pkg_file pkg_ball pkg_deps log_file inf_file
 	[ ! -d "$MY1_BUILDDIR" ] &&
-		echo "Path '$MY1_BUILDDIR' not found!" && exit 1
+		echo -e "Path '$MY1_BUILDDIR' not found!\n" && exit 1
 	cd $MY1_BUILDDIR
 	if [ ! -f ${pkg_name}/${pkg_name}.SlackBuild ] ; then
 		if [ "$OPT_GETTHAT" == "YES" ] ; then
 			do_lookup ${SLACKVERS} $pkg_name
 		else
-			echo "SlackBuild for '$pkg_name' not found!" ; exit 1
+			echo -e "SlackBuild for '$pkg_name' not found!\n" ; exit 1
 		fi
 	fi
 	inf_file="${pkg_name}/${pkg_name}.info"
 	[ ! -f ${inf_file} ] &&
-		echo "[ERROR] Info file for '$pkg_name' not found!" && exit 1
+		echo -e "[ERROR] Info file for '$pkg_name' not found!\n" && exit 1
 	# check if tarball available?
 	pkg_file=$(cat ${inf_file} | grep DOWNLOAD=)
 	pkg_file=${pkg_file##*=\"}
@@ -197,12 +199,12 @@ function do_build()
 	fi
 	# build only if explicitly requested
 	if [ "$OPT_EXECUTE" == "YES" ]; then
-		[ $UID -ne 0 ] && echo "Must run as root!" && exit 1
+		[ $UID -ne 0 ] && echo -e "Must run as root!\n" && exit 1
 		log_file=${chk_path}/${pkg_name}.buildlog
 		cd ${pkg_name}
 		echo -n "Building '$pkg_name' ... "
 		sh ${pkg_name}.SlackBuild >${log_file} 2>&1
-		[ $? -ne 0 ] && error_exit "Error building '$pkg_name'!"
+		[ $? -ne 0 ] && echo -e "Error building '$pkg_name'!\n" && exit 1
 		echo "done!"
 		local pkg_file="$(cat $log_file | tail -n 2 | grep Slackware)"
 		pkg_file=${pkg_file#*package }
@@ -210,7 +212,8 @@ function do_build()
 		if [ "$opt_inst" == "--install" ] ; then
 			echo -n "Installing '$pkg_file'... "
 			installpkg $pkg_file >>${log_file} 2>&1
-			[ $? -ne 0 ] && error_exit "Error installing '$pkg_file'!"
+			[ $? -ne 0 ] &&
+				echo -e "Error installing '$pkg_file'!\n" && exit 1
 			echo "done!"
 		fi
 		local chk_perm=$(get_userngrp $chk_path)
@@ -244,7 +247,7 @@ function process_command()
 			--path|-p)
 				shift
 				[ ! -d "$1" ] &&
-					error_exit "Invalid path!? [$1]"
+					echo -e "[ERROR] Invalid path!? [$1]\n" && exit 1
 				MY1_BUILDDIR="$(cd $1;pwd)"
 				;;
 			-*)
