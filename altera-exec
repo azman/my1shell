@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# altera-exec
+# - written by azman@my1matrix.net
+# - start quartus or altera-env shell
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+MY1CONF="$(pwd)/.$MY1TOOL"
+# look for config file
+[ -f "$MY1CONF" ] && source $MY1CONF
+
+ALTERA_VERS=${ALTERA_VERS:="13.0sp1"}
+ALTERA_ROOT=${ALTERA_ROOT:="/home/share/application/altera-${ALTERA_VERS}"}
+ARCH_BITS="32"
+BIN_TYPE=$(file -L /bin/bash)
+if [ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] ; then
+	ARCH_BITS="64"
+fi
+ALTERA_ARCH=${ALTERA_ARCH:="$ARCH_BITS"}
+ALTERA_PATH=${ALTERA_ROOT}/quartus/bin
+MODSIM_PATH=${ALTERA_ROOT}/modelsim_ase/bin
+
+[ ! -d $ALTERA_PATH ] && echo "Cannot find path $ALTERA_PATH!" && exit 1
+[ ! -d $MODSIM_PATH ] && echo "Cannot find path $MODSIM_PATH!" && exit 1
+
+export PATH=$PATH:$ALTERA_PATH:$MODSIM_PATH
+
+FFTYPE_PATH=${ALTERA_ROOT}/libfreetype
+
+# added to allow modelsim binary to run
+[ -d "$FFTYPE_PATH" ] && export LD_LIBRARY_PATH="$FFTYPE_PATH"
+
+if [ "$1" == "" ] ; then
+	# start a shell
+	exec env PS1="(ALTERA-EXEC) \u@\h:\w$ " $(which bash)
+else
+	target=$1
+	shift
+	[ "$target" == "sch" ] && quartus $@
+	[ "$target" == "sim" ] && vsim $@
+fi
+
+exit 0
