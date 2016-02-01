@@ -22,7 +22,7 @@ SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 SLACKVERS=${SLACKVERS:="current"}
 SLACKFULL=${SLACKFULL}-${SLACKVERS}
-SLACKPATH=${SLACKROOT}/slackpack${SLACKSUFX}
+SLACKPATH=${SLACKROOT}/slackpack${SLACKSUFX}-${SLACKVERS}
 
 # x86 packages usually target specific arch
 ARCH_X86=${ARCH_X86:="i486"}
