@@ -22,7 +22,7 @@ SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 SLACKVERS=${SLACKVERS:="current"}
 SLACKFULL=${SLACKFULL}-${SLACKVERS}
-SLACKPATH=${SLACKROOT}/slackpack
+SLACKPATH=${SLACKROOT}/slackpack${SLACKSUFX}
 
 # x86 packages usually target specific arch
 ARCH_X86=${ARCH_X86:="i486"}
@@ -375,6 +375,7 @@ function do_execthis()
 	IFS=$'\n'
 	local pkg_list=($(echo "$@"))
 	IFS=$ifs_save
+	echo "[INFO] Package Path: ${pkg_path}"
 	echo "[INFO] Package Count: ${#pkg_list[@]}"
 	local loop
 	for (( loop=0;loop<${#pkg_list[@]};loop++ )); do
