@@ -31,7 +31,7 @@ MSG_THISHELP=$(cat <<SETHELPMSG
 Usage:
   $MY1_TOOLBASE <command> [options]
 Commands:
-  create : Create a custom root installation 
+  create : Create a custom root installation
   config : Configure for chroot32 installation
   chroot : Do create & config in one command
   squash : Squash root installation
@@ -45,7 +45,7 @@ Options (create):
   --path <path> : Specify path for packages
   --file <file> : Specify file containing package list
   --core    : Select basic system tool packages
-  --console : Select console application packages 
+  --console : Select console application packages
   --desktop : Select desktop application packages
 Options (squash):
   --live <path> : Specify live path (default: $MY1_LIVE_DEF)
@@ -163,7 +163,7 @@ function do_pack_list()
 		cd $pkg_path
 		if [[ -d $pkg_soft ]] ; then
 			cd $pkg_soft
-			for pkg_name in $(find . -name "*.t[xg]z"); do
+			for pkg_name in $(find . -name "*.t[xg]z"|uniq|sort); do
 				pkg_file=${pkg_path}/${pkg_soft}/${pkg_name//.\//}
 				pkg_list="${pkg_list}${pkg_file} "
 			done
