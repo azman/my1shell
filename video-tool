@@ -212,6 +212,12 @@ while [[ "$1" != "" ]]; do
 			AVI_BITRATE=${AVI_BITRATE:="1500"} # in progress...
 			echo "HD (720p) SETTINGS!"
 			;;
+		--hdmovie )
+			VF_SCALE=${VF_SCALE:="704:304"} #mod16 resolution
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="700"}
+			echo "MOVIE SETTINGS!"
+			;;
 		-m | --movie )
 			VF_SCALE=${VF_SCALE:="704:304"} #mod16 resolution
 			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
@@ -252,7 +258,7 @@ if [[ -r "$MOVIE_FILE" ]]; then
 	VIDEO_INPUT=$MOVIE_PATH/$MOVIE_TITLE.$MOVIE_TYPE
 elif [[ "$DVD_RIP_OPT" == "YES" ]]; then
 	if [[ "$DVD_SUBT_ID" != "" ]]; then
-		DVD_SUBT_OPT="$DVD_SUBT_ID" 
+		DVD_SUBT_OPT="$DVD_SUBT_ID"
 	else
 		DVD_SUBT_OPT="-nosub -vobsubout /dev/null"
 	fi
