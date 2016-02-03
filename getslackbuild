@@ -19,6 +19,7 @@ MY1_TOOLNAME="my1 SlackBuilds.org Executor"
 MY1_TOOLVERS="2015.05.00"
 MY1_BUILDDIR=${MY1_BUILDDIR:="$(dirname $MY1PATH)/slackbuilds"}
 MY1_THISPATH=$(pwd -P)
+MY1_PACKPATH=""
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 SLACKVERS=${SLACKVERS:=""}
 if [ "$SLACKVERS" == "" ]; then
@@ -35,14 +36,17 @@ OPT_INSTALL=""
 OPT_DEPENDS="NO"
 OPT_EXECUTE="NO"
 OPT_GETTHAT="NO"
+OPT_CLEANUP="NO"
 MSG_THISHELP=$(cat <<SETHELPMSG
 Usage:
   $MY1TOOL [options] <pkg_name>
 Options:
   --path </path/to/slackbuilds>
+  --pack </sub/path/to/package/group>
   --lookup  : Download stuffs from Slackbuilds.org
   --install : Install when (and if) the build completes
   --depends : Check (and build) dependencies
+  --cleanup : Clears old Slackbuilds and recheck (implies --lookup)
   --execute : Execute build (else, simply check @ dry-run)
 SETHELPMSG
 )
@@ -164,6 +168,9 @@ function do_build()
 	[ ! -d "$MY1_BUILDDIR" ] &&
 		echo -e "Path '$MY1_BUILDDIR' not found!\n" && exit 1
 	cd $MY1_BUILDDIR
+	if [ "$OPT_CLEANUP" == "YES" ] ; then
+		rm -rf ${pkg_name}/
+	fi
 	if [ ! -f ${pkg_name}/${pkg_name}.SlackBuild ] ; then
 		if [ "$OPT_GETTHAT" == "YES" ] ; then
 			do_lookup ${SLACKVERS} $pkg_name
@@ -186,6 +193,8 @@ function do_build()
 	pkg_deps=$(cat ${inf_file} | grep REQUIRES)
 	pkg_deps=${pkg_deps#*=\"}
 	pkg_deps=${pkg_deps%\"*}
+	# some deps asks to refer to README
+	[ "$pkg_deps" == "%README%" ] && pkg_deps=""
 	# show this before dependencies if not building
 	if [ "$OPT_EXECUTE" != "YES" ]; then
 		echo -n "Package: $pkg_name"
@@ -199,6 +208,10 @@ function do_build()
 	fi
 	# build only if explicitly requested
 	if [ "$OPT_EXECUTE" == "YES" ]; then
+		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
+		local pkg_base=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
+		# check if already installed!
+		[ "$pkg_base" == "" ] && echo "[$pkg_name] Installed!" && return
 		[ $UID -ne 0 ] && echo -e "Must run as root!\n" && exit 1
 		log_file=${chk_path}/${pkg_name}.buildlog
 		cd ${pkg_name}
@@ -244,11 +257,19 @@ function process_command()
 			--lookup|-l)
 				OPT_GETTHAT="YES"
 				;;
+			--cleanup|-c)
+				OPT_CLEANUP="YES"
+				OPT_GETTHAT="YES"
+				;;
 			--path|-p)
 				shift
 				[ ! -d "$1" ] &&
 					echo -e "[ERROR] Invalid path!? [$1]\n" && exit 1
 				MY1_BUILDDIR="$(cd $1;pwd)"
+				;;
+			--pack)
+				shift
+				MY1_PACKPATH="$1"
 				;;
 			-*)
 				echo -e "$MSG_THISHELP\n"
@@ -262,6 +283,9 @@ function process_command()
 		esac
 		shift
 	done
+	# check if package path supplied
+	[ "$MY1_PACKPATH" != "" ] && MY1_BUILDDIR=${MY1_BUILDDIR}${MY1_PACKPATH}
+	[ ! -d ${MY1_BUILDDIR} ] && mkdir -p ${MY1_BUILDDIR}
 	# check if name supplied
 	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
 	# do your thing!
