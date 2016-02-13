@@ -204,14 +204,16 @@ function do_build()
 	if [ "$OPT_DEPENDS" == "YES" ]; then
 		for pkg in $pkg_deps ; do
 			do_build $pkg --install
+			cd $chk_path
 		done
 	fi
 	# build only if explicitly requested
 	if [ "$OPT_EXECUTE" == "YES" ]; then
 		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
-		local pkg_base=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
+		local pkg_base=$(ls /var/log/packages | grep -e "$pkg_temp")
 		# check if already installed!
-		[ "$pkg_base" == "" ] && echo "[$pkg_name] Installed!" && return
+		#@DEBUG@echo "[$pkg_name] => [$pkg_base]!" && return
+		[ "$pkg_base" != "" ] && echo "[$pkg_name] Installed!" && return
 		[ $UID -ne 0 ] && echo -e "Must run as root!\n" && exit 1
 		log_file=${chk_path}/${pkg_name}.buildlog
 		cd ${pkg_name}
@@ -284,7 +286,7 @@ function process_command()
 		shift
 	done
 	# check if package path supplied
-	[ "$MY1_PACKPATH" != "" ] && MY1_BUILDDIR=${MY1_BUILDDIR}${MY1_PACKPATH}
+	[ "$MY1_PACKPATH" != "" ] && MY1_BUILDDIR=${MY1_BUILDDIR}/${MY1_PACKPATH}
 	[ ! -d ${MY1_BUILDDIR} ] && mkdir -p ${MY1_BUILDDIR}
 	# check if name supplied
 	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
