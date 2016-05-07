@@ -4,9 +4,9 @@
 # - written by azman@my1matrix.net
 # - start shell for android sdk (with some utilities for android dev)
 
-# using gradle - installed separately from slackbuilds.org
-GRADLE_HOME=${GRADLE_HOME:="/usr/share/gradle"}
-GRADVERS=${GRADVERS:="1.5.0"}
+# using gradle - GRADLE_VERS is plugin version, NOT gradle version itself!
+GRADLE_VERS=${GRADLE_VERS:="2.13"}
+GRADLE_HOME=${GRADLE_HOME:="/home/share/tool/gradle"}
 # set paths
 SDK_PATH=${SDK_PATH:="/home/share/tool/android-sdk"}
 TOOLPATH="${GRADLE_HOME}/bin:${SDK_PATH}/platform-tools:${SDK_PATH}/tools"
@@ -32,7 +32,7 @@ else
 			android create project --target ${TARGETP} --name ${PROJECT} \
 				--path $(pwd)/${PROJECT} --activity MainActivity \
 				--package org.my1matrix.${PROJECT} \
-				--gradle --gradle-version ${GRADVERS}
+				--gradle --gradle-version ${GRADLE_VERS}
 			;;
 		*)
 			echo "Unknown command(s) '$@'!"
