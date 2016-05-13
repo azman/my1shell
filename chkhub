@@ -20,6 +20,7 @@ ORGSNAME=${ORGSNAME:=""}
 LISTNAME=${LISTNAME:="/tmp/list.txt"}
 DO_CLONE=""
 DO_LOCAL=""
+DO_COUNT=""
 
 while [ "$1" != "" ] ; do
 	case $1 in
@@ -32,6 +33,10 @@ while [ "$1" != "" ] ; do
 				echo "Local list file '$1' not found! Aborting..." && exit 1
 			LISTNAME=$1
 			DO_LOCAL="YES"
+			;;
+		--count )
+			shift
+			DO_COUNT="$1"
 			;;
 		--user )
 			shift
@@ -54,6 +59,10 @@ if [ "$DO_LOCAL" != "YES" ] ; then
 	echo -n "" >$LISTNAME
 	USRS_URL="https://api.github.com/users/$USERNAME/repos"
 	ORGS_URL="https://api.github.com/orgs/$ORGSNAME/repos"
+	if [ "$DO_COUNT" != "" ] ; then
+		USRS_URL="${USRS_URL}?per_page=$DO_COUNT"
+		ORGS_URL="${ORGS_URL}?per_page=$DO_COUNT"
+	fi
 	echo -n "Enter password for '$USERNAME': "
 	CHK_LIST="$(curl -u $USERNAME $USRS_URL 2>/dev/null|grep full_name)"
 	echo "$CHK_LIST"|sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
