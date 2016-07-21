@@ -20,7 +20,20 @@ SLACKSUFX=${SLACKSUFX:=""}
 [ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
 SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
-SLACKVERS=${SLACKVERS:="current"}
+SLACKVERS=${SLACKVERS:=""}
+if [ "$SLACKVERS" == "" ]; then
+	if [ ! -f /etc/slackware-version ]; then
+		# if running from other than slack
+		SLACKVERS="current"
+	else
+		SLACKVERS=$(cat /etc/slackware-version)
+		SLACKVERS=${SLACKVERS#Slackware }
+		SLACKVMAJ=${SLACKVERS%%.*}
+		SLACKVMIN=${SLACKVERS#*.}
+		[ "${SLACKVMIN//./}" != "$SLACKVMIN" ] && SLACKVMIN=${SLACKVMIN%%.*}
+		SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
+	fi
+fi
 SLACKFULL=${SLACKFULL}-${SLACKVERS}
 SLACKPATH=${SLACKROOT}/${SLACKFULL}
 
