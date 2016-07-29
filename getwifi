@@ -107,6 +107,10 @@ network={
 }
 SETVAR1
 )
+	[ ! -f "$WIFI_WPA_CONF" ] &&
+		echo "'$WIFI_WPA_CONF' file not found!" && exit 1
+	check=$(cat $WIFI_WPA_CONF|grep "$WIFI_SSID")
+	[ "$check" != "" ] && echo "$WIFI_SSID entry exists!" && exit 1 
 	echo "Writing (append) following network info to '$WIFI_WPA_CONF':"
 	echo "$WIFI_WPA_CONF_DATA"
 	echo "$WIFI_WPA_CONF_DATA" >>$WIFI_WPA_CONF
@@ -148,6 +152,9 @@ if [ "$WIFI_DO_STOP" == "yes" ]; then
 	exit 0
 fi
 
+# ensure SSID is specified
+[ "$WIFI_SSID" == "" ] && echo "No SSID given? Aborting..." && exit 1
+
 # look for WIFI_DEV, in case it's NOT plugged in
 echo -n "Looking for $WIFI_DEV..."
 [ "$(iwconfig 2>/dev/null | grep "$WIFI_DEV")" == "" ] &&
@@ -173,14 +180,18 @@ fi
 if [ "$WIFI_WPA_SUPP" == "" ]; then
 	[ "$WIFI_ENCS" != "" ] && WIFI_ENCS="enc $WIFI_ENCS"
 fi
-[ "$WIFI_SSID" != "" ] && WIFI_SSID="essid $WIFI_SSID"
 
 echo -n "Configuring $WIFI_DEV..."
-iwconfig $WIFI_DEV $WIFI_SSID $WIFI_ENC >>$WIFI_LOGFILE
+iwconfig $WIFI_DEV essid $WIFI_SSID $WIFI_ENC >>$WIFI_LOGFILE
 ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >>$WIFI_LOGFILE
 echo "done."
 
 if [ "$WIFI_WPA_SUPP" == "yes" ]; then
+	[ ! -f "$WIFI_WPA_CONF" ] &&
+		echo "'$WIFI_WPA_CONF' file not found!" && exit 1
+	check=$(cat $WIFI_WPA_CONF|grep "$WIFI_SSID")
+	[ "$check" == "" ] &&
+		echo "Cannot find $WIFI_SSID in $WIFI_WPA_CONF!" && exit 1
 	echo -n "Starting wpa_supplicant... "
 	wpa_supplicant -B -Dwext -i$WIFI_DEV -c$WIFI_WPA_CONF 2>&1 >>$WIFI_LOGFILE
 	retval=$?
@@ -189,7 +200,7 @@ if [ "$WIFI_WPA_SUPP" == "yes" ]; then
 fi
 
 if [ "$WIFI_RUN_DHCP" == "yes" ]; then
-	echo -n "Starting DHCP client daemon..."
+	echo -n "Starting DHCP client daemon on $WIFI_DEV..."
 	dhcpcd -h $(hostname) $WIFI_DEV 2>/dev/null >>$WIFI_LOGFILE
 	retval=$?
 	[ $retval -ne 0 ] && echo -n "(dhcpcd) Return Error [$retval]? "
