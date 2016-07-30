@@ -230,12 +230,13 @@ function do_build()
 			[ $? -ne 0 ] &&
 				echo -e "Error installing '$pkg_file'!\n" && exit 1
 			echo "done!"
-		fi
-		local chk_perm=$(get_userngrp $chk_path)
-		mv $pkg_file $chk_path
-		pkg_file=${chk_path}/$(basename $pkg_file)
-		if [ "$chk_perm" != "" ] ; then
-			chown $chk_perm $pkg_file $log_file
+		else
+			local chk_perm=$(get_userngrp $chk_path)
+			mv $pkg_file $chk_path
+			pkg_file=${chk_path}/$(basename $pkg_file)
+			if [ "$chk_perm" != "" ] ; then
+				chown $chk_perm $pkg_file $log_file
+			fi
 		fi
 	fi;
 	cd $chk_path
