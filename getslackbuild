@@ -215,7 +215,7 @@ function do_build()
 		#@DEBUG@echo "[$pkg_name] => [$pkg_base]!" && return
 		[ "$pkg_base" != "" ] && echo "[$pkg_name] Installed!" && return
 		[ $UID -ne 0 ] && echo -e "Must run as root!\n" && exit 1
-		log_file=${chk_path}/${pkg_name}.buildlog
+		log_file=/tmp/${pkg_name}.buildlog
 		cd ${pkg_name}
 		echo -n "Building '$pkg_name' ... "
 		sh ${pkg_name}.SlackBuild >${log_file} 2>&1
@@ -224,6 +224,8 @@ function do_build()
 		local pkg_file="$(cat $log_file | tail -n 2 | grep Slackware)"
 		pkg_file=${pkg_file#*package }
 		pkg_file=${pkg_file% created*}
+		[ ! -f $pkg_file ] &&
+			echo "Cannot find package '$pkg_file'!" && exit 1
 		if [ "$opt_inst" == "--install" ] ; then
 			echo -n "Installing '$pkg_file'... "
 			installpkg $pkg_file >>${log_file} 2>&1
@@ -234,6 +236,8 @@ function do_build()
 			local chk_perm=$(get_userngrp $chk_path)
 			mv $pkg_file $chk_path
 			pkg_file=${chk_path}/$(basename $pkg_file)
+			mv $log_file $chk_path
+			log_file=${chk_path}/$(basename $log_file)
 			if [ "$chk_perm" != "" ] ; then
 				chown $chk_perm $pkg_file $log_file
 			fi
