@@ -110,7 +110,7 @@ SETVAR1
 	[ ! -f "$WIFI_WPA_CONF" ] &&
 		echo "'$WIFI_WPA_CONF' file not found!" && exit 1
 	check=$(cat $WIFI_WPA_CONF|grep "$WIFI_SSID")
-	[ "$check" != "" ] && echo "$WIFI_SSID entry exists!" && exit 1 
+	[ "$check" != "" ] && echo "$WIFI_SSID entry exists!" && exit 1
 	echo "Writing (append) following network info to '$WIFI_WPA_CONF':"
 	echo "$WIFI_WPA_CONF_DATA"
 	echo "$WIFI_WPA_CONF_DATA" >>$WIFI_WPA_CONF
@@ -161,11 +161,16 @@ echo -n "Looking for $WIFI_DEV..."
 	echo "NOT FOUND! Exiting!" && exit 0
 echo "found."
 
-if [ "$OPT_SCAN_WIFI" == "yes" ]; then
-	ifconfig $WIFI_DEV up
-	iwlist $WIFI_DEV scanning | grep -A5 Cell
-	exit 0
-fi
+# try to look for requested SSID
+ifconfig $WIFI_DEV up
+findit=$(iwlist $WIFI_DEV scanning | grep -A5 Cell)
+
+# if scan requested, show and exit
+[ "$OPT_SCAN_WIFI" == "yes" ] && echo "$findit" && exit 0
+
+# check if SSID active
+[ "$(echo "$findit"|grep "$WIFI_SSID")" == "" ] &&
+	echo "Cannot find device '$WIFI_SSID'! Aborting..." && exit 1
 
 # configure for static if DHCP NOT requested
 if [ "$WIFI_RUN_DHCP" == "yes" ] ; then
