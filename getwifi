@@ -123,7 +123,7 @@ if [ "$WIFI_DO_STOP" == "yes" ]; then
 			echo "Interface '$WIFI_DEV' NOT up?!"
 		else
 			echo -n "Terminating wpa_supplicant... "
-			if [ "$(wpa_cli -i$WIFI_DEV terminate 2>/dev/null2>/dev/null| grep OK)" == "" ]; then
+			if [ "$(wpa_cli -i$WIFI_DEV terminate | grep OK)" == "" ]; then
 				echo "wpa_cli ERROR!"
 			else
 				echo "done."
@@ -144,7 +144,7 @@ if [ "$WIFI_DO_STOP" == "yes" ]; then
 		echo "No running dhcpcd on $WIFI_DEV!"
 	else
 		echo -n "Terminating dhcp daemon on $WIFI_DEV... "
-		dhcpcd -k $WIFI_DEV 2>/dev/null
+		dhcpcd -k $WIFI_DEV 2>/dev/null >/dev/null
 		retval=$?
 		[ $retval -ne 0 ] && echo -n "(dhcpcd) Return Error [$retval]? "
 		echo "done."
