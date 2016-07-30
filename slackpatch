@@ -85,7 +85,7 @@ function find_patches()
 			pkg_arch="${pkg_temp[2]}"
 			pkg_extd="${pkg_temp[3]}"
 			# skip if for different arch!
-			[ "$pkg_arch" != "$pat_arch" ] && continue
+			[ "${pkg_arch:0:1}" != "${pat_arch:0:1}" ] && continue
 			# check version update
 			if [ "$pkg_vers" == "$pat_vers" ] &&
 				[ "$pkg_extd" == "$pat_extd" ]; then
