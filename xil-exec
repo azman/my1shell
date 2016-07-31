@@ -13,7 +13,7 @@ for conffile in "$(pwd)/.$MY1TOOL" "$HOME/.$MY1TOOL"; do
 done
 
 XILINX_VERS=${XILINX_VERS:="12.1"}
-XILINX_PATH=${XILINX_PATH:="/home/share/application/xilinx-${XILINX_VERS}"}
+XILINX_PATH=${XILINX_PATH:="/home/share/apps/xilinx-${XILINX_VERS}"}
 ARCH_BITS="32"
 BIN_TYPE=$(file -L /bin/bash)
 if [ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] ; then
@@ -46,11 +46,11 @@ fi
 # - no longer need this on slack13.0 (tcl8.5.7)
 #export LD_PRELOAD=${XILINX}/lib/${PLATFORM}/libtcl8.4.so
 # added to use xilinx usb jtag cable
-USB_DRIVER="/home/share/application/lib${PATH_ARCH}/libusb-driver.so"
+USB_DRIVER="/home/share/tool/lib${PATH_ARCH}/libusb-driver.so"
 [ -r "$USB_DRIVER" ] && export LD_PRELOAD="$LD_PRELOAD $USB_DRIVER"
 # added to use digilent usb jtag cable
 DIGILENT_PATH="/usr/lib${PATH_ARCH}/digilent/adept"
-LIBUSB_PATH="/home/share/application/lib64/libusb1/lib"
+LIBUSB_PATH="/home/share/tool/lib${PATH_ARCH}/libusb1/lib"
 [ -d $DIGILENT_PATH -a -d $LIBUSB_PATH ] &&
 	LD_LIBRARY_PATH="$LIBUSB_PATH:$DIGILENT_PATH:$LD_LIBRARY_PATH"
 
