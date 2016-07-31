@@ -12,7 +12,7 @@ CURPATH="$(pwd)"
 # look for config file
 for conffile in "$CURPATH/.$MY1TOOL" "$CURPATH/$MY1TOOL.conf" \
 		"$HOME/.$MY1TOOL" "$HOME/.$MY1TOOL.conf" ; do
-	[[ ! -f $conffile ]] && continue
+	[ ! -f $conffile ] && continue
 	source $conffile ; break
 done
 
@@ -21,8 +21,8 @@ AHEAD_MSG="is ahead of"
 
 # tool & env setup
 GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
-[[ "$GIT_BIN" = "" ]] && echo "git binary NOT found! Aborting!" && exit 1
-PATH2BUND=${PATH2BUND:="$HOME/project/zzzbundle"}
+[ "$GIT_BIN" = "" ] && echo "git binary NOT found! Aborting!" && exit 1
+PATH2BUND=${PATH2BUND:="$HOME/archive/project"}
 PATH2PROJ=${PATH2PROJ:="$HOME/project"}
 PROJ_NAME=""
 PROJ_COPY=""
@@ -32,7 +32,7 @@ do_command=""
 ok_command="create check origin update remote"
 
 # check parameters for command
-while  [[ "$1" != "" ]]; do
+while  [ "$1" != "" ]; do
 	case $1 in
 		--project-path)
 			shift
@@ -50,12 +50,12 @@ while  [[ "$1" != "" ]]; do
 			exit
 			;;
 		*)
-			[[ "$do_command" != "" ]] &&
+			[ "$do_command" != "" ] &&
 				echo "Command already given ($do_command)!" && exit 1
 			for a in $ok_command; do
-				if [[ $1 == $a ]]; then
+				if [ $1 == $a ]; then
 					do_command=$1
-					if [[ "$do_command" == "create" ]]; then
+					if [ "$do_command" == "create" ]; then
 						shift
 						PROJ_NAME=$1
 						shift
@@ -64,7 +64,7 @@ while  [[ "$1" != "" ]]; do
 					break;
 				fi
 			done
-			[[ "$do_command" == "" ]] && echo "Unknown command ($1)!" && exit 1
+			[ "$do_command" == "" ] && echo "Unknown command ($1)!" && exit 1
 			;;
 	esac
 	shift
@@ -76,22 +76,22 @@ function chkgit_isclean()
 {
 	local chk_value=0
 	local chk_quiet="NO"
-	[[ "$1" == "--silent" ]] && chk_quiet="YES"
+	[ "$1" == "--silent" ] && chk_quiet="YES"
 	# do the actual checking
-	if [[ -d .git ]]; then
-		if [[ "$($GIT_BIN status | grep "$CLEAN_MSG")" == "" ]]; then
-			[[ "$chk_quiet" != "YES" ]] && echo "Check: $(pwd) [unclean]"
+	if [ -d .git ]; then
+		if [ "$($GIT_BIN status | grep "$CLEAN_MSG")" == "" ]; then
+			[ "$chk_quiet" != "YES" ] && echo "Check: $(pwd) [unclean]"
 			chk_value=2
-		elif [[ "$($GIT_BIN status | grep "$AHEAD_MSG")" != "" ]]; then
-			[[ "$chk_quiet" != "YES" ]] && echo "Check: $(pwd) [ahead]"
+		elif [ "$($GIT_BIN status | grep "$AHEAD_MSG")" != "" ]; then
+			[ "$chk_quiet" != "YES" ] && echo "Check: $(pwd) [ahead]"
 			chk_value=3
-		elif [[ "$OPT_VERBOSE" = "YES" ]]; then
-			[[ "$OPT_VERBOSE" == "YES"  ]] &&
-				[[ "$chk_quiet" != "YES" ]] && echo "GIT: $(pwd)"
+		else
+			[ "$OPT_VERBOSE" == "YES"  ] &&
+				[ "$chk_quiet" != "YES" ] && echo "GIT: $(pwd)"
 		fi
 	else
-		[[ "$OPT_VERBOSE" == "YES"  ]] &&
-			[[ "$chk_quiet" != "YES" ]] && echo "NOT: $(pwd)"
+		[ "$OPT_VERBOSE" == "YES"  ] &&
+			[ "$chk_quiet" != "YES" ] && echo "NOT: $(pwd)"
 		chk_value=1
 	fi
 	return $chk_value
@@ -104,22 +104,22 @@ function chkgit_origin()
 	local chk_ifs=$IFS
 	local chk_path=$(pwd)
 	local chk_quiet="NO"
-	[[ "$1" == "--silent" ]] && chk_quiet="YES"
-	[[ "$chk_quiet" != "YES" ]] && echo -n "$(basename $chk_path): "
-	if [[ -d .git ]]; then
+	[ "$1" == "--silent" ] && chk_quiet="YES"
+	[ "$chk_quiet" != "YES" ] && echo -n "$(basename $chk_path): "
+	if [ -d .git ]; then
 		IFS=$'\n'
 		chk_origin=($($GIT_BIN remote -v | grep origin))
 		IFS=$chk_ifs
-		if [[ ${#chk_origin[@]} -gt 0 ]]; then
+		if [ ${#chk_origin[@]} -gt 0 ]; then
 			chk_source=${chk_origin[0]##origin	}
 			chk_source=${chk_source%% (*}
-			[[ "$chk_quiet" != "YES" ]] && echo "'$chk_source'"
+			[ "$chk_quiet" != "YES" ] && echo "'$chk_source'"
 		else
-			[[ "$chk_quiet" != "YES" ]] && echo "No origin repo found!"
+			[ "$chk_quiet" != "YES" ] && echo "No origin repo found!"
 			chk_value=2
 		fi
 	else
-		[[ "$chk_quiet" != "YES" ]] && echo "Not a git repo!"
+		[ "$chk_quiet" != "YES" ] && echo "Not a git repo!"
 		chk_value=1
 	fi
 	return $chk_value
@@ -129,12 +129,12 @@ function chkgit_remote()
 {
 	local chk_origin chk_source chk_label
 	local chk_path=$(pwd)
-	if [[ -d .git ]]; then
+	if [ -d .git ]; then
 		local chk_ifs=$IFS
 		IFS=$'\n'
 		chk_origin=($($GIT_BIN remote -v | grep fetch))
 		IFS=$chk_ifs
-		if [[ ${#chk_origin[@]} -gt 0 ]]; then
+		if [ ${#chk_origin[@]} -gt 0 ]; then
 			for (( a=0;a<${#chk_origin[@]};a++ )); do
 				chk_label=${chk_origin[$a]%	*}
 				chk_source=${chk_origin[$a]##$chk_label	}
@@ -142,11 +142,11 @@ function chkgit_remote()
 				echo "$(basename $chk_path): '$chk_source' ($chk_label)"
 			done
 		else
-			[[ "$OPT_VERBOSE" == "YES"  ]] &&
+			[ "$OPT_VERBOSE" == "YES"  ] &&
 				echo "$(basename $chk_path): No remote repo found!"
 		fi
 	else
-		[[ "$OPT_VERBOSE" == "YES"  ]] &&
+		[ "$OPT_VERBOSE" == "YES"  ] &&
 			echo "$(basename $chk_path): Not a git repo!"
 	fi
 }
@@ -158,65 +158,63 @@ function chkgit_update()
 	echo -n "$(basename $chk_path): "
 	chkgit_isclean --silent
 	chk_value=$?
-	[[ $chk_value -eq 1 ]] && echo "Not a git repo!" && return
-	[[ $chk_value -eq 2 ]] && echo "Repo not clean! Skipped!" && return
-	[[ $chk_value -eq 3 ]] && echo "Repo is ahead!"
+	[ $chk_value -eq 1 ] && echo "Not a git repo!" && return
+	[ $chk_value -eq 2 ] && echo "Repo not clean! Skipped!" && return
+	[ $chk_value -eq 3 ] && echo "Repo is ahead!"
 	chkgit_origin --silent
 	chk_value=$?
-	[[ $chk_value -ne 0 ]] && echo "No origin found! Skipped!" && return
+	[ $chk_value -ne 0 ] && echo "No origin found! Skipped!" && return
 	echo -n "Running update... "
-	ping google.com -c 1 >/dev/null 2>&1
-	[[ $? -ne 0 ]] && echo "No network connection? Abort!" && return
 	$GIT_BIN pull
 }
 
 # do your thing!
 
-if [[ "$do_command" == "check" ]] || [[ "$do_command" == "" ]]; then #default! 
+if [ "$do_command" == "check" ] || [ "$do_command" == "" ]; then #default!
 	# browse subfolders and report dirty repo!
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
 		chkgit_isclean
 		cd $CURPATH
 	done
-elif [[ "$do_command" == "origin" ]]; then
+elif [ "$do_command" == "origin" ]; then
 	# browse subfolders and report origin url
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
 		chkgit_origin
 		cd $CURPATH
 	done
-elif [[ "$do_command" == "remote" ]]; then
+elif [ "$do_command" == "remote" ]; then
 	# browse subfolders and report remote fetch url
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
 		chkgit_remote
 		cd $CURPATH
 	done
-elif [[ "$do_command" == "update" ]]; then
+elif [ "$do_command" == "update" ]; then
 	# browse subfolders and update
 	for path in $(find * -maxdepth 0 -type d); do
 		cd $path
 		chkgit_update
 		cd $CURPATH
 	done
-elif [[ "$do_command" == "create" ]]; then
-	[[ ! -d "$PATH2BUND" ]] &&
+elif [ "$do_command" == "create" ]; then
+	[ ! -d "$PATH2BUND" ] &&
 		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
-	[[ ! -d "$PATH2PROJ" ]] &&
+	[ ! -d "$PATH2PROJ" ] &&
 		echo "Invalid project path '$PATH2PROJ'!" && exit 1
-	[[ "$PROJ_NAME" == "" ]] && echo "No project name given!" && exit 1
+	[ "$PROJ_NAME" == "" ] && echo "No project name given!" && exit 1
 	cd $PATH2PROJ
-	FULL_PATH=${PATH2BUND}/${PROJ_NAME}.git
+	FULL_PATH=${PATH2BUND}/${PROJ_NAME}.git # dummy ???
 	FULL_FIND=$(find ${PATH2BUND} -name ${PROJ_NAME}*.git)
 	for FULL_TEST in $FULL_FIND ; do
 		FULL_PATH=$FULL_TEST
-	done
-	if [[ ! -f "$FULL_PATH" ]] ; then
+	done # will get latest???
+	if [ ! -f "$FULL_PATH" ] ; then
 		echo "Bundle '$FULL_PATH' not found!" && exit 1
 	fi
-	[[ "$PROJ_COPY" == "" ]] && PROJ_COPY=$(basename $FULL_PATH .git)
-	[[ -d "$PROJ_COPY" ]] &&
+	[ "$PROJ_COPY" == "" ] && PROJ_COPY=$(basename $FULL_PATH .git)
+	[ -d "$PROJ_COPY" ] &&
 		echo "'$PROJ_COPY' exists in '$PATH2PROJ'!" && exit 1
 	echo -n "Creating folder $PROJ_COPY... "
 	mkdir $PROJ_COPY >/dev/null
