@@ -114,12 +114,14 @@ SETVAR1
 	echo "Writing (append) following network info to '$WIFI_WPA_CONF':"
 	echo "$WIFI_WPA_CONF_DATA"
 	echo "$WIFI_WPA_CONF_DATA" >>$WIFI_WPA_CONF
+	exit 0 # so that we can double check before connecting!
 fi
 
 if [ "$WIFI_DO_STOP" == "yes" ]; then
 	# check if wpa is running?
-	if [ "$(wpa_cli status 2>/dev/null | grep "$MSG_NO_WPA_SUPPLICANT")" == "" ] ; then
-		if [ "$(wpa_cli status 2>/dev/null | grep "$WIFI_DEV")" == "" ] ; then
+	check=$(wpa_cli status 2>/dev/null)
+	if [ "$(echo $check | grep "$MSG_NO_WPA_SUPPLICANT")" == "" ] ; then
+		if [ "$(echo $check | grep "$WIFI_DEV")" == "" ] ; then
 			echo "Interface '$WIFI_DEV' NOT up?!"
 		else
 			echo -n "Terminating wpa_supplicant... "
@@ -152,9 +154,6 @@ if [ "$WIFI_DO_STOP" == "yes" ]; then
 	exit 0
 fi
 
-# ensure SSID is specified
-[ "$WIFI_SSID" == "" ] && echo "No SSID given? Aborting..." && exit 1
-
 # look for WIFI_DEV, in case it's NOT plugged in
 echo -n "Looking for $WIFI_DEV..."
 [ "$(iwconfig 2>/dev/null | grep "$WIFI_DEV")" == "" ] &&
@@ -167,6 +166,9 @@ findit=$(iwlist $WIFI_DEV scanning | grep -A5 Cell)
 
 # if scan requested, show and exit
 [ "$OPT_SCAN_WIFI" == "yes" ] && echo "$findit" && exit 0
+
+# ensure SSID is specified
+[ "$WIFI_SSID" == "" ] && echo "No SSID given? Aborting..." && exit 1
 
 # check if SSID active
 [ "$(echo "$findit"|grep "$WIFI_SSID")" == "" ] &&
