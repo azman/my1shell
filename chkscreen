@@ -21,14 +21,13 @@ for (( a=0;a<${#DISP_STATS[@]};a++ )); do
 done
 echo "."
 
-[[ "$1" == "" ]] && exit 0
+[ "$1" == "" ] && exit 0
 
-
-if [[ ${#DISP_STATS[@]} -gt 1 ]] ; then
+if [ ${#DISP_STATS[@]} -gt 1 ] ; then
 	DISP1="--output ${DISP_NAME[1]} --auto"
 	DISP0="--output ${DISP_NAME[0]} --auto"
 	PLACE="--same-as"
-	if [[ "$1" == "dual" ]] ; then
+	if [ "$1" == "dual" ] ; then
 		case "$2" in
 			left)
 				PLACE="--left-of"
@@ -43,7 +42,7 @@ if [[ ${#DISP_STATS[@]} -gt 1 ]] ; then
 		echo -n "Applying dual-head configuration..."
 		xrandr $DISP1 $DISP0 $PLACE ${DISP_NAME[1]}
 		echo "done."
-	elif [[ "$1" == "multi" ]] ; then
+	elif [ "$1" == "multi" ] ; then
 		echo -n "Applying multi-view configuration..."
 		for (( a=1;a<${#DISP_NAME[@]};a++ )); do
 			DISP1="${DISP_NAME[(($a-1))]}"
@@ -51,11 +50,11 @@ if [[ ${#DISP_STATS[@]} -gt 1 ]] ; then
 		done
 		xrandr $DISP0
 		echo "done."
-	elif [[ "$1" == "twin" ]] ; then
+	elif [ "$1" == "twin" ] ; then
 		echo -n "Applying twin-view configuration..."
 		xrandr $DISP1 $DISP0 $PLACE ${DISP_NAME[1]}
 		echo "done."
-	elif [[ "$1" == "single" ]] ; then
+	elif [ "$1" == "single" ] ; then
 		# set only for the first one on?
 		for (( a=0;a<${#DISP_STATS[@]};a++ )); do
 			DISP1="--off"
@@ -69,16 +68,17 @@ if [[ ${#DISP_STATS[@]} -gt 1 ]] ; then
 		echo "Command '$1' unknown!"
 		exit 1
 	fi
-elif [[ "$1" == "hres" ]] ; then
+elif [ "$1" == "hres" ] ; then
 	MODE="1280x1024@75"
 	VCTO="138.75 1280 1368 1504 1728 1024 1027 1034 1072 -hsync +vsync"
-	if [ "$(xrandr | grep "1280x1024@75   74.9*")" == "" ]; then
+	if [ "$(xrandr | grep "1280x1024@75   74.9*")" == "" ] ; then
 		xrandr --newmode ${MODE} ${VCTO}
 		xrandr --addmode ${DISP_NAME[0]} ${MODE}
 	fi
-	if [ "$(xrandr | grep "connected ${MODE}")" == "" ]; then
+	if [ "$(xrandr | grep "connected ${MODE}")" == "" ] ; then
 		xrandr --output ${DISP_NAME[0]} --mode ${MODE} 
 	fi
 fi
 
 exit 0
+
