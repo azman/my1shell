@@ -23,8 +23,8 @@ MY1_FILE_BASH_PROFILE="$HOME/.bash_profile"
 MY1_BASHRC=$(cat <<SETVAR2
 # ~/.bashrc: non-login shells
 
-MY1PROMPT="\u@\h:\w$ "
-[ "\$(echo \$PS1|grep "\$MY1PROMPT")" == "" ] && export PS1="\$MY1PROMPT"
+[ "\$(echo \$PS1|sed 's/\\\\u@\\\\h:\\\\w\\\$\\s*//g')" == "\$(echo \$PS1)" ] &&
+	export PS1="\\u@\\h:\\w\$ "
 
 export VISUAL="\$(which vim 2>/dev/null)"
 export HISTIGNORE="&:[bf]g:exit:[ ]*"
