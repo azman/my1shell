@@ -2,83 +2,61 @@
 
 # chkbattery
 # - written by azman@my1matrix.net
-# - simple script to check battery from /proc/acpi
+# - simple script to check battery from /sys/class (/proc/acpi deprecated?)
 
-ACPI_PATH="/proc/acpi/battery"
+INFO_PATH="/sys/class/power_supply"
 BATT_MISS="YES"
+BATT_PATH=""
+BATT_NAME=""
 
-if [ -d ${ACPI_PATH} ] ; then
-	BATT_PATH="$(find ${ACPI_PATH} -name "BAT*" -maxdepth 1 -type d)"
-	BATT_PATH="${BATT_PATH%% *}"
-	BATT_NAME="${BATT_PATH#${ACPI_PATH}/}"
-	if [ ${BATT_NAME} != "" ] ; then
-		TEST_BATT=$(cat ${BATT_PATH}/state | grep "present:")
-		TEST_BATT=${TEST_BATT##*  }
-		TEST_BATT=${TEST_BATT% *}
-		[ "$TEST_BATT" != "no" ] && BATT_MISS="NO"
+if [ -d ${INFO_PATH} ] ; then
+	BATT_PATH=`find ${INFO_PATH} -name "BAT*" -maxdepth 1`
+	# filter in case multiple battery?
+	BATT_PATH=`echo ${BATT_PATH} | sed 's/\([^\s]*\)\s.*/\1/'`
+	# check if really BAT entry? must have present?
+	TEST_BATT=0
+	[ -f "${BATT_PATH}/present" ] && TEST_BATT=`cat ${BATT_PATH}/present`
+	if [ $TEST_BATT -ne 0 ] ; then
+		BATT_MISS="NO"
+		BATT_NAME=`echo ${BATT_PATH} | sed 's/.*\/\([^\/]*\)/\1/'`
 	fi
 fi
 
 if [ "$BATT_MISS" == "NO" ] ; then
-	FULL_BATT=$(cat ${BATT_PATH}/info | grep "design capacity:")
-	FULL_BATT=${FULL_BATT##*  }
-	FULL_BATT=${FULL_BATT% *}
-	PREV_BATT=$(cat ${BATT_PATH}/info | grep "last full capacity:")
-	PREV_BATT=${PREV_BATT##*  }
-	PREV_BATT=${PREV_BATT% *}
-	CURR_BATT=$(cat ${BATT_PATH}/state | grep "remaining capacity:")
-	CURR_BATT=${CURR_BATT##*  }
-	CURR_BATT=${CURR_BATT% *}
-	((CURR_PCTG=${CURR_BATT}*100/${PREV_BATT}))
-	RATE_BATT=$(cat ${BATT_PATH}/state | grep "present rate:")
-	RATE_BATT=${RATE_BATT##*  }
-	RATE_BATT=${RATE_BATT% *}
-	_CHARGING=$(cat ${BATT_PATH}/state | grep "charging state:")
-	_CHARGING=${_CHARGING##*  }
-	if [ "$_CHARGING" == "discharging" ] ; then
-		if [ "$RATE_BATT" == "unknown" ] ; then
-			CHK_STATE="$CURR_PCTG%~~"
-			_CHARGING="$_CHARGING:(unknown)"
-		elif [ "$RATE_BATT" -eq 0 ] ; then
-			CHK_STATE="$CURR_PCTG%**"
-			_CHARGING="$_CHARGING:AC"
+	((FULL_BATT=`cat ${BATT_PATH}/charge_full_design`/1000))
+	((PREV_BATT=`cat ${BATT_PATH}/charge_full`/1000))
+	((CURR_BATT=`cat ${BATT_PATH}/charge_now`/1000))
+	CURR_PCTG=`cat ${BATT_PATH}/capacity`
+	((RATE_BATT=`cat ${BATT_PATH}/current_now`/1000))
+	_CHARGING=`cat ${BATT_PATH}/status`
+	if [ "$_CHARGING" == "Discharging" ] ; then
+		((TIME1PART=${CURR_BATT}/${RATE_BATT}))
+		if [ $TIME1PART -ne 0 ] ; then
+			((TIME2PART=${CURR_BATT}-${TIME1PART}*${RATE_BATT}))
+			TIME2LIVE="${TIME1PART}H"
 		else
-			((TIME1PART=${CURR_BATT}/${RATE_BATT}))
-			if [ $TIME1PART -ne 0 ] ; then
-				((TIME2PART=${CURR_BATT}-${TIME1PART}*${RATE_BATT}))
-				TIME2LIVE="${TIME1PART}H"
-			else
-				TIME2PART=${CURR_BATT}
-				TIME2LIVE=""
-			fi
-			((TIME2PART=${TIME2PART}*60/${RATE_BATT}))
-			TIME2LIVE="${TIME2LIVE}${TIME2PART}M"
-			CHK_STATE="$CURR_PCTG%-- ($TIME2LIVE)"
-			_CHARGING="$_CHARGING:${TIME2LIVE}"
+			TIME2PART=${CURR_BATT}
+			TIME2LIVE=""
 		fi
-	elif [ "$_CHARGING" == "charging" ] ; then
-		if [ "$RATE_BATT" == "unknown" ] ; then
-			CHK_STATE="$CURR_PCTG%^^"
-			_CHARGING="$_CHARGING:(unknown)"
-		elif [ "$RATE_BATT" -eq 0 ] ; then
-			CHK_STATE="$CURR_PCTG%**"
-			_CHARGING="$_CHARGING:AC"
+		((TIME2PART=${TIME2PART}*60/${RATE_BATT}))
+		TIME2LIVE="${TIME2LIVE}${TIME2PART}M"
+		CHK_STATE="$CURR_PCTG%-- ($TIME2LIVE)"
+		_CHARGING="$_CHARGING:${TIME2LIVE}"
+	elif [ "$_CHARGING" == "Charging" ] ; then
+		((LEFT_BATT=${FULL_BATT}-${CURR_BATT}))
+		((TIME1PART=${LEFT_BATT}/${RATE_BATT}))
+		if [ $TIME1PART -ne 0 ] ; then
+			((TIME2PART=${LEFT_BATT}-${TIME1PART}*${RATE_BATT}))
+			TIME2FULL="${TIME1PART}H"
 		else
-			((LEFT_BATT=${FULL_BATT}-${CURR_BATT}))
-			((TIME1PART=${LEFT_BATT}/${RATE_BATT}))
-			if [ $TIME1PART -ne 0 ] ; then
-				((TIME2PART=${LEFT_BATT}-${TIME1PART}*${RATE_BATT}))
-				TIME2FULL="${TIME1PART}H"
-			else
-				TIME2PART=${LEFT_BATT}
-				TIME2FULL=""
-			fi
-			((TIME2PART=${TIME2PART}*60/${RATE_BATT}))
-			TIME2FULL="${TIME2FULL}${TIME2PART}M"
-			CHK_STATE="$CURR_PCTG%++ ($TIME2FULL)"
-			_CHARGING="$_CHARGING:${TIME2FULL}"
+			TIME2PART=${LEFT_BATT}
+			TIME2FULL=""
 		fi
-	elif [ "$_CHARGING" == "charged" ] ; then
+		((TIME2PART=${TIME2PART}*60/${RATE_BATT}))
+		TIME2FULL="${TIME2FULL}${TIME2PART}M"
+		CHK_STATE="$CURR_PCTG%++ ($TIME2FULL)"
+		_CHARGING="$_CHARGING:${TIME2FULL}"
+	elif [ "$_CHARGING" == "Full" ] ; then
 		CHK_STATE="$CURR_PCTG%##"
 	else
 		CHK_STATE="$CURR_PCTG%??"
