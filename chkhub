@@ -20,7 +20,7 @@ ORGSNAME=${ORGSNAME:=""}
 LISTNAME=${LISTNAME:="/tmp/list.txt"}
 DO_CLONE=""
 DO_LOCAL=""
-DO_COUNT=""
+DO_COUNT="50"
 
 while [ "$1" != "" ] ; do
 	case $1 in
@@ -33,6 +33,10 @@ while [ "$1" != "" ] ; do
 				echo "Local list file '$1' not found! Aborting..." && exit 1
 			LISTNAME=$1
 			DO_LOCAL="YES"
+			;;
+		--list )
+			shift
+			LISTNAME=$1
 			;;
 		--count )
 			shift
@@ -63,15 +67,11 @@ if [ "$DO_LOCAL" != "YES" ] ; then
 		USRS_URL="${USRS_URL}?per_page=$DO_COUNT"
 		ORGS_URL="${ORGS_URL}?per_page=$DO_COUNT"
 	fi
-	echo -n "Enter password for '$USERNAME': "
-	CHK_LIST="$(curl -u $USERNAME $USRS_URL 2>/dev/null|grep full_name)"
+	CHK_LIST="$(curl -i $USRS_URL 2>/dev/null|grep full_name)"
 	echo "$CHK_LIST"|sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
-	echo
 	if [ "$ORGSNAME" != "" ] ; then
-		echo -n "Enter password for '$USERNAME': "
-		CHK_LIST="$(curl -u $USERNAME $ORGS_URL 2>/dev/null|grep full_name)"
+		CHK_LIST="$(curl -i $ORGS_URL 2>/dev/null|grep full_name)"
 		echo "$CHK_LIST"|sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
-		echo
 	fi
 	echo "Repository list saved in '$LISTNAME'."
 else
