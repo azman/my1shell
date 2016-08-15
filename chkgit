@@ -23,7 +23,8 @@ AHEAD_MSG="is ahead of"
 GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
 [ "$GIT_BIN" = "" ] && echo "git binary NOT found! Aborting!" && exit 1
 PATH2BUND=${PATH2BUND:="$HOME/archive/project"}
-PATH2PROJ=${PATH2PROJ:="$HOME/project"}
+PATH2PROJ=${PATH2PROJ:="$CURPATH"}
+PATH2GHUB=${PATH2GHUB:="$HOME/archive/github"}
 PROJ_NAME=""
 PROJ_COPY=""
 OPT_VERBOSE="NO"
@@ -41,6 +42,9 @@ while  [ "$1" != "" ]; do
 		--bundle-path)
 			shift
 			PATH2BUND=$1
+			;;
+		--github)
+			PATH2BUND=$PATH2GHUB
 			;;
 		--verbose|-v)
 			OPT_VERBOSE="YES"
