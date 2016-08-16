@@ -85,7 +85,7 @@ function go_loadsums()
 	# check clean option
 	if [ "$OPT_CLEAN" == "YES" ] ; then
 		rm -rf /tmp/$MY1TOOL
-		[ $? -ne 0 ] && OPT_CLEAN="NO"
+		[ $? -eq 0 ] && OPT_CLEAN="NO"
 	fi
 	# prepare temp
 	mkdir -p $pkg_temp ; cd $pkg_temp
@@ -286,12 +286,13 @@ function go_loadrawl()
 {
 	local pkg_root=$1
 	local pkg_repo=$2
-	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
+	local pkg_arch=$3
+	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo/$pkg_arch"
 	local pkg_list="index.html"
 	# check clean option
 	if [ "$OPT_CLEAN" == "YES" ] ; then
 		rm -rf /tmp/$MY1TOOL
-		[ $? -ne 0 ] && OPT_CLEAN="NO"
+		[ $? -eq 0 ] && OPT_CLEAN="NO"
 	fi
 	# prepare temp
 	mkdir -p $pkg_temp ; cd $pkg_temp
@@ -315,11 +316,11 @@ function go_findrawl()
 	local pkg_name=$2
 	local pkg_arch=$3
 	local pkg_vers=$4
-	local pkgs_txt="/tmp/$MY1TOOL/$pkg_repo/index.html"
+	local pkgs_txt="/tmp/$MY1TOOL/$pkg_repo/$pkg_arch/index.html"
 	# info structure?
 	local pkg_temp="${pkg_name}-[^-]*-${pkg_arch}-[^-]*.t[gx]z "
 	local pkg_text="$(cat $pkgs_txt | sed -e :a -e 's/<[^>]*>//g;/</N;//ba')"
-	local pkg_test="$(echo "$pkg_text" | grep -e "$pkg_temp" )"
+	local pkg_test="$(echo "$pkg_text" | grep -e 't[gx]z\s' | grep $pkg_name)"
 	[ "$pkg_test" = "" ] && return
 	local pkg_file="$(echo ${pkg_test} | cut -d " " -f 1)"
 	[ "$pkg_file" = "" ] && return
@@ -402,7 +403,7 @@ function do_execthis()
 		pkg_file=""
 		#echo "[DEBUG] '$pkg_root','$pkg_repo','$pkg_name','$pkg_rawp'"
 		if [ "$pkg_rawp" == "go_raw" ]; then
-			go_loadrawl $pkg_root $pkg_repo
+			go_loadrawl $pkg_root $pkg_repo $pkg_arch
 			echo "[INFO] Looking RAW in $pkg_repo repo for '$pkg_name'..."
 			pkg_this="$(go_findrawl $pkg_repo $pkg_name $pkg_arch $pkg_vers)"
 			if [ "$pkg_this" != "" ]; then
