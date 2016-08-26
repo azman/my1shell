@@ -109,6 +109,9 @@ function do_lookup()
 	local pkg_file=${pkg_text##*SLACKBUILD DOWNLOAD: }
 	pkg_file=${pkg_file%%;*}
 	pkg_file=${pkg_file%% *}
+	local pkg_fil2=${pkg_text##*SLACKBUILD DOWNLOAD_x86_64: }
+	pkg_fil2=${pkg_fil2%%;*}
+	pkg_fil2=${pkg_fil2%% *}
 	# look for it!
 	wget --spider $pkg_path >/dev/null 2>&1
 	[ $? -ne 0 ] && echo -e "[ERROR] Cannot find $pkg_path!\n" >&2 && exit 1
@@ -122,6 +125,7 @@ function do_lookup()
 	[ $? -ne 0 ] && echo -e "[ERROR] Cannot extract $pkg_path!\n" >&2 && exit 1
 	# download source tarball
 	do_loadball $pkg_name $pkg_file
+	[ "$pkg_fil2" != "" ] && do_loadball $pkg_name $pkg_fil2
 	return 0
 }
 
