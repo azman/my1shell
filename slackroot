@@ -14,11 +14,11 @@ MY1_TOOL_LIB="libmy1slack"
 # look for config file
 for config in $(pwd) $HOME; do
 	config=$config/.$MY1_TOOLBASE
-	[[ -r $config ]] && source $config && break
+	[ -r $config ] && source $config && break
 done
 # look for my1slack library
 SLACKARCH=${SLACKARCH:="x86"} # force 32-bit slackware!
-[[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ]] && source $MY1_TOOLPATH/$MY1_TOOL_LIB
+[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && source $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 # my1slack tool specific
 MY1_TOOL_LOG=${MY1_TOOL_LOG:="/tmp/${MY1_TOOLBASE}.log"}
@@ -65,13 +65,13 @@ function do_root_update()
 	local pkg_list pkg_temp pkg_opts="--reinstall --install-new"
 	# check 'command-line'
 	shift # first param is chk_root
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		pkg_temp=$1
 		case $pkg_temp in
 			--exec) chk_exec="YES" ;;
 			--verbose) chk_syyy="NO" ;;
 			*)
-				if [[ ! -f $pkg_temp ]] ; then
+				if [ ! -f $pkg_temp ] ; then
 					warn_msg "File '$pkg_temp' not found! Not included!\n"
 				else
 					pkg_list="${pkg_list}$pkg_temp "
@@ -81,22 +81,22 @@ function do_root_update()
 		shift
 	done
 	# check valid root path... if executing!
-	[[ "$chk_exec" == "YES" ]] &&
+	[ "$chk_exec" == "YES" ] &&
 		must_have_path "$chk_root" "Root path '$chk_root' not found!"
 	# install packages in list to given root
-	if [[ "$chk_exec" == "YES" ]]; then
+	if [ "$chk_exec" == "YES" ]; then
 		echo "$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)" >$MY1_TOOL_LOG
 		echo "ExecTime: $(date +%Y%m%d%H%M)" >>$MY1_TOOL_LOG
 	fi
 	for pkg_file in $pkg_list; do
-		[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag "\n"
-		[[ "$chk_syyy" != "YES" ]] &&
+		[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
+		[ "$chk_syyy" != "YES" ] &&
 			info_msg "Updating $(basename $pkg_file) to $chk_root ..."
-		[[ "$chk_exec" == "YES" ]] &&
+		[ "$chk_exec" == "YES" ] &&
 			ROOT=$chk_root upgradepkg $pkg_opts $pkg_file >>$MY1_TOOL_LOG
-		[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag " done!"
+		[ "$chk_syyy" != "YES" ] && info_msg --no-tag " done!"
 	done
-	[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag "\n"
+	[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
 }
 
 function do_root_install()
@@ -107,13 +107,13 @@ function do_root_install()
 	local pkg_list pkg_temp
 	# check 'command-line'
 	shift # first param is chk_root
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		pkg_temp=$1
 		case $pkg_temp in
 			--exec) chk_exec="YES" ;;
 			--verbose) chk_syyy="NO" ;;
 			*)
-				if [[ ! -f $pkg_temp ]] ; then
+				if [ ! -f $pkg_temp ] ; then
 					warn_msg "File '$pkg_temp' not found! Not included!\n"
 				else
 					pkg_list="${pkg_list}$pkg_temp "
@@ -123,22 +123,22 @@ function do_root_install()
 		shift
 	done
 	# check valid root path... if executing!
-	[[ "$chk_exec" == "YES" ]] &&
+	[ "$chk_exec" == "YES" ] &&
 		must_have_path "$chk_root" "Root path '$chk_root' not found!"
 	# install packages in list to given root
-	if [[ "$chk_exec" == "YES" ]]; then
+	if [ "$chk_exec" == "YES" ]; then
 		echo "$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)" >$MY1_TOOL_LOG
 		echo "ExecTime: $(date +%Y%m%d%H%M)" >>$MY1_TOOL_LOG
 	fi
 	for pkg_file in $pkg_list; do
-		[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag "\n"
-		[[ "$chk_syyy" != "YES" ]] &&
+		[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
+		[ "$chk_syyy" != "YES" ] &&
 			info_msg "Installing $(basename $pkg_file) to $chk_root ..."
-		[[ "$chk_exec" == "YES" ]] &&
+		[ "$chk_exec" == "YES" ] &&
 			installpkg --root $chk_root $pkg_file >>$MY1_TOOL_LOG
-		[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag " done!"
+		[ "$chk_syyy" != "YES" ] && info_msg --no-tag " done!"
 	done
-	[[ "$chk_syyy" != "YES" ]] && info_msg --no-tag "\n"
+	[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
 }
 
 function do_pack_list()
@@ -161,7 +161,7 @@ function do_pack_list()
 	# select packages
 	for pkg_soft in $pkg_opts; do
 		cd $pkg_path
-		if [[ -d $pkg_soft ]] ; then
+		if [ -d $pkg_soft ] ; then
 			cd $pkg_soft
 			for pkg_name in $(find . -name "*.t[xg]z"|uniq|sort); do
 				pkg_file=${pkg_path}/${pkg_soft}/${pkg_name//.\//}
@@ -182,7 +182,7 @@ function rootfs_create()
 	local chk_syyy=""
 	local pkg_list pkg_temp tmp_list pkg_name pkg_base
 	# check parameters
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		case "$1" in
 			--path)
 				shift
@@ -217,32 +217,32 @@ function rootfs_create()
 		shift
 	done
 	# must be root to exec!
-	[[ "$chk_exec" == "--exec" ]] && must_be_root
+	[ "$chk_exec" == "--exec" ] && must_be_root
 	# check in case we're only simulating target root (need not exist!)
-	if [[ "$chk_exec" != "--exec" ]] ; then
-		if [[ "${chk_root:0:1}" != "/" ]] ; then
-			[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
+	if [ "$chk_exec" != "--exec" ] ; then
+		if [ "${chk_root:0:1}" != "/" ] ; then
+			[ "${chk_root:0:2}" == "./" ] && chk_root=${chk_root:2}
 			chk_root="$(pwd)/${chk_root}"
 		fi
 	fi
 	# check paths
-	[[ ! -d "$pkg_path" ]] && error_exit "Cannot find pkg path '$pkg_path'!"
-	[[ -d "$chk_root" ]] && error_exit "Existing root path '$chk_root'!"
+	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!"
+	[ -d "$chk_root" ] && error_exit "Existing root path '$chk_root'!"
 	info_msg "Source path: '$pkg_path'\n"
 	info_msg "Target path: '$chk_root'\n"
 	info_msg "Pack option: '$pkg_opts'\n"
 	# start main info msg
 	info_msg "Creating root filesystem... "
 	# if executing, check/create root path
-	if [[ "$chk_exec" == "--exec" ]] ; then
+	if [ "$chk_exec" == "--exec" ] ; then
 		mkdir -p $chk_root
 		chk_root=$(cd $chk_root;pwd)
-		[[ "$chk_syyy" == "--verbose" ]] &&
+		[ "$chk_syyy" == "--verbose" ] &&
 			info_msg "(Target path: '$chk_root') "
 	fi
 	# if package list given, use it!
-	if [[ "$pkg_opts" == "FILE" ]]; then
-		[[ ! -r $chk_file ]] &&
+	if [ "$pkg_opts" == "FILE" ]; then
+		[ ! -r $chk_file ] &&
 			error_msg "Cannot open package file '$chk_file'!\n" && return
 		ifs_save=$IFS
 		IFS=$'\n'
@@ -272,14 +272,14 @@ function chroot_config()
 	local chk_syyy="YES"
 	local chk_file
 	# check parameters (just look for root and exec)_
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		case "$1" in
 			--root)
 				shift
 				chk_root=$1
 				# ensure full pathname
-				if [[ "${chk_root:0:1}" != "/" ]] ; then
-					[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
+				if [ "${chk_root:0:1}" != "/" ] ; then
+					[ "${chk_root:0:2}" == "./" ] && chk_root=${chk_root:2}
 					chk_root="$(pwd)/${chk_root}"
 				fi
 				;;
@@ -314,61 +314,61 @@ SSHD_LINES
 local SHUTDOWN_ENTRY=$(cat <<SHUTDOWN_LINES
 # unbind $chk_root/dev 'recursively'
 chkpath=$chk_root/dev
-[[ "\$(cat /proc/mounts|grep \$chkpath)" != "" ]] &&
-	umount \$(cat /proc/mounts|awk '{print \$2}'|grep "^$chk_root/dev"|sort -r)
+[ "\$(cat /proc/mounts|grep \$chkpath)" != "" ] &&
+	umount -n \$(cat /proc/mounts|awk '{print \$2}'|grep "^\$chk_path"|sort -r)
 # unmount chroot mounts manually
 for a in etc tmp home sys proc; do
 	chkpath=$chk_root/\$a
-	[[ "\$(cat /proc/mounts|grep \$chkpath)" != "" ]] && umount \$chkpath
+	[ "\$(cat /proc/mounts|grep \$chkpath)" != "" ] && umount \$chkpath
 done
 SHUTDOWN_LINES
 )
 	# start main info msg
 	info_msg "Configuring chroot environment..."
 	# must be root to exec!
-	[[ "$chk_exec" == "YES" ]] && must_be_root
+	[ "$chk_exec" == "YES" ] && must_be_root
 	# check valid root path - only if executing
-	[[ "$chk_exec" == "YES" ]] &&
+	[ "$chk_exec" == "YES" ] &&
 		must_have_path "$chk_root" "Root path '$chk_root' not found!"
 	local do_echo="no"
 	# check fstab
-	if [[ "$(cat /etc/fstab | grep $chk_root)" == "" ]]; then
-		if [[ "$chk_syyy" == "NO" ]] ; then
+	if [ "$(cat /etc/fstab | grep $chk_root)" == "" ]; then
+		if [ "$chk_syyy" == "NO" ] ; then
 			check_msg --no-tag "\n"
 			check_msg "Adding text to /etc/fstab:"
 			echo -ne "\n$FSTAB_ENTRY"
 			do_echo="yes"
 		fi
-		[[ "$chk_exec" == "YES" ]] &&
+		[ "$chk_exec" == "YES" ] &&
 			echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
 	fi
 	# check sshd_config
-	if [[ "$(cat /etc/ssh/sshd_config | grep $chk_root)" == "" ]]; then
-		if [[ "$chk_syyy" == "NO" ]] ; then
+	if [ "$(cat /etc/ssh/sshd_config | grep $chk_root)" == "" ]; then
+		if [ "$chk_syyy" == "NO" ] ; then
 			check_msg --no-tag "\n"
 			check_msg "Adding text to /etc/ssh/sshd_config:"
 			echo -ne "\n$SSHD_ENTRY"
 			do_echo="yes"
 		fi
-		[[ "$chk_exec" == "YES" ]] &&
+		[ "$chk_exec" == "YES" ] &&
 			echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
 	fi
 	# check shutdown
 	chk_file="/etc/rc.d/rc.local_shutdown"
-	[[ "$chk_exec" == "YES" ]] && [[ ! -f "$chk_file" ]] && touch $chk_file
+	[ "$chk_exec" == "YES" ] && [ ! -f "$chk_file" ] && touch $chk_file
 	local chk_out=""
-	[[ -r "$chk_file" ]] && chk_out="$(cat $chk_file | grep $chk_root/dev)"
-	if [[ ! -f "$chk_file" ]] || [[ "$chk_out" == "" ]]; then
-		if [[ "$chk_syyy" == "NO" ]] ; then
+	[ -r "$chk_file" ] && chk_out="$(cat $chk_file | grep $chk_root/dev)"
+	if [ ! -f "$chk_file" ] || [ "$chk_out" == "" ]; then
+		if [ "$chk_syyy" == "NO" ] ; then
 			check_msg --no-tag "\n"
 			check_msg "Adding text to $chk_file:"
 			echo -ne "\n$SHUTDOWN_ENTRY"
 			do_echo="yes"
 		fi
-		[[ "$chk_exec" == "YES" ]] &&
+		[ "$chk_exec" == "YES" ] &&
 			echo -e "\n$SHUTDOWN_ENTRY" >> $chk_file
 	fi
-	[[ "$do_echo" == "yes" ]] && check_msg --no-tag "\n"
+	[ "$do_echo" == "yes" ] && check_msg --no-tag "\n"
 	# end main info msg
 	info_msg --no-tag "done.\n"
 }
@@ -381,36 +381,36 @@ function rootfs_custom()
 	# start main info msg
 	info_msg "Preparing root account and a user ('$chk_user')..."
 	# check 'command-line' for verbose option!
-	[[ "$(echo $@ | grep -e '--exec')" != "" ]] && chk_exec="--exec"
-	[[ "$(echo $@ | grep -e '--verbose')" != "" ]] && chk_syyy="--verbose"
+	[ "$(echo $@ | grep -e '--exec')" != "" ] && chk_exec="--exec"
+	[ "$(echo $@ | grep -e '--verbose')" != "" ] && chk_syyy="--verbose"
 	# change root password
-	[[ "$chk_syyy" == "--verbose" ]] && echo
-	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Changing root password...\n"
-	[[ "$chk_exec" == "--exec" ]] && chroot $chk_root passwd
+	[ "$chk_syyy" == "--verbose" ] && echo
+	[ "$chk_syyy" == "--verbose" ] && info_msg "Changing root password...\n"
+	[ "$chk_exec" == "--exec" ] && chroot $chk_root passwd
 	# add a user
-	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Adding user '$chk_user'...\n"
-	[[ "$chk_exec" == "--exec" ]] &&
+	[ "$chk_syyy" == "--verbose" ] && info_msg "Adding user '$chk_user'...\n"
+	[ "$chk_exec" == "--exec" ] &&
 		chroot $chk_root useradd -m -g users -s /bin/bash $chk_user
 	# Assign user to useful group(s)...
-	[[ "$chk_syyy" == "--verbose" ]] &&
+	[ "$chk_syyy" == "--verbose" ] &&
 		info_msg "Adding user to groups power,plugdev,netdev...\n"
-	[[ "$chk_exec" == "--exec" ]] &&
+	[ "$chk_exec" == "--exec" ] &&
 		chroot $chk_root usermod -a -G power,plugdev,netdev $chk_user
-	[[ "$chk_syyy" == "--verbose" ]] &&
+	[ "$chk_syyy" == "--verbose" ] &&
 		info_msg "Adding user to groups cdrom,floppy...\n"
-	[[ "$chk_exec" == "--exec" ]] &&
+	[ "$chk_exec" == "--exec" ] &&
 		chroot $chk_root usermod -a -G cdrom,floppy $chk_user
-	[[ "$chk_syyy" == "--verbose" ]] &&
+	[ "$chk_syyy" == "--verbose" ] &&
 		info_msg "Adding user to groups audio,video...\n"
-	[[ "$chk_exec" == "--exec" ]] &&
+	[ "$chk_exec" == "--exec" ] &&
 		chroot $chk_root usermod -a -G audio,video $chk_user
-	[[ "$chk_syyy" == "--verbose" ]] &&
+	[ "$chk_syyy" == "--verbose" ] &&
 		info_msg "Adding user to groups scanner,lp,dialout...\n"
-	[[ "$chk_exec" == "--exec" ]] &&
+	[ "$chk_exec" == "--exec" ] &&
 		chroot $chk_root usermod -a -G scanner,lp,dialout $chk_user
 	# change user password
-	[[ "$chk_syyy" == "--verbose" ]] && info_msg "Changing user password...\n"
-	[[ "$chk_exec" == "--exec" ]] &&
+	[ "$chk_syyy" == "--verbose" ] && info_msg "Changing user password...\n"
+	[ "$chk_exec" == "--exec" ] &&
 		chroot $chk_root passwd $chk_user
 	# end main info msg
 	info_msg --no-tag "done!\n"
@@ -424,20 +424,20 @@ function copy_exec() # for reference
 	local tgt_path=$2
 	local chk_root=$3 # chroot option!
 	local chk_libs ifs_save this_lib chk_path chk_exec opt_root
-	[[ -d "$chk_root" ]] && chk_root=$(cd $chk_root;pwd) || chk_root=""
-	[[ "$chk_root" != "" ]] && [[ ! -d "$chk_root/proc" ]] &&
+	[ -d "$chk_root" ] && chk_root=$(cd $chk_root;pwd) || chk_root=""
+	[ "$chk_root" != "" ] && [ ! -d "$chk_root/proc" ] &&
 		echo -e "'$chk_root' may not be a chroot target?\n" && exit 1
-	[[ "$chk_root" != "" ]] && opt_root="chroot $chk_root"
-	[[ "$chk_root" != "" ]] && mount --bind /proc $chk_root/proc
+	[ "$chk_root" != "" ] && opt_root="chroot $chk_root"
+	[ "$chk_root" != "" ] && mount --bind /proc $chk_root/proc
 	# find full path
 	src_exec=$($opt_root which $src_exec 2>/dev/null)
-	[[ $? -ne 0 ]] && echo -e "'$1' NOT found! Aborting!\n" && exit 1
+	[ $? -ne 0 ] && echo -e "'$1' NOT found! Aborting!\n" && exit 1
 	chk_exec=${chk_root}${src_exec}
-	[[ ! -e "$chk_exec" ]] &&
+	[ ! -e "$chk_exec" ] &&
 		echo -e "'$chk_exec' NOT a valid executable! Aborting!\n" && exit 1
 	# check target path
 	tgt_path=$(cd $tgt_path;pwd)
-	[[ ! -d $tgt_path ]] &&
+	[ ! -d $tgt_path ] &&
 		echo -e "'$2' NOT a valid path?! Aborting!\n" && exit 1
 	# copy exec AND dependencies!
 	cp $chk_exec $tgt_path
@@ -448,12 +448,12 @@ function copy_exec() # for reference
 	for (( x=0;x<${#chk_libs[@]};x++ )); do
 		this_lib=${chk_libs[$x]%% (0x*}
 		this_lib=${this_lib##*=> }
-		[[ "$this_lib" == "" ]] && continue # linux-vdso.so.1!!
+		[ "$this_lib" == "" ] && continue # linux-vdso.so.1!!
 		this_lib=${chk_root}$this_lib
-		[[ ! -f $this_lib ]] && error_exit "Cannot find lib '$this_lib'?"
+		[ ! -f $this_lib ] && error_exit "Cannot find lib '$this_lib'?"
 		cp $this_lib $tgt_path
 	done
-	[[ "$chk_root" != "" ]] && umount $chk_root/proc
+	[ "$chk_root" != "" ] && umount $chk_root/proc
 }
 
 # copy_file busybox $path_init/bin
@@ -464,7 +464,7 @@ function copy_file() # for reference
 	local tgt_path=$2
 	# check source file full name
 	src_file=$(cd $(dirname $src_file);pwd)/$(basename $src_file)
-	[[ ! -e "$src_file" ]] && error_exit "Cannot find '$src_file'!"
+	[ ! -e "$src_file" ] && error_exit "Cannot find '$src_file'!"
 	# check target path
 	tgt_path=$(cd $tgt_path;pwd)
 	must_have_path "$tgt_path" "'$tgt_path' NOT a valid path?!"
@@ -500,9 +500,9 @@ function get_userngrp()
 	local chk_this=$1
 	local chk_path
 	local chk_user chk_grpn
-	[[ "$chk_this" == "." ]] && chk_this=$(pwd)
-	[[ "$chk_this" == ".." ]] && chk_this=$(cd .. ;pwd)
-	[[ ! -r "$chk_this" ]] && echo -e "Cannot read '$chk_this'!" 1>&2 && return
+	[ "$chk_this" == "." ] && chk_this=$(pwd)
+	[ "$chk_this" == ".." ] && chk_this=$(cd .. ;pwd)
+	[ ! -r "$chk_this" ] && echo -e "Cannot read '$chk_this'!" 1>&2 && return
 	chk_path=$(cd $(dirname $chk_this);pwd)
 	chk_this=$(basename $chk_this)
 	chk_user=$(ls -l "${chk_path}/" | grep -e "${chk_this}$")
@@ -527,7 +527,7 @@ function build_module()
 	info_msg "Creating module '$mods_file'..."
 	# check 'command-line'
 	shift # first param is mod_label
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		pkg_temp=$1
 		case $pkg_temp in
 			--live)
@@ -546,7 +546,7 @@ function build_module()
 	done
 	# if executing, do a sanity check
 	mods_path=${path_live}/${mods_path}
-	if [[ "$chk_exec" == "YES" ]] ; then
+	if [ "$chk_exec" == "YES" ] ; then
 		# exit if cannot find binary!
 		find_binary $MKSQUASHFS_BIN >/dev/null &&
 		MKSQUASHFS_BIN=$(find_binary $MKSQUASHFS_BIN)
@@ -554,21 +554,21 @@ function build_module()
 		mkdir -p $mods_path
 		rm -f ${mods_path}/${mods_file}
 		# exit if cannot find root path
-		[[ ! -d "$path_root" ]] && error_exit "Root '$path_root' NOT found!"
+		[ ! -d "$path_root" ] && error_exit "Root '$path_root' NOT found!"
 	else
-		[[ "$(which $MKSQUASHFS_BIN 2>/dev/null)" == "" ]] &&
+		[ "$(which $MKSQUASHFS_BIN 2>/dev/null)" == "" ] &&
 			warn_msg "Cannot find $MKSQUASHFS_BIN! "
 	fi
 	# process!
-	[[ "$chk_syyy" == "NO" ]] && echo && info_msg "Module path: '$mods_path'\n"
-	[[ "$chk_syyy" == "NO" ]] && info_msg "Preparing module '$mods_file'..."
-	if [[ "$chk_exec" == "YES" ]] ; then
+	[ "$chk_syyy" == "NO" ] && echo && info_msg "Module path: '$mods_path'\n"
+	[ "$chk_syyy" == "NO" ] && info_msg "Preparing module '$mods_file'..."
+	if [ "$chk_exec" == "YES" ] ; then
 		$MKSQUASHFS_BIN $path_root $mods_path/$mods_file \
 			$opt_compress -e tmp dev proc sys $mods_path >/dev/null 2>&1
 		local chk_perm=$(get_userngrp $path_live)
-		[[ "$chk_perm" != "" ]] && chown $chk_perm -R $path_live
+		[ "$chk_perm" != "" ] && chown $chk_perm -R $path_live
 	fi
-	[[ "$chk_syyy" == "NO" ]] && info_msg --no-tag " done! ($?)\n"
+	[ "$chk_syyy" == "NO" ] && info_msg --no-tag " done! ($?)\n"
 	# end main info msg
 	info_msg --no-tag "done!\n"
 }
@@ -583,14 +583,14 @@ function squash_create()
 	local chk_syyy=""
 	local chk_init=""
 	# check parameters
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		case "$1" in
 			--root)
 				shift
 				chk_root=$1
 				# ensure full pathname
-				if [[ "${chk_root:0:1}" != "/" ]] ; then
-					[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
+				if [ "${chk_root:0:1}" != "/" ] ; then
+					[ "${chk_root:0:2}" == "./" ] && chk_root=${chk_root:2}
 					chk_root="$(pwd)/${chk_root}"
 				fi
 				;;
@@ -598,8 +598,8 @@ function squash_create()
 				shift
 				chk_live=$1
 				# ensure full pathname
-				if [[ "${chk_live:0:1}" != "/" ]] ; then
-					[[ "${chk_live:0:2}" == "./" ]] && chk_live=${chk_live:2}
+				if [ "${chk_live:0:1}" != "/" ] ; then
+					[ "${chk_live:0:2}" == "./" ] && chk_live=${chk_live:2}
 					chk_live="$(pwd)/${chk_live}"
 				fi
 				;;
@@ -628,7 +628,7 @@ function squash_create()
 	info_msg "Root path: '$chk_root'\n"
 	info_msg "Live path: '$chk_live'\n"
 	# do your thing!
-	if [[ "$chk_init" == "YES" ]] ; then
+	if [ "$chk_init" == "YES" ] ; then
 		info_msg "User: $chk_user\n"
 		rootfs_custom $chk_root $chk_user $chk_exec $chk_syyy
 	fi
@@ -666,17 +666,17 @@ function find_patches_root()
 		# find installed
 		pkg_temp="^${pat_name}-[^-]*-[^-]*-[^-]*$"
 		pkg_base=$(ls $log_path | grep -e "$pkg_temp")
-		[[ "$pkg_base" == "" ]] && continue
+		[ "$pkg_base" == "" ] && continue
 		pkg_temp=($(get_pkg_info $pkg_base))
 		pkg_name="${pkg_temp[0]}"
 		pkg_vers="${pkg_temp[1]}"
 		pkg_arch="${pkg_temp[2]}"
 		pkg_extd="${pkg_temp[3]}"
 		# skip if for different arch!
-		[[ "$pkg_arch" != "$pat_arch" ]] && continue
+		[ "$pkg_arch" != "$pat_arch" ] && continue
 		# check version update
-		if [[ "$pkg_vers" == "$pat_vers" ]] &&
-			[[ "$pkg_extd" == "$pat_extd" ]]; then
+		if [ "$pkg_vers" == "$pat_vers" ] &&
+			[ "$pkg_extd" == "$pat_extd" ]; then
 			chk_stat="pdone"
 		else
 			chk_stat="check"
@@ -694,7 +694,7 @@ function rootfs_update()
 	local chk_syyy=""
 	local pkg_list pkg_temp pkg_name pkg_base tmp_list chk_temp
 	# check parameters
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		case "$1" in
 			--path)
 				shift
@@ -715,16 +715,16 @@ function rootfs_update()
 		shift
 	done
 	# must be root to exec!
-	[[ "$chk_exec" == "--exec" ]] && must_be_root
+	[ "$chk_exec" == "--exec" ] && must_be_root
 	# ensure full path for chk_root
-	if [[ "${chk_root:0:1}" != "/" ]] ; then
-		[[ "${chk_root:0:2}" == "./" ]] && chk_root=${chk_root:2}
+	if [ "${chk_root:0:1}" != "/" ] ; then
+		[ "${chk_root:0:2}" == "./" ] && chk_root=${chk_root:2}
 		chk_root="$(pwd)/${chk_root}"
 	fi
 	pkg_path="$(cd ${pkg_path}/../patches;pwd)"
 	# check paths
-	[[ ! -d "$pkg_path" ]] && error_exit "Cannot find pkg path '$pkg_path'!"
-	[[ ! -d "$chk_root" ]] && error_exit "Cannot find root path '$chk_root'!"
+	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!"
+	[ ! -d "$chk_root" ] && error_exit "Cannot find root path '$chk_root'!"
 	info_msg "Source path: '$pkg_path'\n"
 	info_msg "Target path: '$chk_root'\n"
 	# start main info msg
@@ -758,9 +758,9 @@ function process_command()
 	shift
 	# check command
 	for tcommand in $go_commands; do
-		[[ "$chk_command" == "$tcommand" ]] && do_command=$chk_command && break
+		[ "$chk_command" == "$tcommand" ] && do_command=$chk_command && break
 	done
-	[[ "$do_command" == "" ]] && echo -e "$MSG_THISHELP\n" && exit 0
+	[ "$do_command" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
 	# execute command
 	case $do_command in
 		create) rootfs_create $@ ;;
