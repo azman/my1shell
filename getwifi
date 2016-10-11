@@ -189,7 +189,7 @@ if [ "$WIFI_WPA_SUPP" == "" ]; then
 fi
 
 echo -n "Configuring $WIFI_DEV..."
-iwconfig $WIFI_DEV essid $WIFI_SSID $WIFI_ENC >>$WIFI_LOGFILE
+iwconfig $WIFI_DEV essid "$WIFI_SSID" $WIFI_ENC >>$WIFI_LOGFILE
 ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >>$WIFI_LOGFILE
 echo "done."
 
