@@ -15,24 +15,24 @@ case $SLACKARCH in
 	x86_64) SLACKARCH="64" ;;
 	*)
 		SLACKARCH=$(find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null)
-		if [[ "$SLACKARCH" == "/lib64" ]] ; then SLACKARCH="64"
+		if [ "$SLACKARCH" == "/lib64" ] ; then SLACKARCH="64"
 		else SLACKARCH="" ; fi ;;
 esac
 # get slackware release version - not sure if current is supported!
 SLACKNAME=${SLACKNAME:="slackware$SLACKARCH"}
 SLACKVERS=${SLACKVERS:=""}
-if [[ "$SLACKVERS" == "" ]]; then
+if [ "$SLACKVERS" == "" ]; then
 	SLACKVERS=$(cat /etc/slackware-version)
 	SLACKVERS=${SLACKVERS#Slackware }
 	SLACKVMAJ=${SLACKVERS%%.*}
 	SLACKVMIN=${SLACKVERS#*.}
-	[[ "${SLACKVMIN//./}" != "$SLACKVMIN" ]] && SLACKVMIN=${SLACKVMIN%%.*}
+	[ "${SLACKVMIN//./}" != "$SLACKVMIN" ] && SLACKVMIN=${SLACKVMIN%%.*}
 	SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
 fi
 # find slackware tree
 SLACKRELEASE=${SLACKRELEASE:="$SLACKNAME-$SLACKVERS"}
 SLACKROOTDIR=${SLACKROOTDIR:=""}
-if [[ "$SLACKROOTDIR" == "" ]]; then
+if [ "$SLACKROOTDIR" == "" ]; then
 	SLACKFINDDIR=${SLACKFINDDIR:="/home"} # default path to look for
 	SLACKFINDOPT="-maxdepth 3 -name $SLACKRELEASE"
 	SLACKROOTDIR=$(find $SLACKFINDDIR $SLACKFINDOPT -type d 2>/dev/null)
@@ -50,9 +50,9 @@ function tag_msg()
 	local msg_tag=$1 ; shift
 	local col_tag=$1 ; shift
 	local out_err="yes"
-	[[ "$1" == "--stdout" ]] && out_err="" && shift
-	[[ "$1" == "--no-tag" ]] && msg_tag="" && shift
-	if [[ "$out_err" == "yes" ]]; then
+	[ "$1" == "--stdout" ] && out_err="" && shift
+	[ "$1" == "--no-tag" ] && msg_tag="" && shift
+	if [ "$out_err" == "yes" ]; then
 		echo -ne "\033[1;${col_tag}m${msg_tag}\033[0;${col_tag}m $1\033[0m" 1>&2
 	else
 		echo -ne "\033[1;${col_tag}m${msg_tag}\033[0;${col_tag}m $1\033[0m"
@@ -101,7 +101,7 @@ function info_msg()
 	tag_msg "$info0_tag" "$color_tag" "--stdout" "$@"
 }
 
-if [[ "$MY1_DEBUG" == "YES" ]]; then
+if [ "$MY1_DEBUG" == "YES" ]; then
 	echo
 	debug_msg "my1slack Library Name is $MY1_LIBNAME"
 	debug_msg "my1slack Library Version is $MY1_LIBVERS"
@@ -117,21 +117,21 @@ function find_binary()
 	local chk_exec=$1
 	local set_exec=$(which $chk_exec 2>/dev/null)
 	echo -n $set_exec
-	[[ "$msg_fail" == "" ]] && msg_fail="Binary '$chk_exec' not found!"
-	[[ "$set_exec" == "" ]] && error_exit "$msg_fail"
+	[ "$msg_fail" == "" ] && msg_fail="Binary '$chk_exec' not found!"
+	[ "$set_exec" == "" ] && error_exit "$msg_fail"
 }
 
 function must_have_path()
 {
 	local chk_path=$1 ; shift
 	local msg_fail=$@
-	[[ "$msg_fail" == "" ]] && msg_fail="Path '$chk_path' not found!"
-	[[ ! -d "$chk_path"  ]] && error_exit "$msg_fail"
+	[ "$msg_fail" == "" ] && msg_fail="Path '$chk_path' not found!"
+	[ ! -d "$chk_path"  ] && error_exit "$msg_fail"
 }
 
 function must_be_root()
 {
-	[[ $UID -ne 0 ]] && error_exit "Must run as root!"
+	[ $UID -ne 0 ] && error_exit "Must run as root!"
 }
 
 function get_pkg_info()
@@ -153,7 +153,7 @@ function get_pathpack()
 	# make a package list from custom path
 	local pkg_list=""
 	local pkg_pack="$(cd $1;pwd)"
-	if [[ -d $pkg_pack ]]; then
+	if [ -d $pkg_pack ]; then
 		cd $pkg_pack
 		for pkg_file in *.t[gx]z; do
 			pkg_list="$pkg_list ${pkg_file%.t[gx]z}" # trim extension
@@ -177,7 +177,7 @@ function get_packsoft()
 	for pkg_path in ${SLACKPKGPATH}/* ; do
 		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z$"
 		local pkg_test=$(ls $pkg_path | grep -e "$pkg_temp")
-		if [[ "$pkg_test" != "" ]] ; then
+		if [ "$pkg_test" != "" ] ; then
 			pkg_soft="${pkg_path##*/}"
 			break
 		fi
@@ -205,10 +205,10 @@ function comp_package()
 	pkg2_arch="${pkg_temp[2]}"
 	pkg2_extd="${pkg_temp[3]}"
 	# do compare!
-	[[ "$pkg1_name" == "$pkg2_name" ]] || return 1
-	[[ "$pkg1_vers" == "$pkg2_vers" ]] || return 2
-	[[ "$pkg1_arch" == "$pkg2_arch" ]] || return 3
-	[[ "$pkg1_extd" == "$pkg2_extd" ]] || return 4
+	[ "$pkg1_name" == "$pkg2_name" ] || return 1
+	[ "$pkg1_vers" == "$pkg2_vers" ] || return 2
+	[ "$pkg1_arch" == "$pkg2_arch" ] || return 3
+	[ "$pkg1_extd" == "$pkg2_extd" ] || return 4
 	# okay.. the same!
 	return 0
 }
@@ -236,7 +236,7 @@ function find_install_desc()
 	local pkg_temp="\<${pkg_name}-[^-]*-[^-]*-[^-]*$"
 	local pkg_test=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
 	local pkgs_txt="$SLACKINSTLOG/$pkg_test"
-	[[ "$pkg_test" = "" ]] && return
+	[ "$pkg_test" = "" ] && return
 	echo -n "$(find_desc $pkg_name $pkgs_txt)"
 }
 
@@ -252,7 +252,7 @@ function find_info()
 	#local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
 	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*$"
 	local pkg_test="$(cat $pkgs_txt | grep -e "$pkg_temp" -A3)"
-	[[ "$pkg_test" = "" ]] && return
+	[ "$pkg_test" = "" ] && return
 	# extract basic info
 	local chk_name="PACKAGE NAME:"
 	pkg_file=$(echo "$pkg_test" | grep "^$chk_name")
@@ -261,17 +261,17 @@ function find_info()
 	pkg_path=$(echo "$pkg_test" | grep "^$chk_name")
 	pkg_path="${pkg_path##${check_name}* }"
 	# check if location provided by /var/log
-	if [[ "${pkg_path//\/var\/log\/mount\//}" != "${pkg_path}" ]] ; then
+	if [ "${pkg_path//\/var\/log\/mount\//}" != "${pkg_path}" ] ; then
 		pkg_file=${pkg_path##*/}
 		pkg_path=${pkg_path%${pkg_file}}
 		pkg_path=${SLACKPKGPATH}/${pkg_path//\/var\/log\/mount\//}
-	elif [[ "${pkg_path:0:2}" == "./" ]] ; then
+	elif [ "${pkg_path:0:2}" == "./" ] ; then
 		pkg_path="${SLACKRELPATH}/${pkg_path:2}"
 	fi
 	pkg_base=${pkg_file%.t[gx]z}
 	chk_name="PACKAGE SIZE (compressed): "
 	pkg_size=$(echo "$pkg_test" | grep "^$chk_name")
-	if [[ "$pkg_size" == "" ]] ; then
+	if [ "$pkg_size" == "" ] ; then
 		chk_name="COMPRESSED PACKAGE SIZE:"
 		pkg_size=$(echo "$pkg_test" | grep -e "^$chk_name")
 		pkg_size="${pkg_size##${chk_name}* }"
@@ -281,7 +281,7 @@ function find_info()
 	fi
 	chk_name="PACKAGE SIZE (uncompressed):"
 	pkg_full=$(echo "$pkg_test" | grep "^$chk_name")
-	if [[ "$pkg_full" == "" ]] ; then
+	if [ "$pkg_full" == "" ] ; then
 		chk_name="UNCOMPRESSED PACKAGE SIZE:"
 		pkg_full=$(echo "$pkg_test" | grep -e "^$chk_name")
 		pkg_full="${pkg_full##${chk_name}* }"
@@ -300,14 +300,14 @@ function find_package()
 	local pkg_flag="$2"
 	local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
 	local pkg_base=$(cat $SLACKPKGFILE | grep -e "$pkg_temp")
-	[[ "$pkg_base" == "" ]] && [[ -r "$SLACKEXTFILE" ]] &&
+	[ "$pkg_base" == "" ] && [ -r "$SLACKEXTFILE" ] &&
 		pkg_base=$(cat $SLACKEXTFILE | grep -e "$pkg_temp")
-	[[ "$pkg_base" == "" ]] && return
+	[ "$pkg_base" == "" ] && return
 	pkg_base="${pkg_base##* }"
 	pkg_base="${pkg_base%.t[gx]z}"
-	[[ "$pkg_flag" != "--full" ]] && echo -n "$pkg_base" && return
+	[ "$pkg_flag" != "--full" ] && echo -n "$pkg_base" && return
 	local pkg_test="$(find_info $pkg_name $SLACKPKGFILE)"
-	[[ "$pkg_test" = "" ]] && [[ -r "$SLACKEXTFILE" ]] &&
+	[ "$pkg_test" = "" ] && [ -r "$SLACKEXTFILE" ] &&
 		pkg_test="$(find_info $pkg_name $SLACKEXTFILE)"
 	echo -n "$pkg_test"
 }
@@ -319,8 +319,8 @@ function find_install()
 	local pkg_flag="$2"
 	local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
 	local pkg_base=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
-	[[ "$pkg_base" == "" ]] && return
-	[[ "$pkg_flag" != "--full" ]] && echo -n "$pkg_base" && return
+	[ "$pkg_base" == "" ] && return
+	[ "$pkg_flag" != "--full" ] && echo -n "$pkg_base" && return
 	local pkgs_txt="$SLACKINSTLOG/$pkg_base"
 	echo -n "$(find_info $pkg_name $pkgs_txt)"
 }
@@ -330,8 +330,8 @@ function show_info()
 	# get package info
 	local pkg_name="$1"
 	local pkg_info="$(find_install $pkg_name --full)"
-	[[ "$pkg_info" == "" ]] && pkg_info="$(find_package $pkg_name --full)"
-	[[ "$pkg_info" == "" ]] && return 1
+	[ "$pkg_info" == "" ] && pkg_info="$(find_package $pkg_name --full)"
+	[ "$pkg_info" == "" ] && return 1
 	# info structure?
 	local pkg_temp pkg_test pkg_name pkg_vers pkg_arch pkg_extd 
 	local pkg_base pkg_file pkg_path pkg_size pkg_full
@@ -348,9 +348,9 @@ function show_info()
 	pkg_extd="${pkg_temp[3]}"
 	# status flags
 	local pkg_flag=""
-	[[ "$(find_install $pkg_name)" == "" ]] && pkg_flag="NOT "
+	[ "$(find_install $pkg_name)" == "" ] && pkg_flag="NOT "
 	local pkg_stat=""
-	[[ "$(find_package $pkg_name)" == "" ]] && pkg_stat=" (ALIEN!)"
+	[ "$(find_package $pkg_name)" == "" ] && pkg_stat=" (ALIEN!)"
 	# do the printing
 	local title="PACKAGE <$pkg_name> - BEGIN"
 	local trail="PACKAGE <$pkg_name> - END"
@@ -365,7 +365,7 @@ function show_info()
 	echo "SIZE (Compressed)  : $pkg_size"
 	echo "SIZE (Uncompressed): $pkg_full"
 	echo "INSTALL STATUS     : ${pkg_flag}INSTALLED"
-	[[ "$pkg_desc" != "" ]] &&
+	[ "$pkg_desc" != "" ] &&
 	echo "DESCRIPTION        : " && echo -e "$pkg_desc"
 	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
 	echo "$trail"
@@ -397,7 +397,7 @@ function format_text()
 	local default="39"
 	# check options
 	local attr color text
-	while [[ "$1" != "" ]] ; do
+	while [ "$1" != "" ] ; do
 		case "$1" in
 		--reset) attr="0" ;;
 		--bold) attr=$bold ;;
@@ -417,16 +417,16 @@ function format_text()
 			esac
 			;;
 		*)
-			[[ "$MY1_DEBUG" == "YES" ]] &&
+			[ "$MY1_DEBUG" == "YES" ] &&
 				echo "Attribute: $attr, Color: $color"
-			if [[ "$color" != "" ]] ; then
-				[[ "$attr" == "" ]] && attr="0"
+			if [ "$color" != "" ] ; then
+				[ "$attr" == "" ] && attr="0"
 				color="\033[${attr};${color}m"
 			else
-				[[ "$attr" != "" ]] &&
+				[ "$attr" != "" ] &&
 					color="\033[${attr}m"
 			fi
-			if [[ "$color" == "" ]] ;  then
+			if [ "$color" == "" ] ;  then
 				text="${text}${1} "
 			else
 				text="${text}${color}${1}${ends} "
