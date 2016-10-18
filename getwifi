@@ -185,7 +185,7 @@ fi
 
 # configure for WEP key & assign ssid
 if [ "$WIFI_WPA_SUPP" == "" ]; then
-	[ "$WIFI_ENCS" != "" ] && WIFI_ENCS="enc $WIFI_ENCS"
+	[ "$WIFI_ENCS" != "" ] && WIFI_ENCS="key open s:$WIFI_ENCS"
 fi
 
 echo -n "Configuring $WIFI_DEV..."
@@ -208,7 +208,7 @@ fi
 
 if [ "$WIFI_RUN_DHCP" == "yes" ]; then
 	echo -n "Starting DHCP client daemon on $WIFI_DEV..."
-	dhcpcd -h $(hostname) $WIFI_DEV 2>/dev/null >>$WIFI_LOGFILE
+	dhcpcd $WIFI_DEV 2>/dev/null >>$WIFI_LOGFILE
 	retval=$?
 	[ $retval -ne 0 ] && echo -n "(dhcpcd) Return Error [$retval]? "
 	echo "done."
