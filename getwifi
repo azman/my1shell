@@ -158,7 +158,7 @@ fi
 echo -n "Looking for $WIFI_DEV..."
 [ "$(iwconfig 2>/dev/null | grep "$WIFI_DEV")" == "" ] &&
 	echo "NOT FOUND! Exiting!" && exit 0
-echo "found."
+echo " found."
 
 # try to look for requested SSID
 ifconfig $WIFI_DEV up
@@ -189,9 +189,15 @@ if [ "$WIFI_WPA_SUPP" == "" ]; then
 fi
 
 echo -n "Configuring $WIFI_DEV..."
-iwconfig $WIFI_DEV essid "$WIFI_SSID" $WIFI_ENC >>$WIFI_LOGFILE
-ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >>$WIFI_LOGFILE
-echo "done."
+iwconfig $WIFI_DEV essid "$WIFI_SSID" $WIFI_ENCS >>$WIFI_LOGFILE
+while [ "$WIFI_ENCS" != "" ] ; do
+	echo -n "."
+	CONN=`iwconfig $WIFI_DEV | sed -n "s/^.*Access Point: \([^ ]*\) .*$/\1/ p"`
+	[ "$CONN" != "Not-Associated" ] && break;
+done
+[ "$WIFI_MSK" != "" ] &&
+	ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >>$WIFI_LOGFILE
+echo " done."
 
 if [ "$WIFI_WPA_SUPP" == "yes" ]; then
 	[ ! -f "$WIFI_WPA_CONF" ] &&
