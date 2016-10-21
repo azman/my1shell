@@ -268,6 +268,11 @@ function find_info()
 	elif [ "${pkg_path:0:2}" == "./" ] ; then
 		pkg_path="${SLACKRELPATH}/${pkg_path:2}"
 	fi
+	#installed packages have package file info in location!
+	if [ "${pkg_file%.t[gx]z}" == "$pkg_file" ]; then
+		pkg_file=${pkg_path##*/}
+		pkg_path=${pkg_path%/${pkg_file}}
+	fi
 	pkg_base=${pkg_file%.t[gx]z}
 	chk_name="PACKAGE SIZE (compressed): "
 	pkg_size=$(echo "$pkg_test" | grep "^$chk_name")
@@ -329,8 +334,8 @@ function show_info()
 {
 	# get package info
 	local pkg_name="$1"
-	local pkg_info="$(find_install $pkg_name --full)"
-	[ "$pkg_info" == "" ] && pkg_info="$(find_package $pkg_name --full)"
+	local pkg_info="$(find_package $pkg_name --full)"
+	[ "$pkg_info" == "" ] && pkg_info="$(find_install $pkg_name --full)"
 	[ "$pkg_info" == "" ] && return 1
 	# info structure?
 	local pkg_temp pkg_test pkg_name pkg_vers pkg_arch pkg_extd 
