@@ -14,8 +14,9 @@ CFGFILE="$CURPATH/.$MY1TOOL"
 
 # tool & env setup
 RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
-RSYNCURL=${RSYNCURL:="user@server:/path/to/home/"}
 RSYNCOPT=${RSYNCOPT:="-e ssh -rpltD --partial --progress --dry-run"}
+# RSYNCURL="user@server:/path/to/home/"
+RSYNCURL=${RSYNCURL:=""}
 LOCALURL=${LOCALURL:="."}
 
 # make sure rsync is available!
@@ -26,7 +27,7 @@ LOCALURL=${LOCALURL:="."}
 	INCLUDES="$INCLUDES --include=/" && shift
 
 # enforce this!
-[ "$RSYNCURL" == "" ] && echo "Server URL not specified!" && exit 1
+[ "$RSYNCURL" == "" ] && echo "Remote URL not specified!" && exit 1
 
 # check target & source
 RSYNCSRC="${RSYNCURL}"
@@ -41,6 +42,21 @@ INCLUDES=${INCLUDES:=""}
 # check parameters
 while  [ "$1" != "" ]; do
 	case $1 in
+		-h|--help)
+			echo "Usage:"
+			echo "  $(basename $0) [parameters] ..."
+			echo "The script's parameters are:"
+			echo "  --help            This help"
+			echo "  --upload          Use local as source instead"
+			echo "  --reload          Delete excluded files"
+			echo "  --delete          Delete if not in source"
+			echo "  --update          Sync newer files only"
+			echo "  --dolink          Copy links as well (now default?)"
+			echo "  --exec            Execute (else, only dry-run)"
+			echo "  --exclude=/path/  Specify additional exclude path"
+			echo "  --include=/path/  Specify additional include path"
+			exit
+			;;
 		--upload)
 			RSYNCTMP="${RSYNCSRC}"
 			RSYNCSRC="${RSYNCTGT}"
