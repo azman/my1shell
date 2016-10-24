@@ -5,30 +5,27 @@ THISPATH=`pwd`
 THISHOST=`hostname`
 WORKPATH="/tmp"
 WORKFILE="${THISHOST}_ip"
-LOG_FILE=`basename $0 .sh`
+LOG_FILE=`basename $0 .sh`.log
 TGT_HOST="$1"
-
-cd $WORKPATH
-DATE=`date $DATE_FMT`
-LOG_FILE=${LOG_FILE}.log
-[ ! -f $LOG_FILE ] &&
-	echo "[$DATE]: IP CHANGE LOG FILE CREATED" >> $LOG_FILE
-echo "[$DATE]: IP CHANGE DETECTION SEQUENCE" >> $LOG_FILE
 
 CURR_IP=`ifconfig | grep -v 127.0.0.1 | grep 'inet '`
 CURR_IP=`echo $CURR_IP | sed 's/.*inet \([^\s]*\)\s.*/\1/'`
 BASE_IP=`echo $CURR_IP | sed 's/\.[0-9]*$//'`
 #echo "CHECK_IP: $CURR_IP ($BASE_IP)"
 
+cd $WORKPATH
 [ -f ${WORKFILE} ] &&
-	OLDIP=`cut -f1 -d' ' ${WORKFILE}`
-echo "$CURR_IP ($BASE_IP) [$DATE]" > ${WORKFILE}
-NEWIP=`cut -f1 -d' ' ${WORKFILE}`
-
-if [ "$NEWIP" != "$OLDIP" ] ; then
-	echo "[$DATE]: IP CHANGED {$OLDIP} -> {$NEWIP}" >> $LOG_FILE
+	PREV_IP=`cut -f1 -d' ' ${WORKFILE}`
+if [ "$CURR_IP" != "$PREV_IP" ] ; then
+	echo "$CURR_IP ($BASE_IP) [$DATE]" > ${WORKFILE}
+	DATE=`date $DATE_FMT`
+	[ ! -f $LOG_FILE ] &&
+		echo "[$DATE]: IP CHANGE LOG FILE CREATED" >> $LOG_FILE
+	echo "[$DATE]: IP CHANGED {$PREV_IP} -> {$CURR_IP}" >> $LOG_FILE
 	if [ "$TGT_HOST" != "" ]; then
 		scp ${WORKFILE} ${TGT_HOST}
+	else
+		echo "[$DATE]: IP CHANGED {$PREV_IP} -> {$CURR_IP}"
 	fi
 fi
 cd $THISPATH
