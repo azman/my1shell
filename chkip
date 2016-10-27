@@ -7,18 +7,17 @@ WORKPATH="/tmp"
 WORKFILE="${THISHOST}_ip"
 LOG_FILE=`basename $0 .sh`.log
 TGT_HOST="$1"
+DO_FORCE=${DO_FORCE:=""}
 
+DATE=`date $DATE_FMT`
 CURR_IP=`ifconfig | grep -v 127.0.0.1 | grep 'inet '`
 CURR_IP=`echo $CURR_IP | sed 's/.*inet \([^\s]*\)\s.*/\1/'`
 BASE_IP=`echo $CURR_IP | sed 's/\.[0-9]*$//'`
-#echo "CHECK_IP: $CURR_IP ($BASE_IP)"
 
 cd $WORKPATH
-[ -f ${WORKFILE} ] &&
-	PREV_IP=`cut -f1 -d' ' ${WORKFILE}`
-if [ "$CURR_IP" != "$PREV_IP" ] ; then
+[ -f ${WORKFILE} ] && PREV_IP=`cut -f1 -d' ' ${WORKFILE}`
+if [ "$CURR_IP" != "$PREV_IP" -o "$DO_FORCE" == "yes" ] ; then
 	echo "$CURR_IP ($BASE_IP) [$DATE]" > ${WORKFILE}
-	DATE=`date $DATE_FMT`
 	[ ! -f $LOG_FILE ] &&
 		echo "[$DATE]: IP CHANGE LOG FILE CREATED" >> $LOG_FILE
 	echo "[$DATE]: IP CHANGED {$PREV_IP} -> {$CURR_IP}" >> $LOG_FILE
@@ -27,5 +26,7 @@ if [ "$CURR_IP" != "$PREV_IP" ] ; then
 	else
 		echo "[$DATE]: IP CHANGED {$PREV_IP} -> {$CURR_IP}"
 	fi
+else
+	echo "[$DATE]: IP CHECK {$CURR_IP} ($BASE_IP)"
 fi
 cd $THISPATH
