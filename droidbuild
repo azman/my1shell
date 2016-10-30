@@ -7,13 +7,24 @@
 # using gradle - GRADLE_VERS is plugin version, NOT gradle version itself!
 GRADLE_VERS=${GRADLE_VERS:="2.13"}
 GRADLE_HOME=${GRADLE_HOME:="/home/share/tool/gradle"}
+# android studio?
+STUDIO_PATH=${STUDIO_PATH:="/home/share/apps/android-studio"}
 # set paths
 SDK_PATH=${SDK_PATH:="/home/share/tool/android-sdk"}
 TOOLPATH="${GRADLE_HOME}/bin:${SDK_PATH}/platform-tools:${SDK_PATH}/tools"
+[ -d "${STUDIO_PATH}/bin" ] && TOOLPATH="${TOOLPATH}:${STUDIO_PATH}/bin"
 # set home
 ANDROID_HOME=${ANDROID_HOME:="$SDK_PATH"}
 
 export GRADLE_HOME PATH=$TOOLPATH:$PATH ANDROID_HOME
+
+# check java
+TESTJAVA=`which java 2>/dev/null`
+if [ "$TESTJAVA" == "" ] ; then
+	# java not found, maybe in chroot?
+	TESTJAVA=`file -L $(which sh) | grep 32-bit`
+	[ "$TESTJAVA" != "" ] && export JAVA_HOME=
+fi
 
 if [ "$1" == "" ] ; then
 	# start a shell

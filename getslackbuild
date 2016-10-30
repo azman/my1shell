@@ -208,9 +208,9 @@ function do_build()
 	if [ "$OPT_DEPENDS" == "YES" ]; then
 		for pkg in $pkg_deps ; do
 			do_build $pkg --install
-			cd $chk_path
 		done
 	fi
+	cd $MY1_BUILDDIR
 	# build only if explicitly requested
 	if [ "$OPT_EXECUTE" == "YES" ]; then
 		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
