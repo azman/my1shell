@@ -122,7 +122,15 @@ if [ "$WIFI_DO_STOP" == "yes" ]; then
 	check=$(wpa_cli status 2>/dev/null)
 	if [ "$(echo $check | grep "$MSG_NO_WPA_SUPPLICANT")" == "" ] ; then
 		if [ "$(echo $check | grep "$WIFI_DEV")" == "" ] ; then
-			echo "Interface '$WIFI_DEV' NOT up?!"
+CONN=`iwconfig $WIFI_DEV | sed -n "s/^.*Access Point: \([^ ]*\) .*$/\1/ p"`
+			if [ "$CONN" != "Not-Associated" ] ; then
+				echo -n "Taking $WIFI_DEV down... "
+				ifconfig $WIFI_DEV down
+				[ $? -eq 0 ] && echo "done."
+				[ $? -ne 0 ] && echo "something is wrong?"
+			else
+				echo "Interface '$WIFI_DEV' NOT up?!"
+			fi
 		else
 			echo -n "Terminating wpa_supplicant... "
 			if [ "$(wpa_cli -i$WIFI_DEV terminate | grep OK)" == "" ]; then
@@ -189,7 +197,9 @@ if [ "$WIFI_WPA_SUPP" == "" ]; then
 fi
 
 echo -n "Configuring $WIFI_DEV..."
-iwconfig $WIFI_DEV essid "$WIFI_SSID" $WIFI_ENCS >>$WIFI_LOGFILE
+iwconfig $WIFI_DEV essid "$WIFI_SSID" >>$WIFI_LOGFILE
+[ "$WIFI_ENCS" != "" ] &&
+	iwconfig $WIFI_DEV $WIFI_ENCS >>$WIFI_LOGFILE
 while [ "$WIFI_ENCS" != "" ] ; do
 	echo -n "."
 	CONN=`iwconfig $WIFI_DEV | sed -n "s/^.*Access Point: \([^ ]*\) .*$/\1/ p"`
