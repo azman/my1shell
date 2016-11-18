@@ -200,6 +200,7 @@ echo -n "Configuring $WIFI_DEV..."
 iwconfig $WIFI_DEV essid $WIFI_SSID >>$WIFI_LOGFILE
 if [ "$WIFI_ENCS" != "" ] ; then
 	iwconfig $WIFI_DEV $WIFI_ENCS >>$WIFI_LOGFILE
+	#iwconfig $WIFI_DEV enc on >>$WIFI_LOGFILE # maybe i need this?
 	sleep 2 # give some time for it to do its thing :o
 	CONN=`iwconfig $WIFI_DEV | sed -n "s/^.*Access Point: \([^ ]*\) .*$/\1/ p"`
 	if [ "$CONN" == "Not-Associated" ] ; then
