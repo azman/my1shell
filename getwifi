@@ -197,16 +197,16 @@ if [ "$WIFI_WPA_SUPP" == "" ]; then
 fi
 
 echo -n "Configuring $WIFI_DEV..."
-iwconfig $WIFI_DEV essid "$WIFI_SSID" >>$WIFI_LOGFILE
-[ "$WIFI_ENCS" != "" ] &&
+iwconfig $WIFI_DEV essid $WIFI_SSID >>$WIFI_LOGFILE
+if [ "$WIFI_ENCS" != "" ] ; then
 	iwconfig $WIFI_DEV $WIFI_ENCS >>$WIFI_LOGFILE
-while [ "$WIFI_ENCS" != "" ] ; do
-	echo -n "."
+	sleep 2 # give some time for it to do its thing :o
 	CONN=`iwconfig $WIFI_DEV | sed -n "s/^.*Access Point: \([^ ]*\) .*$/\1/ p"`
-	[ "$CONN" != "Not-Associated" ] && break;
-	sleep 1
-	# should i play with 'ip link <>'???
-done
+	if [ "$CONN" == "Not-Associated" ] ; then
+		echo "failed to connect to AP?"
+		exit 1
+	fi
+fi
 [ "$WIFI_MSK" != "" ] &&
 	ifconfig $WIFI_DEV up $WIFI_MSK $WIFI_ADD >>$WIFI_LOGFILE
 echo " done."
