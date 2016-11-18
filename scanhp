@@ -1,0 +1,64 @@
+#!/bin/sh
+
+SCANBIN="scanimage"
+OUTFILE="output"
+DOCOLOR="gray"
+CONVPDF=""
+FINDDEV=""
+
+while [ "$1" != "" ]; do
+	case $1 in
+		-h|--help)
+			echo "Usage:"
+			echo "  $(basename $0) [parameters] ..."
+			echo "The script's parameters are:"
+			echo "  --help           Show this and exit"
+			echo "  --find           Show selected device and exit"
+			echo "  --color          Color mode (default is grayscale)"
+			echo "  --pdf            Create PDF as well"
+			echo "  --output <name>  Specify output file name (w/o extension)"
+			exit
+			;;
+		--find)
+			FINDDEV="only"
+			;;
+		--color)
+			DOCOLOR="color"
+			;;
+		--pdf)
+			CONVPDF="yes"
+			;;
+		--output)
+			shift
+			[ "$1" == "" ] && echo "No name given? Aborting..." && exit 1
+			OUTFILE="$1"
+			;;
+		*)
+			echo "You passed an illegal switch to the program!"
+			echo "Run '$0 -h' for more help."
+			exit
+			;;
+	esac
+	shift
+done
+
+DOSCAN=`which $SCANBIN 2>/dev/null`
+[ "$DOSCAN" == "" ] && echo "Cannot find $SCANBIN! Aborting!" && exit 1
+
+DEV_ID="hpaio:/usb"
+DEVICE=`$SCANBIN -L | grep "$DEV_ID" | sed "s|.*$DEV_ID\([^']*\).*|\1|"`
+
+[ "$DEVICE" == "" ] && echo "HP device NOT found! Aborting!" && exit 1
+DEVICE="${DEV_ID}${DEVICE}"
+echo "Scanner Device: $DEVICE"
+[ "$FINDDEV" == "only" ] && exit 0
+
+# a4 should be 210mm x 297mm @ 8.27in x 11.7in
+SCAN_OPTS="-d $DEVICE -p --resolution=300 --mode=$DOCOLOR -x 210.0 -y 296.926"
+TOPS_OPTS="-imageheight 11.7 -imagewidth 8.3"
+
+if [ "$CONVPDF" == "yes" ]; then
+	${SCANBIN} ${SCAN_OPTS} | pnmtops ${TOPS_OPTS} | ps2pdf - ${OUTFILE}.pdf
+else
+	${SCANBIN} ${SCAN_OPTS} >${OUTFILE}.pnm
+fi
