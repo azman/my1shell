@@ -8,6 +8,7 @@ CURRPATH=$(pwd)
 WORKPATH=$(dirname $CURRPATH)
 BALLPATH=$HOME/temp
 BALLNAME=$(basename $CURRPATH)
+MAINNAME=${MAINNAME:="$BALLNAME"}
 NAMESUFX=${NAMESUFX:=""}
 BALLSUFX=${BALLSUFX:=""}
 DATE_FMT=${DATE_FMT:="+%Y%m%d"}
@@ -32,9 +33,17 @@ CHK_EXTN=
 
 while [ "$1" != "" ]; do
 	case $1 in
-		--suffix)
+		--suffix|--name-suffix)
 			shift
 			NAMESUFX="-$1"
+			;;
+		--file-suffix)
+			shift
+			BALLSUFX="-$1"
+			;;
+		--name)
+			shift
+			MAINNAME="$1"
 			;;
 		--time)
 			DATE_FMT="+%Y%m%d%H%M"
@@ -99,7 +108,7 @@ if [ "$BUNDLGIT" == "YES" ]; then
 		echo "Not a git repo! Cannot use git stuffs!" && exit 1
 	if [ "$PATCHGIT" == "YES" ]; then
 		BALLSUFX="${BALLSUFX}_patches"
-		CHK_NAME=${BALLNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}
+		CHK_NAME=${MAINNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}
 		rm -rf ${BALLPATH}/${CHK_NAME}
 		#CHK_PREV="$(printf "HEAD%*s" $PATCHNUM "" | tr ' ' '^')";
 		#git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_PREV} HEAD
@@ -113,7 +122,7 @@ if [ "$BUNDLGIT" == "YES" ]; then
 			CHK_BRANCH="${CHK_BRANCH#* }"
 			BALLSUFX="${BALLSUFX}_${CHK_BRANCH}"
 		fi
-		CHK_NAME=${BALLNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}.git
+		CHK_NAME=${MAINNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}.git
 		git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_BRANCH}
 		[ $? -ne 0 ] && echo "Error running git?" && exit 1
 	fi
@@ -124,7 +133,7 @@ if [ "$PATCHGIT" == "YES" ]; then
 	[ ! -d "$CURRPATH/.git" ] &&
 		echo "Not a git repo! Cannot use git stuffs!" && exit 1
 	BALLSUFX="${BALLSUFX}_git"
-	CHK_NAME=${BALLNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}.patch
+	CHK_NAME=${MAINNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}.patch
 	git diff >${BALLPATH}/${CHK_NAME}
 	[ $? -ne 0 ] && echo "Error running git?" && exit 1
 	exit 0
@@ -144,7 +153,7 @@ if [ -d $WORKPATH ]; then
 	fi
 	[ "$CHECKGIT" != "NO" ] &&
 		[ -d "$CURRPATH/.git" ] && BALLSUFX="${BALLSUFX}_git"
-	CHK_NAME=${BALLNAME}${NAMESUFX}
+	CHK_NAME=${MAINNAME}${NAMESUFX}
 	CHK_COPY=${BALLSUFX}${CHK_EXTN}
 	while [ -f ${BALLPATH}/${CHK_NAME}-$(date ${DATE_FMT})${CHK_COPY} ]; do
 		(( NUM_COPY=NUM_COPY+1 ))
