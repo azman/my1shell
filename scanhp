@@ -14,8 +14,8 @@ while [ "$1" != "" ]; do
 			echo "The script's parameters are:"
 			echo "  --help           Show this and exit"
 			echo "  --find           Show selected device and exit"
-			echo "  --color          Color mode (default is grayscale)"
-			echo "  --pdf            Create PDF as well"
+			echo "  --color          Color mode (default: grayscale)"
+			echo "  --pdf            Create PDF instead (default: PNM image)"
 			echo "  --output <name>  Specify output file name (w/o extension)"
 			exit
 			;;
