@@ -52,10 +52,9 @@ MTL_PACK="compat32-tools"
 MTL_PACK="$MTL_PACK glibc glibc-i18n glibc-profile glibc-solibs glibc-zoneinfo"
 MTL_PACK="$MTL_PACK gcc gcc-g++ gcc-gfortran gcc-gnat gcc-go gcc-java gcc-objc"
 
-# tool options
-OPT_CHECK="YES"
-OPT_CLEAN="NO"
-# allow config file to set this...
+# tool options - allow config file to set these...
+OPT_CHECK=${OPT_CHECK:="YES"}
+OPT_CLEAN=${OPT_CLEAN:="NO"}
 THIS_CONF=${THIS_CONF:=""}
 
 function do_download()
