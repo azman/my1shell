@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# gitpack
+# - written by azman@my1matrix.net
+# - create git bundle (AND git patch if necessary)
+
+CURRPATH=$(pwd)
+WORKPATH=$(dirname $CURRPATH)
+BALLPATH=$HOME/temp
+BALLNAME=$(basename $CURRPATH)
+MAINNAME=${MAINNAME:="$BALLNAME"}
+BALLSUFX=${BALLSUFX:=""}
+DATE_FMT=${DATE_FMT:="+%Y%m%d"}
+PATCHGIT=${PATCHGIT:="NO"}
+PATCHNUM=${PATCHNUM:="4"}
+
+while [ "$1" != "" ]; do
+	case $1 in
+		--suffix)
+			shift
+			BALLSUFX="-$1"
+			;;
+		--name)
+			shift
+			MAINNAME="$1"
+			;;
+		--time)
+			DATE_FMT="+%Y%m%d%H%M"
+			;;
+		--path)
+			shift
+			[ ! -d "$1" ] && echo "Path '$1' not found!"
+			[ -d "$1" ] && BALLPATH=$(cd $1;pwd)
+			;;
+		--format-patch)
+			shift
+			PATCHNUM="$1"
+			PATCHGIT="YES"
+			;;
+		* )
+			echo "Unknown parameter ($1)!" && exit 1
+			;;
+	esac
+	shift
+done
+
+[ ! -d $BALLPATH ] && mkdir -pv $BALLPATH
+
+GIT_BIN=`which git 2>/dev/null`
+[ "$GIT_BIN" == "" ] &&
+	echo "Cannot find git! Abort!" && exit 1
+
+[ ! -d "$CURRPATH/.git" ] &&
+	echo "Not a git repo! Abort!" && exit 1
+
+# check if NOT on master branch
+CHK_BRANCH="$(git branch|grep "* ")"
+CHK_BRANCH="${CHK_BRANCH#* }"
+[ "$CHK_BRANCH" != "master" ] &&
+	BALLSUFX="${BALLSUFX}_${CHK_BRANCH}-active"
+
+# prepare name
+CHK_DATE=`date ${DATE_FMT}`
+CHK_NAME=${MAINNAME}-${CHK_DATE}
+
+# create git bundle
+git bundle create ${BALLPATH}/${CHK_NAME}${BALLSUFX}.git --branches --tags
+[ $? -ne 0 ] && echo "Error running git?" && exit 1
+
+# create diff - if we have one?
+GIT_DIFF=`git diff`
+[ "$GIT_DIFF" != "" ] &&
+	echo "$GIT_DIFF" >${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch
+
+# are we formattting patches?
+if [ "$PATCHGIT" == "YES" ]; then
+	BALLSUFX="${BALLSUFX}_patches"
+	rm -rf ${BALLPATH}/${CHK_NAME}
+	git format-patch -o ${BALLPATH}/${CHK_NAME}${BALLSUFX} -${PATCHNUM}
+	[ $? -ne 0 ] && echo "Error running git?" && exit 1
+fi
