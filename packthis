@@ -14,10 +14,6 @@ MAINNAME=${MAINNAME:="$BALLNAME"}
 NAMESUFX=${NAMESUFX:=""}
 BALLSUFX=${BALLSUFX:=""}
 DATE_FMT=${DATE_FMT:="+%Y%m%d"}
-CHECKGIT=${CHECKGIT:="YES"}
-BUNDLGIT=${BUNDLGIT:="NO"}
-PATCHGIT=${PATCHGIT:="NO"}
-PATCHNUM=${PATCHNUM:="4"}
 CHK_VERB=${CHK_VERB:="NO"}
 NUM_COPY=${NUM_COPY:=0}
 TAR_EXEC=${TAR_EXEC:="tar"}
@@ -33,12 +29,10 @@ CHK_NAME=
 CHK_COPY=
 CHK_EXTN=
 
-# if requested, use gitpack
-GIT_REQS=`echo $@ | grep -- "--git"`
-if [ "$GIT_REQS" != "" ]; then
-	[ ! -d "$CURRPATH/.git" ] &&
-		echo "Not a git path! Abort!" && exit 1
-	${THISPATH}/gitpack `echo $@|sed 's/--git//'`
+# if this is a git repo, use gitpack?
+GIT_REQS=`echo $@ | grep -- "--no-gitpack"`
+if [ -d "$CURRPATH/.git" -a "$GIT_REQS" == "" ]; then
+	${THISPATH}/gitpack $@
 	exit $?
 fi
 
@@ -58,41 +52,19 @@ while [ "$1" != "" ]; do
 				echo "No name given ? ['$1']?" && exit 1
 			MAINNAME="$1"
 			;;
-		--time)
-			DATE_FMT="+%Y%m%d%H%M"
-			;;
-		--ignore-git)
-			CHECKGIT="NO"
-			;;
-		--bundle-git)
-			CHECKGIT="NO"
-			BUNDLGIT="YES"
-			PATCHGIT="NO"
-			;;
-		--git-all)
-			CHECKGIT="ALL"
-			BUNDLGIT="YES"
-			PATCHGIT="NO"
-			;;
-		--git-patch|--patch-git)
-			CHECKGIT="NO"
-			BUNDLGIT="YES"
-			PATCHGIT="YES"
-			shift
-			PATCHNUM=$1
-			;;
-		--git-diff)
-			CHECKGIT="NO"
-			BUNDLGIT="NO"
-			PATCHGIT="YES"
-			;;
-		--verbose|-v)
-			CHK_VERB="YES"
-			;;
 		--path)
 			shift
 			[ ! -d "$1" ] && echo "Path '$1' not found!"
 			[ -d "$1" ] && BALLPATH=$(cd $1;pwd)
+			;;
+		--no-gitpack)
+			# just to skip gitpack!
+			;;
+		--time)
+			DATE_FMT="+%Y%m%d%H%M"
+			;;
+		--verbose|-v)
+			CHK_VERB="YES"
 			;;
 		--zip)
 			DO_ZIP="YES"
@@ -116,42 +88,6 @@ done
 
 [ ! -d $BALLPATH ] && mkdir -pv $BALLPATH
 
-if [ "$BUNDLGIT" == "YES" ]; then
-	[ ! -d "$CURRPATH/.git" ] &&
-		echo "Not a git repo! Cannot use git stuffs!" && exit 1
-	if [ "$PATCHGIT" == "YES" ]; then
-		BALLSUFX="${BALLSUFX}_patches"
-		CHK_NAME=${MAINNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}
-		rm -rf ${BALLPATH}/${CHK_NAME}
-		#CHK_PREV="$(printf "HEAD%*s" $PATCHNUM "" | tr ' ' '^')";
-		#git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_PREV} HEAD
-		git format-patch -o ${BALLPATH}/${CHK_NAME} -${PATCHNUM}
-		[ $? -ne 0 ] && echo "Error running git?" && exit 1
-	else
-		if [ "$CHECKGIT" == "ALL" ] ; then
-			CHK_BRANCH="--branches --tags" # maybe do '--all'?
-		else
-			CHK_BRANCH="$(git branch|grep "* ")"
-			CHK_BRANCH="${CHK_BRANCH#* }"
-			BALLSUFX="${BALLSUFX}_${CHK_BRANCH}"
-		fi
-		CHK_NAME=${MAINNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}.git
-		git bundle create ${BALLPATH}/${CHK_NAME} ${CHK_BRANCH}
-		[ $? -ne 0 ] && echo "Error running git?" && exit 1
-	fi
-	exit 0
-fi
-
-if [ "$PATCHGIT" == "YES" ]; then
-	[ ! -d "$CURRPATH/.git" ] &&
-		echo "Not a git repo! Cannot use git stuffs!" && exit 1
-	BALLSUFX="${BALLSUFX}_git"
-	CHK_NAME=${MAINNAME}${NAMESUFX}-$(date ${DATE_FMT})${BALLSUFX}.patch
-	git diff >${BALLPATH}/${CHK_NAME}
-	[ $? -ne 0 ] && echo "Error running git?" && exit 1
-	exit 0
-fi
-
 [ -L "$CURRPATH" ] && CURRPATH=$(pwd -P) && WORKPATH=$(dirname $CURRPATH)
 
 if [ -d $WORKPATH ]; then
@@ -164,8 +100,6 @@ if [ -d $WORKPATH ]; then
 		CHK_EXEC="${TAR_EXEC} ${TAR_OPTS}"
 		CHK_EXTN=${TAR_EXTN}
 	fi
-	[ "$CHECKGIT" != "NO" ] &&
-		[ -d "$CURRPATH/.git" ] && BALLSUFX="${BALLSUFX}_git"
 	CHK_NAME=${MAINNAME}${NAMESUFX}
 	CHK_COPY=${BALLSUFX}${CHK_EXTN}
 	while [ -f ${BALLPATH}/${CHK_NAME}-$(date ${DATE_FMT})${CHK_COPY} ]; do

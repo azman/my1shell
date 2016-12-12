@@ -28,7 +28,7 @@ while [ "$1" != "" ]; do
 			;;
 		--suffix)
 			shift
-			BALLSUFX="$1"
+			BALLSUFX="-$1"
 			;;
 		--name)
 			shift
@@ -66,7 +66,7 @@ GIT_BIN=`which git 2>/dev/null`
 CHK_BRANCH="$(git branch|grep "* ")"
 CHK_BRANCH="${CHK_BRANCH#* }"
 [ "$CHK_BRANCH" != "master" ] &&
-	BALLSUFX="${BALLSUFX}_${CHK_BRANCH}-active"
+	BALLSUFX="${BALLSUFX}-${CHK_BRANCH}_active"
 
 # prepare name
 CHK_DATE=`date ${DATE_FMT}`
@@ -74,14 +74,14 @@ CHK_NAME=${MAINNAME}-${CHK_DATE}
 
 # create git bundle
 if [ "$DOBUNDLE" == "YES" ]; then
-	git bundle create ${BALLPATH}/${CHK_NAME}-${BALLSUFX}.git --branches --tags
+	git bundle create ${BALLPATH}/${CHK_NAME}${BALLSUFX}.git --branches --tags
 	[ $? -ne 0 ] && echo "Error running git?" && exit 1
 fi
 
 # create diff - if we have one?
 GIT_DIFF=`git diff`
 if [ "$GIT_DIFF" != "" ]; then
-	echo "$GIT_DIFF" >${BALLPATH}/${CHK_NAME}-${BALLSUFX}.patch
+	echo "$GIT_DIFF" >${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch
 	echo "Patch file '${BALLPATH}/${CHK_NAME}-${BALLSUFX}.patch' created."
 fi
 
@@ -90,6 +90,6 @@ if [ "$PATCHGIT" == "YES" ]; then
 	[ PATCHNUM=="" ] && PATCHNUM=1
 	BALLSUFX="${BALLSUFX}_patches"
 	rm -rf ${BALLPATH}/${CHK_NAME}
-	git format-patch -o ${BALLPATH}/${CHK_NAME}-${BALLSUFX} -${PATCHNUM}
+	git format-patch -o ${BALLPATH}/${CHK_NAME}${BALLSUFX} -${PATCHNUM}
 	[ $? -ne 0 ] && echo "Error running git?" && exit 1
 fi
