@@ -2,6 +2,7 @@
 
 # gitpack
 # - written by azman@my1matrix.net
+# - was a part of packthis script (maintain related options)
 # - create git bundle (AND git patch if necessary)
 
 CURRPATH=$(pwd)
@@ -10,22 +11,30 @@ BALLPATH=$HOME/temp
 BALLNAME=$(basename $CURRPATH)
 MAINNAME=${MAINNAME:="$BALLNAME"}
 BALLSUFX=${BALLSUFX:=""}
+DOBUNDLE=${DOBUNDLE:="YES"}
 DATE_FMT=${DATE_FMT:="+%Y%m%d"}
 PATCHGIT=${PATCHGIT:="NO"}
 PATCHNUM=${PATCHNUM:="4"}
 
+#echo "[INFO] Running "`basename $0`
+
 while [ "$1" != "" ]; do
 	case $1 in
-		--suffix)
-			shift
-			BALLSUFX="-$1"
-			;;
-		--name)
-			shift
-			MAINNAME="$1"
+		--diff)
+			DOBUNDLE="NO"
 			;;
 		--time)
 			DATE_FMT="+%Y%m%d%H%M"
+			;;
+		--suffix)
+			shift
+			BALLSUFX="$1"
+			;;
+		--name)
+			shift
+			[ "$1" == "" ] &&
+				echo "No name given ['$1']?" && exit 1
+			MAINNAME="$1"
 			;;
 		--path)
 			shift
@@ -64,18 +73,23 @@ CHK_DATE=`date ${DATE_FMT}`
 CHK_NAME=${MAINNAME}-${CHK_DATE}
 
 # create git bundle
-git bundle create ${BALLPATH}/${CHK_NAME}${BALLSUFX}.git --branches --tags
-[ $? -ne 0 ] && echo "Error running git?" && exit 1
+if [ "$DOBUNDLE" == "YES" ]; then
+	git bundle create ${BALLPATH}/${CHK_NAME}-${BALLSUFX}.git --branches --tags
+	[ $? -ne 0 ] && echo "Error running git?" && exit 1
+fi
 
 # create diff - if we have one?
 GIT_DIFF=`git diff`
-[ "$GIT_DIFF" != "" ] &&
-	echo "$GIT_DIFF" >${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch
+if [ "$GIT_DIFF" != "" ]; then
+	echo "$GIT_DIFF" >${BALLPATH}/${CHK_NAME}-${BALLSUFX}.patch
+	echo "Patch file '${BALLPATH}/${CHK_NAME}-${BALLSUFX}.patch' created."
+fi
 
-# are we formattting patches?
+# are we formatting patches?
 if [ "$PATCHGIT" == "YES" ]; then
+	[ PATCHNUM=="" ] && PATCHNUM=1
 	BALLSUFX="${BALLSUFX}_patches"
 	rm -rf ${BALLPATH}/${CHK_NAME}
-	git format-patch -o ${BALLPATH}/${CHK_NAME}${BALLSUFX} -${PATCHNUM}
+	git format-patch -o ${BALLPATH}/${CHK_NAME}-${BALLSUFX} -${PATCHNUM}
 	[ $? -ne 0 ] && echo "Error running git?" && exit 1
 fi

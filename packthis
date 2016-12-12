@@ -4,10 +4,12 @@
 # - written by azman@my1matrix.net
 # - to pack current working directory
 
-CURRPATH=$(pwd)
-WORKPATH=$(dirname $CURRPATH)
+THISPATH=`dirname $0`
+THISPATH=`cd $THISPATH;pwd`
+CURRPATH=`pwd`
+WORKPATH=`dirname $CURRPATH`
 BALLPATH=$HOME/temp
-BALLNAME=$(basename $CURRPATH)
+BALLNAME=`basename $CURRPATH`
 MAINNAME=${MAINNAME:="$BALLNAME"}
 NAMESUFX=${NAMESUFX:=""}
 BALLSUFX=${BALLSUFX:=""}
@@ -31,6 +33,15 @@ CHK_NAME=
 CHK_COPY=
 CHK_EXTN=
 
+# if requested, use gitpack
+GIT_REQS=`echo $@ | grep -- "--git"`
+if [ "$GIT_REQS" != "" ]; then
+	[ ! -d "$CURRPATH/.git" ] &&
+		echo "Not a git path! Abort!" && exit 1
+	${THISPATH}/gitpack `echo $@|sed 's/--git//'`
+	exit $?
+fi
+
 while [ "$1" != "" ]; do
 	case $1 in
 		--suffix|--name-suffix)
@@ -43,6 +54,8 @@ while [ "$1" != "" ]; do
 			;;
 		--name)
 			shift
+			[ "$1" == "" ] &&
+				echo "No name given ? ['$1']?" && exit 1
 			MAINNAME="$1"
 			;;
 		--time)
@@ -51,7 +64,7 @@ while [ "$1" != "" ]; do
 		--ignore-git)
 			CHECKGIT="NO"
 			;;
-		--bundle-git|--git)
+		--bundle-git)
 			CHECKGIT="NO"
 			BUNDLGIT="YES"
 			PATCHGIT="NO"
@@ -116,7 +129,7 @@ if [ "$BUNDLGIT" == "YES" ]; then
 		[ $? -ne 0 ] && echo "Error running git?" && exit 1
 	else
 		if [ "$CHECKGIT" == "ALL" ] ; then
-			CHK_BRANCH="--branches --tags"
+			CHK_BRANCH="--branches --tags" # maybe do '--all'?
 		else
 			CHK_BRANCH="$(git branch|grep "* ")"
 			CHK_BRANCH="${CHK_BRANCH#* }"
