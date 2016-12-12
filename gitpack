@@ -87,9 +87,9 @@ fi
 
 # are we formatting patches?
 if [ "$PATCHGIT" == "YES" ]; then
-	[ PATCHNUM=="" ] && PATCHNUM=1
+	[ "$PATCHNUM" == "" ] && PATCHNUM=1
 	BALLSUFX="${BALLSUFX}_patches"
-	rm -rf ${BALLPATH}/${CHK_NAME}
+	rm -rf ${BALLPATH}/${CHK_NAME}*
 	git format-patch -o ${BALLPATH}/${CHK_NAME}${BALLSUFX} -${PATCHNUM}
 	[ $? -ne 0 ] && echo "Error running git?" && exit 1
 fi
