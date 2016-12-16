@@ -11,12 +11,15 @@ GRADLE_HOME=${GRADLE_HOME:="/home/share/tool/gradle"}
 STUDIO_PATH=${STUDIO_PATH:="/home/share/apps/android-studio"}
 # set paths
 SDK_PATH=${SDK_PATH:="/home/share/tool/android-sdk"}
+NDK_PATH=${NDK_PATH:="/home/share/tool/android-ndk"}
 TOOLPATH="${GRADLE_HOME}/bin:${SDK_PATH}/platform-tools:${SDK_PATH}/tools"
+TOOLPATH="${TOOLPATH}:${NDK_PATH}/bin"
 [ -d "${STUDIO_PATH}/bin" ] && TOOLPATH="${TOOLPATH}:${STUDIO_PATH}/bin"
 # set home
 ANDROID_HOME=${ANDROID_HOME:="$SDK_PATH"}
-
-export GRADLE_HOME PATH=$TOOLPATH:$PATH ANDROID_HOME
+ANDROID_NDK_HOME=${ANDROID_NDK_HOME:="$NDK_PATH"}
+# export everything
+export GRADLE_HOME PATH=$TOOLPATH:$PATH ANDROID_HOME ANDROID_NDK_HOME
 
 # check java
 TESTJAVA=`which java 2>/dev/null`
