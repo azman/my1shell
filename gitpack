@@ -68,15 +68,18 @@ CHK_BRANCH="${CHK_BRANCH#* }"
 [ "$CHK_BRANCH" != "master" ] &&
 	BALLSUFX="${BALLSUFX}-${CHK_BRANCH}_active"
 
-# prepare name
-CHK_DATE=`date ${DATE_FMT}`
-CHK_NAME=${MAINNAME}-${CHK_DATE}
-
 # create git bundle
 if [ "$DOBUNDLE" == "YES" ]; then
+	# get date of last commit
+	CHK_DATE=`git log -1 --format=%cd --date=format:'%Y%m%d%H%M%S'`
+	CHK_NAME=${MAINNAME}-${CHK_DATE}
 	git bundle create ${BALLPATH}/${CHK_NAME}${BALLSUFX}.git --branches --tags
 	[ $? -ne 0 ] && echo "Error running git?" && exit 1
 fi
+
+# prepare name - for patches!
+CHK_DATE=`date ${DATE_FMT}`
+CHK_NAME=${MAINNAME}-${CHK_DATE}
 
 # create diff - if we have one?
 GIT_DIFF=`git diff`
