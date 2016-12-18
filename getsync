@@ -51,6 +51,8 @@ while  [ "$1" != "" ]; do
 			echo "  --reload          Delete excluded files"
 			echo "  --delete          Delete if not in source"
 			echo "  --update          Sync newer files only"
+			echo "  --no-delete       Cancels --delete"
+			echo "  --no-update       Cancels --update"
 			echo "  --dolink          Copy links as well (now default?)"
 			echo "  --exec            Execute (else, only dry-run)"
 			echo "  --exclude=/path/  Specify additional exclude path"
@@ -68,11 +70,17 @@ while  [ "$1" != "" ]; do
 		--delete|--update)
 			RSYNCOPT="${RSYNCOPT} $1"
 			;;
+		--no-delete)
+			RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --delete//'`
+			;;
+		--no-update)
+			RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --update//'`
+			;;
 		--dolink)
 			RSYNCOPT="${RSYNCOPT} --copy-links --keep-dirlinks"
 			;;
 		--exec)
-			RSYNCOPT="${RSYNCOPT// --dry-run/}"
+			RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --dry-run//'`
 			;;
 		--exclude*)
 			EXCLUDES="$EXCLUDES $1"
