@@ -8,7 +8,7 @@
 GRADLE_VERS=${GRADLE_VERS:="2.13"}
 GRADLE_HOME=${GRADLE_HOME:="/home/share/tool/gradle"}
 # android studio?
-STUDIO_PATH=${STUDIO_PATH:="/home/share/apps/android-studio"}
+STUDIO_PATH=${STUDIO_PATH:="/home/share/appx/android-studio"}
 # set paths
 SDK_PATH=${SDK_PATH:="/home/share/tool/android-sdk"}
 NDK_PATH=${NDK_PATH:="/home/share/tool/android-ndk"}
