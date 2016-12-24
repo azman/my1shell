@@ -32,7 +32,8 @@ else
 		[ "$CHKLIST" == "--list" ] && continue
 		if [ "$c" == "" ] ; then
 			echo "  -- No changes?!"
-			[ "$CHKLIST" == "--switch" ] && rm -f $a
+			[ "$CHKLIST" == "--switch" ] &&
+				rm -f $a && echo "File '$a' removed!" && echo
 		else
 			read -n 1 -p "Show? (y/n/q) " dummy ; echo
 			[ "$dummy" == "y" ] && echo "$c"
