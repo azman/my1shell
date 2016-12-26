@@ -5,13 +5,12 @@
 # - browse folders in current path and check git repos
 # - create project from a git bundle
 
-MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(dirname $0)"
-CURPATH="$(pwd)"
+MY1TOOL=`basename $0 .sh`
+MY1PATH=`dirname $0`
+CURPATH=`pwd`
 
 # look for config file
-for conffile in "$CURPATH/.$MY1TOOL" "$CURPATH/$MY1TOOL.conf" \
-		"$HOME/.$MY1TOOL" "$HOME/.$MY1TOOL.conf" ; do
+for conffile in "$CURPATH/.$MY1TOOL" "$HOME/.$MY1TOOL" ; do
 	[ ! -f $conffile ] && continue
 	source $conffile ; break
 done
@@ -24,30 +23,36 @@ GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
 [ "$GIT_BIN" = "" ] && echo "git binary NOT found! Aborting!" && exit 1
 PATH2BUND=${PATH2BUND:="$HOME/archive/project"}
 PATH2PROJ=${PATH2PROJ:="$CURPATH"}
-PATH2GHUB=${PATH2GHUB:="$HOME/archive/github"}
-PROJ_NAME=""
-PROJ_COPY=""
-OPT_VERBOSE="NO"
+PROJ_NAME=${PROJ_NAME:=""}
+PROJ_COPY=${PROJ_COPY:=""}
+B_VERBOSE="NO"
 
 do_command=""
-ok_command="create check origin update remote"
+ok_command="create check origin update remote archive"
 
 # check parameters for command
 while  [ "$1" != "" ]; do
 	case $1 in
-		--project-path)
+		--project-path|--path)
 			shift
-			PATH2PROJ=$1
+			[ ! -d "$1" ] && echo "Invalid path '$1'!" && exit 1
+			PATH2PROJ=`cd $1;pwd`
 			;;
-		--bundle-path)
+		--project-name|--name)
 			shift
-			PATH2BUND=$1
+			PROJ_NAME=$1
 			;;
-		--github)
-			PATH2BUND=$PATH2GHUB
+		--project-copy|--copy)
+			shift
+			PROJ_COPY=$1
+			;;
+		--bundle-path|--bpath)
+			shift
+			[ ! -d "$1" ] && echo "Invalid path '$1'!" && exit 1
+			PATH2BUND=`cd $1;pwd`
 			;;
 		--verbose|-v)
-			OPT_VERBOSE="YES"
+			B_VERBOSE="YES"
 			;;
 		-*)
 			echo "Unknown parameter '$1'"
@@ -59,12 +64,6 @@ while  [ "$1" != "" ]; do
 			for a in $ok_command; do
 				if [ $1 == $a ]; then
 					do_command=$1
-					if [ "$do_command" == "create" ]; then
-						shift
-						PROJ_NAME=$1
-						shift
-						PROJ_COPY=$1
-					fi
 					break;
 				fi
 			done
@@ -80,22 +79,25 @@ function chkgit_isclean()
 {
 	local chk_value=0
 	local chk_quiet="NO"
+	local chk_path=`pwd`
 	[ "$1" == "--silent" ] && chk_quiet="YES"
 	# do the actual checking
 	if [ -d .git ]; then
-		if [ "$($GIT_BIN status | grep "$CLEAN_MSG")" == "" ]; then
-			[ "$chk_quiet" != "YES" ] && echo "Check: $(pwd) [unclean]"
+		local is_clean=`$GIT_BIN status | grep "$CLEAN_MSG"`
+		local is_ahead=`$GIT_BIN status | grep "$AHEAD_MSG"`
+		if [ "$is_clean" == "" ]; then
+			[ "$chk_quiet" != "YES" ] && echo "Check: $chk_path [unclean]"
 			chk_value=2
-		elif [ "$($GIT_BIN status | grep "$AHEAD_MSG")" != "" ]; then
-			[ "$chk_quiet" != "YES" ] && echo "Check: $(pwd) [ahead]"
+		elif [ "$is_ahead" != "" ]; then
+			[ "$chk_quiet" != "YES" ] && echo "Check: $chk_path [ahead]"
 			chk_value=3
 		else
-			[ "$OPT_VERBOSE" == "YES"  ] &&
-				[ "$chk_quiet" != "YES" ] && echo "GIT: $(pwd)"
+			[ "$B_VERBOSE" == "YES"  ] &&
+				[ "$chk_quiet" != "YES" ] && echo "GIT: $chk_path"
 		fi
 	else
-		[ "$OPT_VERBOSE" == "YES"  ] &&
-			[ "$chk_quiet" != "YES" ] && echo "NOT: $(pwd)"
+		[ "$B_VERBOSE" == "YES"  ] &&
+			[ "$chk_quiet" != "YES" ] && echo "NOT: $chk_path"
 		chk_value=1
 	fi
 	return $chk_value
@@ -103,20 +105,18 @@ function chkgit_isclean()
 
 function chkgit_origin()
 {
-	local chk_origin chk_source
+	local chk_origin chk_source chk_sedpat
 	local chk_value=0
-	local chk_ifs=$IFS
-	local chk_path=$(pwd)
+	local chk_path=`pwd`
 	local chk_quiet="NO"
+	local chk_base=`basename $chk_path`
 	[ "$1" == "--silent" ] && chk_quiet="YES"
-	[ "$chk_quiet" != "YES" ] && echo -n "$(basename $chk_path): "
+	[ "$chk_quiet" != "YES" ] && echo -n "${chk_base}: "
 	if [ -d .git ]; then
-		IFS=$'\n'
-		chk_origin=($($GIT_BIN remote -v | grep origin))
-		IFS=$chk_ifs
-		if [ ${#chk_origin[@]} -gt 0 ]; then
-			chk_source=${chk_origin[0]##origin	}
-			chk_source=${chk_source%% (*}
+		chk_sedpat="s/^origin[[:space:]]*\([^[:space:]]*\).*$/\1/"
+		chk_origin=`$GIT_BIN remote -v | grep origin | grep \(fetch\)`
+		if [ "$chk_origin" != "" ]; then
+			chk_source=`echo $chk_origin | sed $chk_sedpat`
 			[ "$chk_quiet" != "YES" ] && echo "'$chk_source'"
 		else
 			[ "$chk_quiet" != "YES" ] && echo "No origin repo found!"
@@ -131,35 +131,31 @@ function chkgit_origin()
 
 function chkgit_remote()
 {
-	local chk_origin chk_source chk_label
-	local chk_path=$(pwd)
+	local chk_remote chk_sedpat chk_srcpat
+	local chk_path=`pwd`
+	local chk_base=`basename $chk_path`
 	if [ -d .git ]; then
-		local chk_ifs=$IFS
-		IFS=$'\n'
-		chk_origin=($($GIT_BIN remote -v | grep fetch))
-		IFS=$chk_ifs
-		if [ ${#chk_origin[@]} -gt 0 ]; then
-			for (( a=0;a<${#chk_origin[@]};a++ )); do
-				chk_label=${chk_origin[$a]%	*}
-				chk_source=${chk_origin[$a]##$chk_label	}
-				chk_source=${chk_source%% (*}
-				echo "$(basename $chk_path): '$chk_source' ($chk_label)"
-			done
+		chk_srcpat="^\([^[:space:]]*\)[[:space:]]*\([^[:space:]]*\).*$"
+		chk_sedpat="s/$chk_srcpat/$chk_base: \2 (\1)/g"
+		chk_remote=`$GIT_BIN remote -v | grep \(fetch\)`
+		if [ "$chk_remote" != "" ]; then
+			echo $chk_remote | sed "$chk_sedpat"
 		else
-			[ "$OPT_VERBOSE" == "YES"  ] &&
-				echo "$(basename $chk_path): No remote repo found!"
+			[ "$B_VERBOSE" == "YES"  ] &&
+				echo "$chk_base: No remote repo found!"
 		fi
 	else
-		[ "$OPT_VERBOSE" == "YES"  ] &&
-			echo "$(basename $chk_path): Not a git repo!"
+		[ "$B_VERBOSE" == "YES"  ] &&
+			echo "$chk_base: Not a git repo!"
 	fi
 }
 
 function chkgit_update()
 {
-	local chk_path=$(pwd)
+	local chk_path=`pwd`
+	local chk_base=`basename $chk_path`
 	local chk_value chk_source
-	echo -n "$(basename $chk_path): "
+	echo -n "$chk_base: "
 	chkgit_isclean --silent
 	chk_value=$?
 	[ $chk_value -eq 1 ] && echo "Not a git repo!" && return
@@ -172,32 +168,63 @@ function chkgit_update()
 	$GIT_BIN pull
 }
 
+function chkgit_archive()
+{
+	local chk_path=`pwd`
+	local chk_base=`basename $chk_path`
+	local chk_name chk_date
+	if [ -d .git ]; then
+		chk_date=`$GIT_BIN log -1 --format=%cd --date=format:'%Y%m%d%H%M%S'`
+		chk_name=${chk_base}-${chk_date}.git
+		if [ -f "$PATH2BUND/$chk_name" ] ; then
+			[ "$B_VERBOSE" == "YES"  ] &&
+				echo "File '$PATH2BUND/$chk_name' found! Archive is up to date!"
+			return
+		fi
+		local that_path=${PATH2BUND}/${chk_name}*.git
+		local that_find=`find ${PATH2BUND} -name ${chk_base}*.git`
+		for this_test in $that_find ; do
+			that_path=$this_test
+		done
+		if [ -f "$that_path" ] ; then
+			echo "Old archive '$that_path' found!"
+		fi
+		echo -n "Creating new archive '$chk_name' in $PATH2BUND... "
+		git bundle create ${PATH2BUND}/${chk_name} --branches --tags 2>/dev/null
+		[ $? -ne 0 ] && echo "Error running git?" && exit 1
+		echo "done."
+	else
+		[ "$B_VERBOSE" == "YES"  ] &&
+			echo "$chk_base: Not a git repo!"
+	fi
+}
+
 # do your thing!
 
 if [ "$do_command" == "check" ] || [ "$do_command" == "" ]; then #default!
 	# browse subfolders and report dirty repo!
-	for path in $(find * -maxdepth 0 -type d); do
+	for path in `find * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_isclean
 		cd $CURPATH
 	done
 elif [ "$do_command" == "origin" ]; then
 	# browse subfolders and report origin url
-	for path in $(find * -maxdepth 0 -type d); do
+	for path in `find * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_origin
 		cd $CURPATH
 	done
 elif [ "$do_command" == "remote" ]; then
 	# browse subfolders and report remote fetch url
-	for path in $(find * -maxdepth 0 -type d); do
+	for path in `find * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_remote
 		cd $CURPATH
 	done
 elif [ "$do_command" == "update" ]; then
 	# browse subfolders and update
-	for path in $(find * -maxdepth 0 -type d); do
+	for path in `find * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_update
 		cd $CURPATH
@@ -210,14 +237,17 @@ elif [ "$do_command" == "create" ]; then
 	[ "$PROJ_NAME" == "" ] && echo "No project name given!" && exit 1
 	cd $PATH2PROJ
 	FULL_PATH=${PATH2BUND}/${PROJ_NAME}.git # dummy ???
-	FULL_FIND=$(find ${PATH2BUND} -name ${PROJ_NAME}*.git)
+	FULL_FIND=`find ${PATH2BUND} -name ${PROJ_NAME}*.git`
 	for FULL_TEST in $FULL_FIND ; do
 		FULL_PATH=$FULL_TEST
 	done # will get latest???
 	if [ ! -f "$FULL_PATH" ] ; then
 		echo "Bundle '$FULL_PATH' not found!" && exit 1
 	fi
-	[ "$PROJ_COPY" == "" ] && PROJ_COPY=$(basename $FULL_PATH .git)
+	if [ "$PROJ_COPY" == "" ] ; then
+		PROJ_COPY=`basename $FULL_PATH .git`
+		PROJ_COPY=`echo $PROJ_COPY | sed 's/\(.*\)-[0-9]\{12,14\}.*$/\1/'`
+	fi
 	[ -d "$PROJ_COPY" ] &&
 		echo "'$PROJ_COPY' exists in '$PATH2PROJ'!" && exit 1
 	echo -n "Creating folder $PROJ_COPY... "
@@ -230,6 +260,17 @@ elif [ "$do_command" == "create" ]; then
 	echo -n "Updating git path... "
 	$GIT_BIN pull $FULL_PATH master >/dev/null 2>&1
 	echo "done."
+elif [ "$do_command" == "archive" ]; then
+	[ ! -d "$PATH2BUND" ] &&
+		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
+	[ ! -d "$PATH2PROJ" ] &&
+		echo "Invalid project path '$PATH2PROJ'!" && exit 1
+	# browse subfolders and archive
+	for path in `find $PATH2PROJ/* -maxdepth 0 -type d` ; do
+		cd $path
+		chkgit_archive
+		cd $CURPATH
+	done
 fi
 
 exit 0
