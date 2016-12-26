@@ -203,28 +203,28 @@ function chkgit_archive()
 
 if [ "$do_command" == "check" ] || [ "$do_command" == "" ]; then #default!
 	# browse subfolders and report dirty repo!
-	for path in `find * -maxdepth 0 -type d` ; do
+	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_isclean
 		cd $CURPATH
 	done
 elif [ "$do_command" == "origin" ]; then
 	# browse subfolders and report origin url
-	for path in `find * -maxdepth 0 -type d` ; do
+	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_origin
 		cd $CURPATH
 	done
 elif [ "$do_command" == "remote" ]; then
 	# browse subfolders and report remote fetch url
-	for path in `find * -maxdepth 0 -type d` ; do
+	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_remote
 		cd $CURPATH
 	done
 elif [ "$do_command" == "update" ]; then
 	# browse subfolders and update
-	for path in `find * -maxdepth 0 -type d` ; do
+	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_update
 		cd $CURPATH
@@ -260,17 +260,25 @@ elif [ "$do_command" == "create" ]; then
 	echo -n "Updating git path... "
 	$GIT_BIN pull $FULL_PATH master >/dev/null 2>&1
 	echo "done."
+	cd $CURPATH
 elif [ "$do_command" == "archive" ]; then
 	[ ! -d "$PATH2BUND" ] &&
 		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
 	[ ! -d "$PATH2PROJ" ] &&
 		echo "Invalid project path '$PATH2PROJ'!" && exit 1
-	# browse subfolders and archive
-	for path in `find $PATH2PROJ/* -maxdepth 0 -type d` ; do
-		cd $path
+	# single project archive check
+	if [ "$PROJ_NAME" != "" -a -d "$PATH2PROJ/$PROJ_NAME" ] ; then
+		cd $PATH2PROJ/$PROJ_NAME
 		chkgit_archive
 		cd $CURPATH
-	done
+	else
+		# browse subfolders and archive
+		for path in `find -L $PATH2PROJ/* -maxdepth 0 -type d` ; do
+			cd $path
+			chkgit_archive
+			cd $CURPATH
+		done
+	fi
 fi
 
 exit 0
