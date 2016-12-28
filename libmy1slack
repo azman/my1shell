@@ -390,7 +390,10 @@ function list_package_path()
 	# get all packages in given path
 	local lst_path="$1"
 	local log_path="$2"
-	for pkg_full in `find $lst_path -name "*.t[gx]z" -type f` ; do
+	# get the rest of parameters
+	shift ; shift
+	# process all package file(s) in path
+	for pkg_full in `find $lst_path -name "*.t[gx]z" -type f -maxdepth 1` ; do
 		local pkg_file=`basename $pkg_full`
 		local pkg_path=`dirname $pkg_full`
 		# check extension first
@@ -402,12 +405,14 @@ function list_package_path()
 		local pkg_vers=`echo $pkg_temp | cut -d' ' -f2`
 		local pkg_arch=`echo $pkg_temp | cut -d' ' -f3`
 		local pkg_extd=`echo $pkg_temp | cut -d' ' -f4`
+		# check ignore list
+		pkg_temp=`echo "$@" | grep "$pkg_name"`
+		[ "$pkg_temp" != "" ] && continue
 		# populate information
 		chk_name="$pkg_name"
-		chk_stat="pnone"
 		chk_file="$pkg_full"
 		chk_vers="[${pkg_vers}/${pkg_extd}]"
-		# DEBUG debug_msg "$pkg_full\n"
+		# are we checking for patches? check installed version
 		if [ -d "$log_path" ] ; then
 			# find installed
 			local pkg2temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
@@ -425,11 +430,31 @@ function list_package_path()
 				[ "$pkg2extd" == "$pkg_extd" ]; then
 				chk_stat="pdone"
 			else
-				chk_stat="check"
-				chk_vers="[${pkg_vers}/${pkg_extd}]->[${pkg_vers}/${pkg_extd}]"
+				#pkg2temp=`echo $pkg_name | sed 's/kernel-//'`
+				#if [ "$pkg2temp" != "$pkg_name" ] ; then
+				#	chk_stat="pdone"
+				#else
+					chk_stat="check"
+					chk_vers="[${pkg2vers}/${pkg2extd}($pkg2base)]->"
+					chk_vers="${chk_vers}[${pkg_vers}/${pkg_extd}($pkg_base)]"
+				#fi
 			fi
+			# DEBUG debug_msg "$pkg_full\n" && continue
+		else
+			local chk_arch sys_arch="x86"
+			[ "$SLACKARCH" == "64" ] && sys_arch="x86_64"
+			case $pkg_arch in
+				i*86) chk_arch="x86" ;;
+				x86) chk_arch="x86" ;;
+				x86_64) chk_arch="x86_64" ;;
+				noarch) chk_arch="$sys_arch" ;;
+				*) chk_arch="" ;;
+			esac
+			# DEBUG debug_msg "$pkg_full '$chk_arch'/'$sys_arch'\n" && continue
+			[ "$chk_arch" != "$sys_arch" ] && continue
+			chk_stat="nlist"
 		fi
-		echo -n "$chk_name,$chk_stat,$chk_file,$chk_vers;"
+		echo -n "$chk_name:$chk_stat:$chk_file:$chk_vers;"
 	done
 }
 
