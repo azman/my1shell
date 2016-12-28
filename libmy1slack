@@ -5,8 +5,8 @@
 # - library functions for slackware system management
 
 MY1_LIBNAME="libmy1slack"
-MY1_LIBVERS="2012.07.00"
-MY1_LIBCALL="$(basename $0 .sh)"
+MY1_LIBVERS="2016.12.00"
+MY1_LIBCALL=`basename $0 .sh`
 
 # determine slackware architecture, NOT machine's!
 SLACKARCH=${SLACKARCH:=""}
@@ -14,7 +14,7 @@ case $SLACKARCH in
 	x86) SLACKARCH="" ;;
 	x86_64) SLACKARCH="64" ;;
 	*)
-		SLACKARCH=$(find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null)
+		SLACKARCH=`find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null`
 		if [ "$SLACKARCH" == "/lib64" ] ; then SLACKARCH="64"
 		else SLACKARCH="" ; fi ;;
 esac
@@ -22,21 +22,22 @@ esac
 SLACKNAME=${SLACKNAME:="slackware$SLACKARCH"}
 SLACKVERS=${SLACKVERS:=""}
 if [ "$SLACKVERS" == "" ]; then
-	SLACKVERS=$(cat /etc/slackware-version)
-	SLACKVERS=${SLACKVERS#Slackware }
-	SLACKVMAJ=${SLACKVERS%%.*}
-	SLACKVMIN=${SLACKVERS#*.}
-	[ "${SLACKVMIN//./}" != "$SLACKVMIN" ] && SLACKVMIN=${SLACKVMIN%%.*}
-	SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
+	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
+	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
+	# just in case?
+	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
 fi
 # find slackware tree
 SLACKRELEASE=${SLACKRELEASE:="$SLACKNAME-$SLACKVERS"}
 SLACKROOTDIR=${SLACKROOTDIR:=""}
 if [ "$SLACKROOTDIR" == "" ]; then
 	SLACKFINDDIR=${SLACKFINDDIR:="/home"} # default path to look for
-	SLACKFINDOPT="-maxdepth 3 -name $SLACKRELEASE"
-	SLACKROOTDIR=$(find $SLACKFINDDIR $SLACKFINDOPT -type d 2>/dev/null)
-	SLACKROOTDIR=${SLACKROOTDIR%"/$SLACKRELEASE"}
+	SLACKFINDOPT="-maxdepth 3 -name $SLACKRELEASE -type d"
+	SLACKROOTDIR=`find $SLACKFINDDIR $SLACKFINDOPT 2>/dev/null`
+	[ ! -d "$SLACKROOTDIR" ] &&
+		echo "Cannot find Slackware Tree!" >&2 && exit 1
+	SLACKROOTDIR=`dirname $SLACKROOTDIR`
 fi
 SLACKRELPATH=${SLACKRELPATH:="${SLACKROOTDIR}/${SLACKRELEASE}"}
 SLACKPKGPATH=${SLACKPKGPATH:="${SLACKRELPATH}/slackware$SLACKARCH"}
@@ -103,13 +104,13 @@ function info_msg()
 
 if [ "$MY1_DEBUG" == "YES" ]; then
 	echo
-	debug_msg "my1slack Library Name is $MY1_LIBNAME"
-	debug_msg "my1slack Library Version is $MY1_LIBVERS"
-	debug_msg "System machine is $(uname -m)"
-	debug_msg "Slack Version is $(cat /etc/slackware-version)"
-	debug_msg "Slack Release is $SLACKRELEASE"
-	debug_msg "Slack Tree is at $SLACKROOTDIR"
-	debug_msg "Command Call '$MY1_LIBCALL'"
+	debug_msg "my1slack Library Name is $MY1_LIBNAME\n"
+	debug_msg "my1slack Library Version is $MY1_LIBVERS\n"
+	debug_msg "System machine is $(uname -m)\n"
+	debug_msg "Slack Version is $(cat /etc/slackware-version)\n"
+	debug_msg "Slack Release is $SLACKRELEASE\n"
+	debug_msg "Slack Tree is at $SLACKROOTDIR\n"
+	debug_msg "Command Call '$MY1_LIBCALL'\n"
 fi
 
 function find_binary()
@@ -137,14 +138,14 @@ function must_be_root()
 function get_pkg_info()
 {
 	# get pkg info from basename (i.e. filename minus extension!)
-	local pkg_name pkg_vers pkg_arch pkg_extd pkg_temp
+	local pkg_name pkg_vers pkg_arch pkg_extd
 	local pkg_base="$1"
-	pkg_extd="${pkg_base##*-}"
-	pkg_temp="${pkg_base%-${pkg_extd}}"
-	pkg_arch="${pkg_temp##*-}"
-	pkg_temp="${pkg_temp%-${pkg_arch}}"
-	pkg_vers="${pkg_temp##*-}"
-	pkg_name="${pkg_temp%-${pkg_vers}}"
+	pkg_extd=`echo $pkg_base | sed 's/\(.*\)-\(.*\)/\2/'`
+	pkg_base=`echo $pkg_base | sed 's/\(.*\)-\(.*\)/\1/'`
+	pkg_arch=`echo $pkg_base | sed 's/\(.*\)-\(.*\)/\2/'`
+	pkg_base=`echo $pkg_base | sed 's/\(.*\)-\(.*\)/\1/'`
+	pkg_vers=`echo $pkg_base | sed 's/\(.*\)-\(.*\)/\2/'`
+	pkg_name=`echo $pkg_base | sed 's/\(.*\)-\(.*\)/\1/'`
 	echo -n "$pkg_name $pkg_vers $pkg_arch $pkg_extd"
 }
 
@@ -152,11 +153,11 @@ function get_pathpack()
 {
 	# make a package list from custom path
 	local pkg_list=""
-	local pkg_pack="$(cd $1;pwd)"
-	if [ -d $pkg_pack ]; then
-		cd $pkg_pack
+	if [ -d "$1" ]; then
+		cd $1
 		for pkg_file in *.t[gx]z; do
-			pkg_list="$pkg_list ${pkg_file%.t[gx]z}" # trim extension
+			pkg_temp=`echo $pkg_file | sed 's/\.t[xg]z//'`
+			pkg_list="${pkg_list}${pkg_temp} "
 		done
 		cd - >/dev/null
 	fi
@@ -166,7 +167,7 @@ function get_pathpack()
 function get_softpack()
 {
 	# make a package list from official software set (e.g. a,d,l...)
-	echo -n "$(get_pathpack ${SLACKPKGPATH}/$1)"
+	echo -n `get_pathpack ${SLACKPKGPATH}/$1`
 }
 
 function get_packsoft()
@@ -176,9 +177,9 @@ function get_packsoft()
 	local pkg_soft="z" # defaulf unknown set
 	for pkg_path in ${SLACKPKGPATH}/* ; do
 		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z$"
-		local pkg_test=$(ls $pkg_path | grep -e "$pkg_temp")
+		local pkg_test=`ls $pkg_path | grep -e "$pkg_temp"`
 		if [ "$pkg_test" != "" ] ; then
-			pkg_soft="${pkg_path##*/}"
+			pkg_soft=`basename ${pkg_path}`
 			break
 		fi
 	done
@@ -194,16 +195,16 @@ function comp_package()
 	local pkg1_name pkg1_vers pkg1_arch pkg1_extd
 	local pkg2_name pkg2_vers pkg2_arch pkg2_extd
 	# extract info components
-	pkg_temp=($(get_pkg_info $pkg1_base))
-	pkg1_name="${pkg_temp[0]}"
-	pkg1_vers="${pkg_temp[1]}"
-	pkg1_arch="${pkg_temp[2]}"
-	pkg1_extd="${pkg_temp[3]}"
-	pkg_temp=($(get_pkg_info $pkg2_base))
-	pkg2_name="${pkg_temp[0]}"
-	pkg2_vers="${pkg_temp[1]}"
-	pkg2_arch="${pkg_temp[2]}"
-	pkg2_extd="${pkg_temp[3]}"
+	pkg_temp=`get_pkg_info $pkg1_base`
+	pkg1_name=`echo $pkg_temp | cut -d' ' -f1`
+	pkg1_vers=`echo $pkg_temp | cut -d' ' -f2`
+	pkg1_arch=`echo $pkg_temp | cut -d' ' -f3`
+	pkg1_extd=`echo $pkg_temp | cut -d' ' -f4`
+	pkg_temp=`get_pkg_info $pkg2_base`
+	pkg2_name=`echo $pkg_temp | cut -d' ' -f1`
+	pkg2_vers=`echo $pkg_temp | cut -d' ' -f2`
+	pkg2_arch=`echo $pkg_temp | cut -d' ' -f3`
+	pkg2_extd=`echo $pkg_temp | cut -d' ' -f4`
 	# do compare!
 	[ "$pkg1_name" == "$pkg2_name" ] || return 1
 	[ "$pkg1_vers" == "$pkg2_vers" ] || return 2
@@ -218,7 +219,7 @@ function find_desc()
 	# get package description from a PACKAGES.TXT file
 	local pkg_name="$1"
 	local pkgs_txt="$2"
-	local pkg_desc=$(grep -e "^$pkg_name:" $pkgs_txt)
+	local pkg_desc=`grep -e "^$pkg_name:" $pkgs_txt`
 	echo -n "$pkg_desc"
 }
 
@@ -226,7 +227,8 @@ function find_package_desc()
 {
 	# get package entry from mirror tree
 	local pkg_name="$1"
-	echo -n "$(find_desc $pkg_name $SLACKPKGFILE)"
+	local pkg_desc=`find_desc $pkg_name $SLACKPKGFILE`
+	echo -n "$pkg_desc"
 }
 
 function find_install_desc()
@@ -234,10 +236,11 @@ function find_install_desc()
 	# get package entry from current installation
 	local pkg_name="$1"
 	local pkg_temp="\<${pkg_name}-[^-]*-[^-]*-[^-]*$"
-	local pkg_test=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
-	local pkgs_txt="$SLACKINSTLOG/$pkg_test"
+	local pkg_test=`ls $SLACKINSTLOG | grep -e "$pkg_temp"`
 	[ "$pkg_test" = "" ] && return
-	echo -n "$(find_desc $pkg_name $pkgs_txt)"
+	local pkgs_txt="$SLACKINSTLOG/$pkg_test"
+	local pkg_desc=`find_desc $pkg_name $pkgs_txt`
+	echo -n "$pkg_desc"
 }
 
 function find_info()
@@ -249,50 +252,52 @@ function find_info()
 	local pkg_base pkg_file pkg_path pkg_size pkg_full
 	# pattern search?
 	#local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
-	#local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
 	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*$"
-	local pkg_test="$(cat $pkgs_txt | grep -e "$pkg_temp" -A3)"
+	local pkg_test=`cat $pkgs_txt | grep -e "$pkg_temp" -A3`
 	[ "$pkg_test" = "" ] && return
 	# extract basic info
 	local chk_name="PACKAGE NAME:"
-	pkg_file=$(echo "$pkg_test" | grep "^$chk_name")
-	pkg_file="${pkg_file##${check_name}* }"
+	pkg_file=`echo "$pkg_test" | grep "^$chk_name"`
+	pkg_file=`echo "$pkg_file" | sed "s/$chk_name[[:space:]]*//"`
 	chk_name="PACKAGE LOCATION:"
-	pkg_path=$(echo "$pkg_test" | grep "^$chk_name")
-	pkg_path="${pkg_path##${check_name}* }"
-	# check if location provided by /var/log
-	if [ "${pkg_path//\/var\/log\/mount\//}" != "${pkg_path}" ] ; then
-		pkg_file=${pkg_path##*/}
-		pkg_path=${pkg_path%${pkg_file}}
-		pkg_path=${SLACKPKGPATH}/${pkg_path//\/var\/log\/mount\//}
-	elif [ "${pkg_path:0:2}" == "./" ] ; then
-		pkg_path="${SLACKRELPATH}/${pkg_path:2}"
+	pkg_path=`echo "$pkg_test" | grep "^$chk_name"`
+	pkg_path=`echo "$pkg_path" | sed "s/$chk_name[[:space:]]*//"`
+	# check if location provided by /var/log/packages entry
+	pkg_temp=`echo $pkg_path | grep "/var/log/mount/"`
+	if [ "$pkg_temp" != "" ] ; then
+		pkg_file=`basename $pkg_path`
+		pkg_path=`dirname $pkg_path | sed 's|/var/log/mount/||'`
+		pkg_path=${SLACKPKGPATH}/${pkg_path}
+	else
+		pkg_temp=`echo $pkg_path | sed 's|^\./||'`
+		[ "$pkg_path" != "$pkg_temp" ] &&
+			pkg_path="${SLACKRELPATH}/${pkg_temp}"
 	fi
 	#installed packages have package file info in location!
-	if [ "${pkg_file%.t[gx]z}" == "$pkg_file" ]; then
-		pkg_file=${pkg_path##*/}
-		pkg_path=${pkg_path%/${pkg_file}}
+	pkg_base=`echo $pkg_file | sed 's/\.t[xg]z//'`
+	if [ "$pkg_base" == "$pkg_file" ]; then
+		pkg_file=`basename $pkg_path`
+		pkg_path=`dirname $pkg_path`
 	fi
-	pkg_base=${pkg_file%.t[gx]z}
 	chk_name="PACKAGE SIZE (compressed): "
-	pkg_size=$(echo "$pkg_test" | grep "^$chk_name")
+	pkg_size=`echo "$pkg_test" | grep "^$chk_name"`
 	if [ "$pkg_size" == "" ] ; then
 		chk_name="COMPRESSED PACKAGE SIZE:"
-		pkg_size=$(echo "$pkg_test" | grep -e "^$chk_name")
-		pkg_size="${pkg_size##${chk_name}* }"
+		pkg_size=`echo "$pkg_test" | grep -e "^$chk_name"`
+		pkg_size=`echo "$pkg_size" | sed "s/$chk_name[[:space:]]*//"`
 	else
-		pkg_size="${pkg_size%% K*}"
-		pkg_size="${pkg_size##* }K"
+		pkg_size=`echo "$pkg_size" | sed "s/$chk_name[[:space:]]*//"`
+		pkg_size=`echo $pkg_size | sed 's/ K.*//'`"K"
 	fi
 	chk_name="PACKAGE SIZE (uncompressed):"
-	pkg_full=$(echo "$pkg_test" | grep "^$chk_name")
+	pkg_full=`echo "$pkg_test" | grep "^$chk_name"`
 	if [ "$pkg_full" == "" ] ; then
 		chk_name="UNCOMPRESSED PACKAGE SIZE:"
-		pkg_full=$(echo "$pkg_test" | grep -e "^$chk_name")
-		pkg_full="${pkg_full##${chk_name}* }"
+		pkg_full=`echo "$pkg_test" | grep -e "^$chk_name"`
+		pkg_full=`echo "$pkg_full" | sed "s/$chk_name[[:space:]]*//"`
 	else
-		pkg_full="${pkg_full%% K*}"
-		pkg_full="${pkg_full##* }K"
+		pkg_full=`echo "$pkg_full" | sed "s/$chk_name[[:space:]]*//"`
+		pkg_full=`echo $pkg_full | sed 's/ K.*//'`"K"
 	fi
 	# arrange output
 	echo -n "$pkg_base $pkg_file $pkg_path $pkg_size $pkg_full"
@@ -304,16 +309,17 @@ function find_package()
 	local pkg_name="$1"
 	local pkg_flag="$2"
 	local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
-	local pkg_base=$(cat $SLACKPKGFILE | grep -e "$pkg_temp")
+	local pkg_base=`cat $SLACKPKGFILE | grep -e "$pkg_temp"`
 	[ "$pkg_base" == "" ] && [ -r "$SLACKEXTFILE" ] &&
-		pkg_base=$(cat $SLACKEXTFILE | grep -e "$pkg_temp")
+		pkg_base=`cat $SLACKEXTFILE | grep -e "$pkg_temp"`
 	[ "$pkg_base" == "" ] && return
-	pkg_base="${pkg_base##* }"
-	pkg_base="${pkg_base%.t[gx]z}"
+	#pkg_base=`echo $pkg_base | sed 's/PACKAGE NAME:[[:space:]]*//'`
+	pkg_base=`echo $pkg_base | sed 's|.*/||'`
+	pkg_base=`echo $pkg_base | sed 's/\.t[gx]z//'`
 	[ "$pkg_flag" != "--full" ] && echo -n "$pkg_base" && return
-	local pkg_test="$(find_info $pkg_name $SLACKPKGFILE)"
+	local pkg_test=`find_info $pkg_name $SLACKPKGFILE`
 	[ "$pkg_test" = "" ] && [ -r "$SLACKEXTFILE" ] &&
-		pkg_test="$(find_info $pkg_name $SLACKEXTFILE)"
+		pkg_test=`find_info $pkg_name $SLACKEXTFILE`
 	echo -n "$pkg_test"
 }
 
@@ -323,39 +329,38 @@ function find_install()
 	local pkg_name="$1"
 	local pkg_flag="$2"
 	local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
-	local pkg_base=$(ls $SLACKINSTLOG | grep -e "$pkg_temp")
+	local pkg_base=`ls $SLACKINSTLOG | grep -e "$pkg_temp"`
 	[ "$pkg_base" == "" ] && return
 	[ "$pkg_flag" != "--full" ] && echo -n "$pkg_base" && return
 	local pkgs_txt="$SLACKINSTLOG/$pkg_base"
-	echo -n "$(find_info $pkg_name $pkgs_txt)"
+	pkg_temp=`find_info $pkg_name $pkgs_txt`
+	echo -n "$pkg_temp"
 }
 
 function show_info()
 {
 	# get package info
 	local pkg_name="$1"
-	local pkg_info="$(find_package $pkg_name --full)"
-	[ "$pkg_info" == "" ] && pkg_info="$(find_install $pkg_name --full)"
-	[ "$pkg_info" == "" ] && return 1
-	# info structure?
-	local pkg_temp pkg_test pkg_name pkg_vers pkg_arch pkg_extd 
-	local pkg_base pkg_file pkg_path pkg_size pkg_full
-	pkg_test=($(echo "$pkg_info"))
-	pkg_base="${pkg_test[0]}"
-	pkg_file="${pkg_test[1]}"
-	pkg_path="${pkg_test[2]}"
-	pkg_size="${pkg_test[3]}"
-	pkg_full="${pkg_test[4]}"
-	pkg_temp=($(get_pkg_info $pkg_base))
-	pkg_name="${pkg_temp[0]}"
-	pkg_vers="${pkg_temp[1]}"
-	pkg_arch="${pkg_temp[2]}"
-	pkg_extd="${pkg_temp[3]}"
-	# status flags
 	local pkg_flag=""
-	[ "$(find_install $pkg_name)" == "" ] && pkg_flag="NOT "
 	local pkg_stat=""
-	[ "$(find_package $pkg_name)" == "" ] && pkg_stat=" (ALIEN!)"
+	local pkg_info=`find_install $pkg_name --full`
+	local pkg_test=`find_package $pkg_name --full`
+	[ "$pkg_info" == "" ] && pkg_flag="NOT " && pkg_info=$pkg_test
+	[ "$pkg_info" == "" ] && return 1
+	[ "$pkg_test" == "" ] && pkg_stat=" (ALIEN!)"
+	# info structure?
+	local pkg_base pkg_file pkg_path pkg_size pkg_full
+	pkg_base=`echo $pkg_info | cut -d' ' -f1`
+	pkg_file=`echo $pkg_info | cut -d' ' -f2`
+	pkg_path=`echo $pkg_info | cut -d' ' -f3`
+	pkg_size=`echo $pkg_info | cut -d' ' -f4`
+	pkg_full=`echo $pkg_info | cut -d' ' -f5`
+	local pkg_temp pkg_name pkg_vers pkg_arch pkg_extd
+	pkg_temp=`get_pkg_info $pkg_base`
+	pkg_name=`echo $pkg_temp | cut -d' ' -f1`
+	pkg_vers=`echo $pkg_temp | cut -d' ' -f2`
+	pkg_arch=`echo $pkg_temp | cut -d' ' -f3`
+	pkg_extd=`echo $pkg_temp | cut -d' ' -f4`
 	# do the printing
 	local title="PACKAGE <$pkg_name> - BEGIN"
 	local trail="PACKAGE <$pkg_name> - END"
@@ -370,6 +375,8 @@ function show_info()
 	echo "SIZE (Compressed)  : $pkg_size"
 	echo "SIZE (Uncompressed): $pkg_full"
 	echo "INSTALL STATUS     : ${pkg_flag}INSTALLED"
+	local pkg_desc=`find_install_desc $pkg_name`
+	[ "$pkg_desc" == "" ] && pkg_desc=`find_package_desc $pkg_name`
 	[ "$pkg_desc" != "" ] &&
 	echo "DESCRIPTION        : " && echo -e "$pkg_desc"
 	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
