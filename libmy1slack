@@ -385,6 +385,54 @@ function show_info()
 	return 0
 }
 
+function list_package_path()
+{
+	# get all packages in given path
+	local lst_path="$1"
+	local log_path="$2"
+	for pkg_full in `find $lst_path -name "*.t[gx]z" -type f` ; do
+		local pkg_file=`basename $pkg_full`
+		local pkg_path=`dirname $pkg_full`
+		# check extension first
+		local pkg_exts=`echo $pkg_file | sed 's/\(.*\)\.\(.*\)$/\2/'`
+		local pkg_base=`echo $pkg_file | sed 's/\(.*\)\.\(.*\)$/\1/'`
+		# get particulars
+		local pkg_temp=`get_pkg_info $pkg_base`
+		local pkg_name=`echo $pkg_temp | cut -d' ' -f1`
+		local pkg_vers=`echo $pkg_temp | cut -d' ' -f2`
+		local pkg_arch=`echo $pkg_temp | cut -d' ' -f3`
+		local pkg_extd=`echo $pkg_temp | cut -d' ' -f4`
+		# populate information
+		chk_name="$pkg_name"
+		chk_stat="pnone"
+		chk_file="$pkg_full"
+		chk_vers="[${pkg_vers}/${pkg_extd}]"
+		# DEBUG debug_msg "$pkg_full\n"
+		if [ -d "$log_path" ] ; then
+			# find installed
+			local pkg2temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
+			local pkg2base=`ls $log_path | grep -e "$pkg2temp"`
+			[ "$pkg2base" == "" ] && continue
+			pkg2temp=`get_pkg_info $pkg2base`
+			local pkg2name=`echo $pkg2temp | cut -d' ' -f1`
+			local pkg2vers=`echo $pkg2temp | cut -d' ' -f2`
+			local pkg2arch=`echo $pkg2temp | cut -d' ' -f3`
+			local pkg2extd=`echo $pkg2temp | cut -d' ' -f4`
+			# skip if for different arch!
+			[ "$pkg2arch" != "$pkg_arch" ] && continue
+			# check version update
+			if [ "$pkg2vers" == "$pkg_vers" ] &&
+				[ "$pkg2extd" == "$pkg_extd" ]; then
+				chk_stat="pdone"
+			else
+				chk_stat="check"
+				chk_vers="[${pkg_vers}/${pkg_extd}]->[${pkg_vers}/${pkg_extd}]"
+			fi
+		fi
+		echo -n "$chk_name,$chk_stat,$chk_file,$chk_vers;"
+	done
+}
+
 function format_text()
 {
 	# oooh! blinking color text!
