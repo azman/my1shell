@@ -7,26 +7,26 @@
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Package Viewer Tool"
-MY1_TOOLVERS="2012.03.00"
-MY1_TOOLBASE=$(basename $0 .sh)
-MY1_TOOLPATH=$(cd $(dirname $0);pwd)
+MY1_TOOLVERS="2016.12.00"
+MY1_TOOLBASE=`basename $0 .sh`
+MY1_TOOLPATH=`dirname $0`
 MY1_TOOL_LIB="libmy1slack"
 # look for config file
-for config in $(pwd) $HOME; do
+for config in `pwd` $HOME; do
 	config=$config/.$MY1_TOOLBASE
-	[ -r $config ] && source $config && break
+	[ -r $config ] && . $config && break
 done
 # look for my1slack library
-[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && source $MY1_TOOLPATH/$MY1_TOOL_LIB
+[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 # my1slack tool specific
 MY1_TOOL_LOG=${MY1_TOOL_LOG:="/tmp/${MY1_TOOLBASE}.log"}
 MY1_SLACKDIR=${MY1_SLACKDIR:="${SLACKROOTDIR}/${SLACKRELEASE}"}
 MY1_ROOT_DEF=${MY1_ROOT_DEF:="/opt/chroot32"}
-MY1_LIVE_DEF=${MY1_LIVE_DEF:="$(pwd)"}
+MY1_LIVE_DEF=${MY1_LIVE_DEF:=`pwd`}
 MY1_USER_DEF=${MY1_USER_DEF:="user"}
 # global options & settings
-MSG_THISHELP=$(cat <<SETHELPMSG
+MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
   $MY1_TOOLBASE <command> [options]
 Commands:
@@ -36,7 +36,6 @@ Commands:
   file   : Manage File for package list
          > --insert   : Insert package to list
          > --delete   : Delete package from list
-         > --browse   : Browse packages on list
          > --update   : Update packages on list
          > --sort     : Sort packages on list
          > --name     : Specify filename
@@ -46,18 +45,17 @@ Mirror Source:
   $MY1_SLACKDIR
 Log File:
   $MY1_TOOL_LOG
-SETHELPMSG
-)
+SETHELPMSG`
 
 function view_alien_pkgs()
 {
 	local do_echo="YES"
 	# find installed
-	for pkg_base in $(ls $SLACKINSTLOG); do
-		pkg_name="${pkg_base%-*-*-*}"
-		# find if alien
-		if [ "$(find_package $pkg_name)" == "" ]; then
-			echo "Alien package: ${pkg_base%-*-*-*} ($pkg_base)"
+	for pkg_base in `ls $SLACKINSTLOG` ; do
+		local pkg_name=`get_pkg_info $pkg_base | cut -d' ' -f1`
+		local pkg_test=`find_package $pkg_name`
+		if [ "$pkg_test" == "" ]; then
+			echo "Alien package: $pkg_name ($pkg_base)"
 			do_echo="NO"
 		fi
 	done
@@ -94,175 +92,107 @@ function view_find_package()
 function file_pack_part()
 {
 	local pkg_name=$1
-	local pkg_soft="$(get_packsoft $pkg_name)"
+	local pkg_soft=`get_packsoft $pkg_name`
 	local pkg_part="${pkg_soft}!${pkg_name}"
 	echo -n $pkg_part
 }
 
 function file_insert_package()
 {
-	local pkg_list pkg_temp pkg_test
+	local pkg_temp pkg_test
 	local pkg_file=$1
-	local pkg_part=$2
-	local ifs_save=$IFS
-	local pkg_name=${pkg_part#*!}
-	local pkg_soft=${pkg_part#%!${pkg_name}}
-	IFS=$'\n'
-	pkg_list=($(cat $pkg_file | grep "$pkg_name"))
-	IFS=$ifs_save
-	for (( x=0;x<${#pkg_list[@]};x++ )); do
-		pkg_temp=${pkg_list[$x]}
-		[ "${pkg_temp#*!}" == "$pkg_name" ] && pkg_test=$pkg_temp && break
+	local pkg_name=$2
+	local pkg_list=`cat $pkg_file | grep "$pkg_name"`
+	# we may get more than 1 matching entries
+	for pkg_loop in $pkg_list ; do
+		pkg_temp=`echo $pkg_loop | cut -d'!' -f2`
+		[ "$pkg_temp" == "$pkg_name" ] && pkg_test=$pkg_loop && break
 	done
-	if [ "$pkg_test" == "" ]; then
-		# insert
-		echo "$pkg_part" >>$pkg_file
-		return 0
+	pkg_temp=`file_pack_part $pkg_name`
+	if [ -z "$pkg_test" ]; then
+		pkg_test=`find_package $pkg_name`
+		[ "$pk_test" == "" ] &&
+			echo "PACKAGE: [INSERT] => $pkg_name (FAILED!)" && return
+		# insert if no matching entry
+		echo "$pkg_temp" >>$pkg_file
+		echo "PACKAGE: [INSERT] => $pkg_temp ($pkg_test)"
 	else
-		# update
-		sed -i -e "\|^$pkg_test\$|c\\$pkg_part" $pkg_file
-		return $?
+		if [ "$pkg_test" == "$pkg_temp" ] ; then
+			pkg_test=`echo $pkg_temp | cut -d'!' -f1`
+			if [ "$pkg_test" != "z" ] ; then
+				pkg_test=`find_package $pkg_name`
+			else
+				pkg_test="EXTERNAL PACKAGE?"
+			fi
+		fi
+		# update if existing found
+		sed -i -e "\|^$pkg_test\$|c\\$pkg_temp" $pkg_file
+		[ $? -ne 0 ] && pkg_test="$FAILED!"
+		echo "PACKAGE: [UPDATE] => $pkg_temp ($pkg_test)"
 	fi
 }
 
 function file_remove_package()
 {
-	local pkg_list pkg_temp pkg_test
+	local pkg_temp pkg_test
 	local pkg_file=$1
 	local pkg_name=$2
-	local ifs_save=$IFS
-	IFS=$'\n'
-	pkg_list=($(cat $pkg_file | grep "$pkg_name"))
-	IFS=$ifs_save
-	for (( x=0;x<${#pkg_list[@]};x++ )); do
-		pkg_temp=${pkg_list[$x]}
-		[ "${pkg_temp#*!}" == "$pkg_name" ] && pkg_test=$pkg_temp && break
+	local pkg_list=`cat $pkg_file | grep "$pkg_name"`
+	for pkg_loop in $pkg_list ; do
+		pkg_temp=`echo $pkg_loop | cut -d'!' -f2`
+		[ "$pkg_temp" == "$pkg_name" ] && pkg_test=$pkg_loop && break
 	done
-	if [ "$pkg_test" == "" ]; then
-		# nothing to do
-		return 0
+	if [ -z "$pkg_test" ]; then
+		echo "PACKAGE: [REMOVE] => $pkg_name not found in list!"
 	else
-		# remove
+		# remove if existing found
 		sed -i -e "\|^$pkg_test\$|d" $pkg_file
-		return $?
+		[ $? -ne 0 ] && pkg_test="$pkg_test (FAILED!)"
+		echo "PACKAGE: [REMOVE] => $pkg_test"
 	fi
 }
 
 function file_option_package()
 {
-	local pkg_temp pkg_test
+	local pkg_temp pkg_test do_select
 	local pkg_file=$1
 	local pkg_name=$2
-	local pkg_stat="INCLUDED"
+	local pkg_stat="UNKNOWN"
 	# interactive
-	local pkg_base="$(find_package $pkg_name)"
-	[ "$pkg_base" == "" ] && echo "Package '$pkg_name' unknown!" && return
-	show_info $pkg_name
-	local ifs_save=$IFS
-	IFS=$'\n'
-	pkg_list=($(cat $pkg_file | grep "$pkg_name"))
-	IFS=$ifs_save
-	for (( x=0;x<${#pkg_list[@]};x++ )); do
-		pkg_temp=${pkg_list[$x]}
-		[ "${pkg_temp#*!}" == "$pkg_name" ] && pkg_test=$pkg_temp && break
+	local pkg_base=`find_package $pkg_name`
+	[ "$pkg_base" != "" ] && show_info $pkg_name
+	local pkg_list=`cat $pkg_file | grep "$pkg_name"`
+	for pkg_loop in $pkg_list ; do
+		pkg_temp=`echo $pkg_loop | cut -d'!' -f2`
+		[ "$pkg_temp" == "$pkg_name" ] && pkg_test=$pkg_loop && break
 	done
 	if [ "$pkg_test" == "" ]; then
 		pkg_stat="EXCLUDED"
 	else
-		pkg_test=$(find_package ${pkg_test#*!})
+		pkg_test=`find_package $pkg_temp`
 		comp_package $pkg_test $pkg_base
-		[ $? -ne 0 ] && pkg_stat="INCLUDED ($pkg_test/$pkg_base) [$?]"
+		[ $? -ne 0 ] && pkg_stat="INCLUDED"
 	fi
-	echo -ne "\nStatus: $pkg_stat. "
+	echo -ne "\nStatus: $pkg_stat >> "
 	read -n 1 -p "Command ([i]nsert/[d]elete/[*]): " do_select ; echo
 	if [ "$do_select" == "i" ]; then
-		file_insert_package $pkg_file $(file_pack_part $pkg_name)
+		file_insert_package $pkg_file $pkg_name
 	elif [ "$do_select" == "d" ]; then
 		file_remove_package $pkg_file $pkg_name
 	fi
 }
 
-function file_browse_packages()
-{
-	local pkg_name pkg_temp pkg_desc pkg_base
-	local opt_more opt_init="[p]revious/[n]ext/[q]uit"
-	local pkg_list pkg_file=$1 do_select x y
-	# get all packages on file
-	local ifs_save=$IFS
-	IFS=$'\n'
-	pkg_list=($(cat $pkg_file))
-	IFS=$ifs_save
-	# browse packages on file
-	for (( x=0;x<${#pkg_list[@]}; )); do
-		pkg_temp=${pkg_list[$x]}
-		pkg_name=${pkg_temp#*!}
-		pkg_base=$(find_package $pkg_name)
-		echo -n "PACKAGE: ${pkg_name} (${pkg_base})"
-		# try to show details
-		pkg_desc="$(find_package_desc $pkg_name)"
-		if [ "$pkg_desc" == "" ] ; then
-			echo -n " => "
-			opt_more=""
-		else
-			echo -e "\n\n${pkg_desc}\n"
-			opt_more="[u]pdate/[d]elete/"
-		fi
-		# navigation options
-		read -n 1 -p "Command (${opt_more}${opt_init}): " do_select
-		echo ; echo
-		if [ "$do_select" == "n" ]; then
-			[ $x -lt ${#pkg_list[@]}-1 ] && (( x++ ))
-		elif [ "$do_select" == "p" ]; then
-			[ $x -gt 0 ] && (( x-- ))
-		elif [ "$do_select" == "u" ]; then
-			[ "$opt_more" == "" ] && continue
-			local pkg_part=$(file_pack_part $pkg_name)
-			file_insert_package $pkg_file $pkg_part 
-			if [ $? -eq 0 ] ; then echo "Package '$pkg_name' updated!"
-			else echo "Package '$pkg_name' update error!" ; fi
-			break;
-		elif [ "$do_select" == "d" ]; then
-			[ "$opt_more" == "" ] && continue
-			file_remove_package $pkg_file $pkg_name
-			if [ $? -eq 0 ] ; then echo "Package '$pkg_name' deleted!"
-			else echo "Package '$pkg_name' delete error!" ; fi
-			break;
-		elif [ "$do_select" == "q" ]; then
-			break;
-		fi
-	done
-}
-
 function file_update_packages()
 {
-	local pkg_list pkg_temp pkg_name pkg_base
-	local do_select x y
-	# get all packages on file
-	local ifs_save=$IFS
-	IFS=$'\n'
-	pkg_list=($(cat $pkg_file))
-	IFS=$ifs_save
+	local pkg_temp pkg_name pkg_base
+	local pkg_file=$1
+	local pkg_list=`cat $pkg_file`
 	# browse packages on file
-	for (( x=0;x<${#pkg_list[@]};x++ )); do
-		pkg_temp=${pkg_list[$x]}
-		pkg_name=${pkg_temp#*!}
-		pkg_base=$(find_package $pkg_name)
-		echo -n "PACKAGE: "
-		if [ "$pkg_base" == "" ]; then
-			echo -n "[INVALID]"
-		else
-			local pkg_part=$(file_pack_part $pkg_name)
-			if [ "$pkg_temp" != "$pkg_part" ]; then
-				(( y=x ))
-				file_insert_package $pkg_file $pkg_part
-				if [ $? -eq 0 ] ; then echo -n "[UPDATED]"
-				else echo -n "[ERROR]" ; fi
-				(( x=y ))
-			else
-				echo -n "[OK]"
-			fi
-		fi
-		echo " => $pkg_name ($pkg_base)"
+	for pkg_loop in $pkg_list ; do
+		pkg_temp=`echo $pkg_loop | cut -d'!' -f1`
+		pkg_name=`echo $pkg_loop | cut -d'!' -f2`
+		pkg_base=`find_package $pkg_name`
+		file_insert_package $pkg_file $pkg_name
 	done
 }
 
@@ -275,11 +205,8 @@ function view_file_package()
 			--insert)
 				do_select="YES"
 				;;
-			--delete)
+			--delete|--remove)
 				do_select="INV"
-				;;
-			--browse)
-				do_select="CHK"
 				;;
 			--update)
 				do_select="UPD"
@@ -293,11 +220,15 @@ function view_file_package()
 				;;
 			--pack)
 				shift
-				pkg_temp=$(get_softpack $1)
+				pkg_temp=`get_softpack $1`
 				for pkg in $pkg_temp ; do
-					pkg_name=($(get_pkg_info $pkg))
-					pkg_list="$pkg_list ${pkg_name[0]}"
+					pkg_name=`get_pkg_info $pkg | cut -d' ' -f1`
+					pkg_list="${pkg_list}${pkg_name} "
 				done
+				;;
+			-*)
+				echo -e "Unknown option '$1'! Aborting!\n"
+				exit 1
 				;;
 			*)
 				pkg_list="$pkg_list $1"
@@ -312,9 +243,6 @@ function view_file_package()
 	# check request to update file
 	[ "$do_select" == "UPD" ] &&
 		file_update_packages $pkg_file && return
-	# check request to browse file
-	[ "$do_select" == "CHK" ] &&
-		file_browse_packages $pkg_file && return
 	# check sort request
 	if [ "$do_select" == "SOT" ]; then
 		echo -n "Sorting (with uniq) $pkg_file..."
@@ -328,7 +256,7 @@ function view_file_package()
 	# process the given package list
 	for pkg in $pkg_list; do
 		case $do_select in
-			YES) file_insert_package $pkg_file $(file_pack_part $pkg) ;;
+			YES) file_insert_package $pkg_file $pkg ;;
 			INV) file_remove_package $pkg_file $pkg ;;
 			*) file_option_package $pkg_file $pkg ;;
 		esac
