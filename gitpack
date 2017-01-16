@@ -73,8 +73,13 @@ if [ "$DOBUNDLE" == "YES" ]; then
 	# get date of last commit
 	CHK_DATE=`git log -1 --format=%cd --date=format:'%Y%m%d%H%M%S'`
 	CHK_NAME=${MAINNAME}-${CHK_DATE}
-	git bundle create ${BALLPATH}/${CHK_NAME}${BALLSUFX}.git --branches --tags
-	[ $? -ne 0 ] && echo "Error running git?" && exit 1
+	CHK_FILE=${BALLPATH}/${CHK_NAME}${BALLSUFX}.git
+	if [ -f "$CHK_FILE" ]; then
+		echo "Bundle '$CHK_FILE' exists!"
+	else
+		git bundle create $CHK_FILE --branches --tags
+		[ $? -ne 0 ] && echo "Error running git?" && exit 1
+	fi
 fi
 
 # prepare name - for patches!
@@ -85,7 +90,7 @@ CHK_NAME=${MAINNAME}-${CHK_DATE}
 GIT_DIFF=`git diff`
 if [ "$GIT_DIFF" != "" ]; then
 	echo "$GIT_DIFF" >${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch
-	echo "Patch file '${BALLPATH}/${CHK_NAME}-${BALLSUFX}.patch' created."
+	echo "Patch file '${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch' created."
 fi
 
 # are we formatting patches?
