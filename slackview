@@ -111,7 +111,7 @@ function file_insert_package()
 	pkg_temp=`file_pack_part $pkg_name`
 	if [ -z "$pkg_test" ]; then
 		pkg_test=`find_package $pkg_name`
-		[ "$pk_test" == "" ] &&
+		[ "$pkg_test" == "" ] &&
 			echo "PACKAGE: [INSERT] => $pkg_name (FAILED!)" && return
 		# insert if no matching entry
 		echo "$pkg_temp" >>$pkg_file

@@ -12,7 +12,7 @@ BALLNAME=$(basename $CURRPATH)
 MAINNAME=${MAINNAME:="$BALLNAME"}
 BALLSUFX=${BALLSUFX:=""}
 DOBUNDLE=${DOBUNDLE:="YES"}
-DATE_FMT=${DATE_FMT:="+%Y%m%d"}
+DATE_FMT=${DATE_FMT:="+%Y%m%d%H%M%S"}
 PATCHGIT=${PATCHGIT:="NO"}
 PATCHNUM=${PATCHNUM:="4"}
 
@@ -22,9 +22,6 @@ while [ "$1" != "" ]; do
 	case $1 in
 		--diff)
 			DOBUNDLE="NO"
-			;;
-		--time)
-			DATE_FMT="+%Y%m%d%H%M"
 			;;
 		--suffix)
 			shift
