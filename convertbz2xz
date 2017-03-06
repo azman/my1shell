@@ -1,0 +1,17 @@
+#!/bin/sh
+
+file=$1
+[ ! -f "$file" ] &&
+	echo "Cannot find file '$file'! Aborting!" && exit 1
+
+next=${file//.bz2/.xz}
+[ "$next" == "$file" ] &&
+	echo "File '$file' not a bz2 archive?! Aborting!" && exit 1
+
+echo -n "Extracting '$file' and repacking as '$next'... "
+bzcat $file | xz > $next
+echo "done!"
+echo -n "Cloning '$file' timestamps to '$next'... "
+touch -a -d "`stat -c '%x' $file`" $next
+touch -m -d "`stat -c '%y' $file`" $next
+echo "done!"
