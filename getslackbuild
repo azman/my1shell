@@ -6,29 +6,29 @@
 # - builds dependencies (based on .info file) if requested
 
 # standard tool info
-MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(cd $(dirname $0);pwd)"
+MY1TOOL=`basename $0 .sh`
+MY1PATH=`dirname $0`
 # look for config file
-for config in $(pwd) $HOME; do
+for config in `pwd` $HOME; do
 	config=$config/.$MY1TOOL
 	[ -r $config ] && source $config && break
 done
 
 # my1slack tool specific
 MY1_TOOLNAME="my1 SlackBuilds.org Executor"
-MY1_TOOLVERS="2015.05.00"
-MY1_BUILDDIR=${MY1_BUILDDIR:="$(dirname $MY1PATH)/slackbuilds"}
-MY1_THISPATH=$(pwd -P)
+MY1_TOOLVERS="2017.03.00"
+MY1_TOOLPDIR=`dirname $MY1PATH`
+MY1_BUILDDIR=${MY1_BUILDDIR:="${MY1_TOOLPDIR}/slackbuilds"}
+MY1_THISPATH=`pwd -P`
 MY1_PACKPATH=""
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 SLACKVERS=${SLACKVERS:=""}
 if [ "$SLACKVERS" == "" ]; then
-	SLACKVERS=$(cat /etc/slackware-version)
-	SLACKVERS=${SLACKVERS#Slackware }
-	SLACKVMAJ=${SLACKVERS%%.*}
-	SLACKVMIN=${SLACKVERS#*.}
-	[ "${SLACKVMIN//./}" != "$SLACKVMIN" ] && SLACKVMIN=${SLACKVMIN%%.*}
-	SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
+	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
+	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
+	# just in case?
+	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
 fi
 
 # global options & settings
@@ -37,7 +37,7 @@ OPT_DEPENDS="NO"
 OPT_EXECUTE="NO"
 OPT_GETTHAT="NO"
 OPT_CLEANUP="NO"
-MSG_THISHELP=$(cat <<SETHELPMSG
+MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
   $MY1TOOL [options] <pkg_name>
 Options:
@@ -48,14 +48,13 @@ Options:
   --depends : Check (and build) dependencies
   --cleanup : Clears old Slackbuilds and recheck (implies --lookup)
   --execute : Execute build (else, simply check @ dry-run)
-SETHELPMSG
-)
+SETHELPMSG`
 
 function do_download()
 {
 	local fname="$1"
 	local label="$2"
-	local cpath="$(pwd)"
+	local cpath=`pwd`
 	local cname=""
 	[ "$fname" == "" ] && exit 1 # shouldn't be here?
 	[ "$label" == "" ] && label="$fname"
@@ -69,6 +68,24 @@ function do_download()
 	echo -ne "\b\b\b\b DONE!\n"
 }
 
+function get_buildinfo()
+{
+	local pkg_name=$1
+	local inf_file="${MY1_BUILDDIR}/${pkg_name}/${pkg_name}.info"
+	[ ! -f ${inf_file} ] && return
+	local pkg_info=`cat $inf_file`
+	local pkg_vers pkg_file pkg_deps
+	# get package version
+	pkg_vers=`echo "$pkg_info" | grep VERSION= | sed 's/^.*="\(.*\)".*$/\1/'`
+	# get download file name
+	pkg_file=`echo "$pkg_info" | grep DOWNLOAD= | sed 's/^.*="\(.*\)".*$/\1/'`
+	# get dependencies
+	pkg_deps=`echo "$pkg_info" | grep REQUIRES= | sed 's/^.*="\(.*\)".*$/\1/'`
+	# format info
+	echo -n "$pkg_name;$pkg_vers;$pkg_file;$pkg_deps"
+	return
+}
+
 function do_lookup()
 {
 	local pkg_vers=$1
@@ -79,39 +96,54 @@ function do_lookup()
 	# prepare temp
 	mkdir -p $pkg_temp 2>/dev/null
 	[ $? -ne 0 ] &&
-		echo -e "[ERROR] Cannot create path '$pkg_temp'!\n" && exit 1
+		echo -e "[ERROR] Cannot create path '$pkg_temp'!\n" >&2 && exit 1
 	cd $pkg_temp
-	# if not found OR nothing modified last 120 minutes
-	if [ "$(find $pkg_list -mmin -120 2>/dev/null)" == "" ]; then
-		rm -rf $pkg_list $pkg_list.gz # just in case, delete old one
+	# check if not found OR nothing modified last 120 minutes
+	local chk_list=`find $pkg_list -mmin -120 2>/dev/null`
+	#local chk_list=`find $pkg_list 2>/dev/null`
+	if [ "$chk_list" == "" ]; then
 		wget --spider $pkg_root >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
+			rm -rf $pkg_list $pkg_list.gz # just in case, delete old one
 			do_download ${pkg_root}/$pkg_list.gz $pkg_list.gz
+			[ ! -r "$pkg_list.gz" ] &&
+				echo -e "[ERROR] Cannot download $pkg_list.gz!\n" >&2 && exit 1
+			gzip -d $pkg_list.gz
+		else
+			[ -r "$pkg_list" ] &&
+				echo -e "[WARNING] NOT using latest $pkg_list!\n"
 		fi
-		[ ! -r "$pkg_list.gz" ] &&
-			echo -e "[ERROR] Cannot download $pkg_list.gz!\n" >&2 && exit 1
-		gzip -d $pkg_list.gz
 	fi
 	# we must have it!
 	[ ! -r "$pkg_list" ] &&
 		echo -e "[ERROR] File '$pkg_list' not found!\n" >&2 && exit 1
 	# look for pkg_name
 	local pkg_test="SLACKBUILD NAME: $pkg_name"
-	local pkg_text="$(cat $pkg_list|grep -e "${pkg_test}$" -A6|tr '\n' ';')"
+	local pkg_text=`cat $pkg_list|grep -e "${pkg_test}$" -A6`
 	[ "$pkg_text" == "" ] &&
 		echo -e "[ERROR] Cannot find script for '$pkg_name'!\n" >&2 && exit 1
-	local pkg_path=${pkg_text##*SLACKBUILD LOCATION: }
-	pkg_path=${pkg_path%%;*}
-	pkg_path=${pkg_path//./$pkg_root}.tar.gz
-	pkg_name=${pkg_text##*SLACKBUILD NAME: }
-	pkg_name=${pkg_name%%;*}
+	# check if local version is available
+	local pkg_vers=`echo "$pkg_text" | grep 'SLACKBUILD VERSION'`
+	pkg_vers=`echo "$pkg_vers" | sed 's/.*: \(.*\)$/\1/'`
+	local pkg_info=`get_buildinfo $pkg_name`
+	if [ "$pkg_info" != "" ] ; then
+		local tmp_vers=`echo "$pkg_info" | cut -d';' -f2`
+		[ "$tmp_vers" == "$pkg_vers" ] && return
+		echo -n "Package: $pkg_name ($pkg_vers) available. "
+		echo -e "Local copy ($tmp_vers) found!\n"
+		echo -e "Remove or run with --cleanup!\n"
+		exit 1
+	fi
+	local pkg_path=`echo "$pkg_text" | grep 'SLACKBUILD LOCATION'`
+	pkg_path=`echo "$pkg_path" | sed 's/.*: \.\(.*\)$/\1/'`
+	pkg_path="${pkg_root}${pkg_path}.tar.gz"
+	pkg_name=`echo "$pkg_text" | grep 'SLACKBUILD NAME'`
+	pkg_name=`echo "$pkg_name" | sed 's/.*: \(.*\)$/\1/'`
 	pkg_test=${pkg_name}.tar.gz
-	local pkg_file=${pkg_text##*SLACKBUILD DOWNLOAD: }
-	pkg_file=${pkg_file%%;*}
-	pkg_file=${pkg_file%% *}
-	local pkg_fil2=${pkg_text##*SLACKBUILD DOWNLOAD_x86_64: }
-	pkg_fil2=${pkg_fil2%%;*}
-	pkg_fil2=${pkg_fil2%% *}
+	local pkg_file=`echo "$pkg_text" | grep 'SLACKBUILD DOWNLOAD'`
+	pkg_file=`echo "$pkg_file" | sed 's/.*: \(.*\)$/\1/'`
+	local pkg_fil2=`echo "$pkg_text" | grep 'SLACKBUILD DOWNLOAD_x86_64'`
+	pkg_fil2=`echo "$pkg_fil2" | sed 's/.*: \(.*\)$/\1/'`
 	# look for it!
 	wget --spider $pkg_path >/dev/null 2>&1
 	[ $? -ne 0 ] && echo -e "[ERROR] Cannot find $pkg_path!\n" >&2 && exit 1
@@ -133,7 +165,7 @@ function do_loadball()
 {
 	local pkg_path=$1
 	local pkg_file=$2
-	local pkg_ball=$(basename $pkg_file)
+	local pkg_ball=`basename $pkg_file`
 	[ ! -d $pkg_path ] &&
 		echo -e "[ERROR] Cannot find $pkg_path!\n" >&2 && exit 1
 	wget --spider $pkg_file >/dev/null 2>&1
@@ -149,14 +181,15 @@ function do_loadball()
 function get_userngrp()
 {
 	local chk_this=$1
-	local chk_path
+	local chk_path=`pwd -P`
 	local chk_user chk_grpn
-	[ "$chk_this" == "." ] && chk_this=$(pwd -P)
-	[ "$chk_this" == ".." ] && chk_this=$(dirname $(pwd -P))
+	[ "$chk_this" == "." ] && chk_this=$chk_path
+	[ "$chk_this" == ".." ] && chk_this=`dirname $chk_path`
 	[ ! -r "$chk_this" ] && echo -e "Cannot read '$chk_this'!" 1>&2 && return
-	chk_path=$(cd $(dirname $chk_this);pwd)
-	chk_this=$(basename $chk_this)
-	chk_user=$(ls -l "${chk_path}/" | grep -e "${chk_this}$")
+	chk_path=`dirname $chk_this`
+	chk_path=`cd $chk_path;pwd`
+	chk_this=`basename $chk_this`
+	chk_user=`ls -l "${chk_path}/" | grep -e "${chk_this}$"`
 	set -- $chk_user
 	chk_user=$3
 	chk_grpn=$4
@@ -168,40 +201,30 @@ function do_build()
 	local pkg_name=$1
 	local opt_inst=$2
 	local chk_path=${MY1_THISPATH}
-	local pkg_file pkg_ball pkg_deps log_file inf_file
+	local pkg_file pkg_ball pkg_deps log_file inf_file pkg_vers pkg_info
 	[ ! -d "$MY1_BUILDDIR" ] &&
 		echo -e "Path '$MY1_BUILDDIR' not found!\n" && exit 1
 	cd $MY1_BUILDDIR
-	if [ "$OPT_CLEANUP" == "YES" ] ; then
-		rm -rf ${pkg_name}/
-	fi
-	if [ ! -f ${pkg_name}/${pkg_name}.SlackBuild ] ; then
-		if [ "$OPT_GETTHAT" == "YES" ] ; then
-			do_lookup ${SLACKVERS} $pkg_name
-		else
-			echo -e "SlackBuild for '$pkg_name' not found!\n" ; exit 1
-		fi
-	fi
-	inf_file="${pkg_name}/${pkg_name}.info"
-	[ ! -f ${inf_file} ] &&
-		echo -e "[ERROR] Info file for '$pkg_name' not found!\n" && exit 1
+	[ "$OPT_CLEANUP" == "YES" ] && rm -rf ${pkg_name}/
+	[ "$OPT_GETTHAT" == "YES" ] && do_lookup ${SLACKVERS} $pkg_name
+	[ ! -f ${pkg_name}/${pkg_name}.SlackBuild ] &&
+		echo -e "SlackBuild for '$pkg_name' not found!\n" && exit 1
+	# get info
+	pkg_info=`get_buildinfo $pkg_name`
+	[ "$pkg_info" == "" ] &&
+		echo -e "[ERROR] Cannot get info for '$pkg_name'!\n" && exit 1
+	pkg_vers=`echo "$pkg_info" | cut -d';' -f2`
+	pkg_file=`echo "$pkg_info" | cut -d';' -f3`
+	pkg_deps=`echo "$pkg_info" | cut -d';' -f4`
 	# check if tarball available?
-	pkg_file=$(cat ${inf_file} | grep DOWNLOAD=)
-	pkg_file=${pkg_file##*=\"}
-	pkg_file=${pkg_file%\"*}
-	pkg_file=${pkg_file%% *}
-	pkg_ball=$(basename $pkg_file)
+	pkg_ball=`basename $pkg_file`
 	[ "$OPT_GETTHAT" == "YES" ] &&
 		[ ! -f "${pkg_name}/${pkg_ball}" ] && do_loadball $pkg_name $pkg_file
-	# find deps
-	pkg_deps=$(cat ${inf_file} | grep REQUIRES)
-	pkg_deps=${pkg_deps#*=\"}
-	pkg_deps=${pkg_deps%\"*}
 	# some deps asks to refer to README
 	[ "$pkg_deps" == "%README%" ] && pkg_deps=""
 	# show this before dependencies if not building
 	if [ "$OPT_EXECUTE" != "YES" ]; then
-		echo -n "Package: $pkg_name"
+		echo -n "Package: $pkg_name ($pkg_vers)"
 		[ "$pkg_deps" != "" ] && echo -n ", Requires: $pkg_deps" ; echo
 	fi
 	# iterate through dependencies, if requested
@@ -210,11 +233,12 @@ function do_build()
 			do_build $pkg --install
 		done
 	fi
+	# need this in case dependencies' do_build changed path
 	cd $MY1_BUILDDIR
 	# build only if explicitly requested
 	if [ "$OPT_EXECUTE" == "YES" ]; then
 		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
-		local pkg_base=$(ls /var/log/packages | grep -e "$pkg_temp")
+		local pkg_base=`ls /var/log/packages | grep -e "$pkg_temp"`
 		# check if already installed!
 		#@DEBUG@echo "[$pkg_name] => [$pkg_base]!" && return
 		[ "$pkg_base" != "" ] && echo "[$pkg_name] Installed!" && return
@@ -225,9 +249,8 @@ function do_build()
 		sh ${pkg_name}.SlackBuild >${log_file} 2>&1
 		[ $? -ne 0 ] && echo -e "Error building '$pkg_name'!\n" && exit 1
 		echo "done!"
-		local pkg_file="$(cat $log_file | tail -n 2 | grep Slackware)"
-		pkg_file=${pkg_file#*package }
-		pkg_file=${pkg_file% created*}
+		local pkg_file=`cat ${log_file} | tail -n 2 | grep Slackware`
+		pkg_file=`echo "$pkg_file" | sed 's/package \(.*\) created/\1/'`
 		[ ! -f $pkg_file ] &&
 			echo "Cannot find package '$pkg_file'!" && exit 1
 		if [ "$opt_inst" == "--install" ] ; then
@@ -237,11 +260,11 @@ function do_build()
 				echo -e "Error installing '$pkg_file'!\n" && exit 1
 			echo "done!"
 		else
-			local chk_perm=$(get_userngrp $chk_path)
+			local chk_perm=`get_userngrp $chk_path`
 			mv $pkg_file $chk_path
-			pkg_file=${chk_path}/$(basename $pkg_file)
+			pkg_file=${chk_path}/`basename $pkg_file`
 			mv $log_file $chk_path
-			log_file=${chk_path}/$(basename $log_file)
+			log_file=${chk_path}/`basename $log_file`
 			if [ "$chk_perm" != "" ] ; then
 				chown $chk_perm $pkg_file $log_file
 			fi
@@ -276,7 +299,7 @@ function process_command()
 				shift
 				[ ! -d "$1" ] &&
 					echo -e "[ERROR] Invalid path!? [$1]\n" && exit 1
-				MY1_BUILDDIR="$(cd $1;pwd)"
+				MY1_BUILDDIR=`cd $1;pwd`
 				;;
 			--pack)
 				shift
