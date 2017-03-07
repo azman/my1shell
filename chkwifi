@@ -10,53 +10,29 @@ WIFI_DEVN=${WIFI_DEVN:="$1"}
 WIFI_MESG=""
 LINK_UMAX="70" # do not know if this is true - seems like it?
 
+[ "$WIFI_DEVN" == "" ] && exit 1
 shift
-WIFI_STAT=$(cat ${WIFI_PATH} | grep "$WIFI_DEVN")
+WIFI_STAT=`cat ${WIFI_PATH} | grep "$WIFI_DEVN"`
 if [ "$WIFI_STAT" != "" ] ; then
-	while [ "${WIFI_STAT:0:1}" == " " ] ; do
-		WIFI_STAT=${WIFI_STAT:1}
-	done
-	WIFI_NAME=${WIFI_STAT%%: *}
-	WIFI_STAT=${WIFI_STAT#${WIFI_NAME}:}
-	while [ "${WIFI_STAT:0:1}" == " " ] ; do
-		WIFI_STAT=${WIFI_STAT:1}
-	done
-	WIFI_FLAG=${WIFI_STAT%% *}
-	WIFI_STAT=${WIFI_STAT#${WIFI_FLAG}}
-	while [ "${WIFI_STAT:0:1}" == " " ] ; do
-		WIFI_STAT=${WIFI_STAT:1}
-	done
-	WIFI_LINK=${WIFI_STAT%% *}
-	WIFI_STAT=${WIFI_STAT#${WIFI_LINK}}
-	while [ "${WIFI_STAT:0:1}" == " " ] ; do
-		WIFI_STAT=${WIFI_STAT:1}
-	done
-	WIFI_LINK=${WIFI_LINK//./}
+	WIFI_NAME=`echo $WIFI_STAT | sed 's/^[[:space:]]*\(.*\):.*$/\1/'`
+	WIFI_STAT=`echo $WIFI_STAT | sed 's/^.*:[[:space:]]*\(.*\)$/\1/'`
+	WIFI_FLAG=`echo $WIFI_STAT | cut -d' ' -f1`
+	WIFI_LINK=`echo $WIFI_STAT | cut -d' ' -f2 | cut -d. -f1`
+	WIFI_SIGS=`echo $WIFI_STAT | cut -d' ' -f3 | cut -d. -f1`
+	WIFI_NOIS=`echo $WIFI_STAT | cut -d' ' -f4`
 	((WIFI_LQUA=${WIFI_LINK}*100/${LINK_UMAX}))
-	WIFI_SIGS=${WIFI_STAT%% *}
-	WIFI_STAT=${WIFI_STAT#${WIFI_SIGS}}
-	while [ "${WIFI_STAT:0:1}" == " " ] ; do
-		WIFI_STAT=${WIFI_STAT:1}
-	done
-	WIFI_SIGS=${WIFI_SIGS//./}
-	WIFI_NOIS=${WIFI_STAT%% *}
-	WIFI_STAT=${WIFI_STAT#${WIFI_NOIS}}
-	while [ "${WIFI_STAT:0:1}" == " " ] ; do
-		WIFI_STAT=${WIFI_STAT:1}
-	done
-	WIFI_NOIS=${WIFI_NOIS//./}
 	((WIFI_S2NR=${WIFI_SIGS}*100/${WIFI_NOIS}))
 	WIFI_MESG="{$WIFI_NAME:$WIFI_LQUA%:$WIFI_S2NR}"
 	WIFI_STAT="Link Up (Quality: $WIFI_LINK, Strength: $WIFI_SIGS dBm,"
 	WIFI_STAT="$WIFI_STAT Noise: $WIFI_NOIS dBm)"
 else
-	WIFI_MESG="{NoWiFi}"
 	WIFI_NAME=$WIFI_DEVN
+	WIFI_MESG="{NoWiFi}"
 	WIFI_STAT="Link Down?"
 fi
 
 [ "$1" == "--state" ] && echo "$WIFI_MESG" && exit 0
 
-echo "${WIFI_NAME}: $WIFI_STAT"
+echo "${WIFI_NAME}: $WIFI_MESG $WIFI_STAT"
 
 exit 0
