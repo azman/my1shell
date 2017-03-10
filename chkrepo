@@ -4,25 +4,28 @@
 # - written by azman@my1matrix.net
 # - update git and hg repos in this folder
 
-MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(dirname $0)"
-CURPATH="$(pwd)"
+MY1TOOL=`basename $0 .sh`
+MY1PATH=`dirname $0`
+CURPATH=`pwd`
 
 # tool & env setup
-GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
-HG_BIN=${HG_BIN:="$(which hg 2>/dev/null)"}
+GIT_BIN=${GIT_BIN:=`which git 2>/dev/null`}
+HG_BIN=${HG_BIN:=`which hg 2>/dev/null`}
 
-for a in $(find $(pwd) -maxdepth 1 -type d); do
+for a in `find $CURPATH -maxdepth 1 -type d`; do
 	[ ! -d $a/.git ] && [ ! -d $a/.hg ] && continue
 	cd $a
-	echo "$(basename $a) =>"
+	echo -n `basename $a`" => "
 	if [ -d .git -a -x "$GIT_BIN" ] ; then
 		git pull
-		if [ "$(git remote | grep backup)" != "" ] ; then
+		CHKTHIS=`git remote | grep backup`
+		if [ "$CHKTHIS" != "" ] ; then
+			echo -n `basename $a`" (backup) => "
 			git push backup
 		fi
+	elif [ -d .hg -a -x "$HG_BIN" ] ; then
+		hg pull && hg update
 	fi
-	[ -d .hg ] && [ -x "$HG_BIN" ] && hg pull && hg update
 	cd - >/dev/null
 done
 
