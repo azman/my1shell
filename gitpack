@@ -74,7 +74,8 @@ if [ "$DOBUNDLE" == "YES" ]; then
 	if [ -f "$CHK_FILE" ]; then
 		echo "Bundle '$CHK_FILE' exists!"
 	else
-		git bundle create $CHK_FILE --branches --tags
+		# HEAD is not bundled if using '--branches --tags'
+		git bundle create $CHK_FILE --all
 		[ $? -ne 0 ] && echo "Error running git?" && exit 1
 	fi
 fi

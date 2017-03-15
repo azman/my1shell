@@ -190,7 +190,7 @@ function chkgit_archive()
 			echo "Old archive '$that_path' found!"
 		fi
 		echo -n "Creating new archive '$chk_name' in $PATH2BUND... "
-		git bundle create ${PATH2BUND}/${chk_name} --branches --tags 2>/dev/null
+		git bundle create ${PATH2BUND}/${chk_name} --all 2>/dev/null
 		[ $? -ne 0 ] && echo "Error running git?" && exit 1
 		echo "done."
 	else
@@ -237,7 +237,7 @@ elif [ "$do_command" == "create" ]; then
 	[ "$PROJ_NAME" == "" ] && echo "No project name given!" && exit 1
 	cd $PATH2PROJ
 	FULL_PATH=${PATH2BUND}/${PROJ_NAME}.git # dummy ???
-	FULL_FIND=`find ${PATH2BUND} -name ${PROJ_NAME}*.git | sort`
+	FULL_FIND=`find ${PATH2BUND} -name ${PROJ_NAME}-*.git | sort`
 	for FULL_TEST in $FULL_FIND ; do
 		FULL_PATH=$FULL_TEST
 	done # will get latest???
@@ -251,15 +251,23 @@ elif [ "$do_command" == "create" ]; then
 	[ -d "$PROJ_COPY" ] &&
 		echo "'$PROJ_COPY' exists in '$PATH2PROJ'!" && exit 1
 	echo "Bundle: $FULL_PATH"
-	echo -n "Creating folder $PROJ_COPY... "
-	mkdir $PROJ_COPY >/dev/null
+	echo -n "Cloning '$PROJ_COPY'... "
+	$GIT_BIN clone $FULL_PATH $PROJ_COPY >/dev/null 2>&1
+	echo "done."
 	cd $PROJ_COPY
+	LIST_REFS=`git bundle verify $FULL_PATH 2>&1 | grep "refs/heads"`
+	LIST_REFS=`echo "$LIST_REFS" | sed 's|^.* refs/heads/\(.*\)$|\1|'`
+	for ref in $LIST_REFS ; do
+		[ "$ref" == "master" ] && continue
+		echo -n "Creating local branch '$ref'... "
+		$GIT_BIN checkout $ref >/dev/null 2>&1
+		echo "done."
+	done
+	echo -n "Putting HEAD to master branch... "
+	$GIT_BIN checkout master >/dev/null 2>&1
 	echo "done."
-	echo -n "Initializing git path... "
-	$GIT_BIN init >/dev/null
-	echo "done."
-	echo -n "Updating git path... "
-	$GIT_BIN pull $FULL_PATH master >/dev/null 2>&1
+	echo -n "Removing origin link to bundle... "
+	$GIT_BIN remote rm origin >/dev/null 2>&1
 	echo "done."
 	cd $CURPATH
 elif [ "$do_command" == "archive" ]; then
