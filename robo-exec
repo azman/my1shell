@@ -8,11 +8,10 @@ export STAGE_PATH=${STAGE_PATH:="/home/share/tool/stage"}
 ARCH_BITS=""
 [[ "$(uname -m)" == "x86_64" ]] && ARCH_BITS="64"
 
-export STAGEPATH=${STAGE_PATH}/lib${ARCH_BITS}
+export STAGEPATH=${STAGE_PATH}/lib${ARCH_BITS}:.
 export LD_LIBRARY_PATH=${STAGEPATH}
 export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${STAGEPATH}/pkgconfig
 # start a shell
 export PATH=$STAGE_PATH/bin:$PATH
-exec env PS1="(ROBO-EXEC) \u@\h:\w$ " $(which bash)
-
+exec env PS1="(ROBO-EXEC) \u@\h:\w$ " `which bash 2>/dev/null` --norc
 exit 0
