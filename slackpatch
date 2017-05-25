@@ -29,6 +29,7 @@ MY1_PATCHEXT=${MY1_PATCHEXT:="${MY1_TOOLPATH}/../$MY1_SPACKDIR"}
 OPT_VERBOSE="NO"
 OPT_LOGFILE="/dev/null"
 OPT_UPGRADE=""
+OPT_NOTHIRD="NO"
 PKG_IGNORED=${PKG_IGNORED:=""} # std package to ignore
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
@@ -61,20 +62,22 @@ function check_patches()
 		pat_temp=`list_package_path $path $SLACKINSTLOG $PKG_IGNORED`
 		pat_list="${pat_list}${pat_temp}"
 	done
-	# look for extra custom package path
-	if [ -d "$MY1_PATCHEXT" ] ; then
-		pat_path=$MY1_PATCHEXT
-		pat_temp=`list_package_path $pat_path $SLACKINSTLOG $PKG_IGNORED`
-		pat_list="${pat_list}${pat_temp}"
+	if [ "$OPT_NOTHIRD" != "YES" ] ; then
+		# look for extra custom package path
+		if [ -d "$MY1_PATCHEXT" ] ; then
+			pat_path=$MY1_PATCHEXT
+			pat_temp=`list_package_path $pat_path $SLACKINSTLOG $PKG_IGNORED`
+			pat_list="${pat_list}${pat_temp}"
+		fi
+		# process extra paths
+		while [ "$1" != "" ] ; do
+			pat_path=`cd $1 ; pwd`
+			[ ! -d $pat_path ] && error_exit "Path '$pat_path' is invalid!"
+			pat_temp=`list_package_path $pat_path $SLACKINSTLOG $PKG_IGNORED`
+			pat_list="${pat_list}${pat_temp}"
+			shift
+		done
 	fi
-	# process extra paths
-	while [ "$1" != "" ] ; do
-		pat_path=`cd $1 ; pwd`
-		[ ! -d $pat_path ] && error_exit "Path '$pat_path' is invalid!"
-		pat_temp=`list_package_path $pat_path $SLACKINSTLOG $PKG_IGNORED`
-		pat_list="${pat_list}${pat_temp}"
-		shift
-	done
 	echo -n "$pat_list"
 }
 
@@ -194,6 +197,9 @@ function process_command()
 				;;
 			--override)
 				OPT_UPGRADE="--reinstall --install-new"
+				;;
+			--pure)
+				OPT_NOTHIRD="YES"
 				;;
 			--path)
 				shift
