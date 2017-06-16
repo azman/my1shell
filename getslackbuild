@@ -16,7 +16,7 @@ done
 
 # my1slack tool specific
 MY1_TOOLNAME="my1 SlackBuilds.org Executor"
-MY1_TOOLVERS="2017.03.00"
+MY1_TOOLVERS="2017.03.01"
 MY1_TOOLPDIR=`dirname $MY1PATH`
 MY1_BUILDDIR=${MY1_BUILDDIR:="${MY1_TOOLPDIR}/slackbuilds"}
 MY1_THISPATH=`pwd -P`
