@@ -145,7 +145,7 @@ function do_build()
 	[ $? -ne 0 ] &&
 		echo -e "[ERROR] Cannot create path '$pkg_temp'!\n" >&2 && exit 1
 	# check if not found OR nothing modified last 120 minutes
-	local chk_list=`find $pkg_temp $pkg_list -mmin -120 2>/dev/null`
+	local chk_list=`find $pkg_temp -name $pkg_list -mmin -120 2>/dev/null`
 	if [ "$chk_list" == "" ]; then
 		cd $pkg_temp
 		wget --spider $pkg_root >/dev/null 2>&1
