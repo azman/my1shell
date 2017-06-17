@@ -16,7 +16,7 @@ done
 
 # my1slack tool specific
 MY1_TOOLNAME="my1 SlackBuilds.org Executor"
-MY1_TOOLVERS="2017.03.02"
+MY1_TOOLVERS="2017.03.03"
 MY1_TOOLPDIR=`dirname $MY1PATH`
 MY1_BUILDDIR=${MY1_BUILDDIR:="${MY1_TOOLPDIR}/slackbuilds"}
 MY1_THISPATH=`pwd -P`
@@ -84,8 +84,8 @@ function do_loadball()
 	#wget --spider $pkg_file >/dev/null 2>&1
 	#[ $? -ne 0 ] && echo -e "[ERROR] Cannot get $pkg_file!\n" >&2 && exit 1
 	local chk_test=`curl -s -o /dev/null -w '%{http_code}' $pkg_file`
-	[ $chk_test -ne 200 -o $chk_test -ne 302 ] &&
-		echo -e "[ERROR] Cannot get $pkg_file!\n" >&2 && exit 1
+	[ $chk_test -ne 200 -a $chk_test -ne 302 ] &&
+		echo -e "[ERROR] Cannot get $pkg_file! ($chk_test)\n" >&2 && exit 1
 	cd $pkg_path
 	do_download $pkg_file $pkg_ball 2>/dev/null
 	[ ! -r $pkg_ball ] &&
@@ -144,6 +144,7 @@ function do_build()
 	local pkg_root="http://slackbuilds.org/slackbuilds/$pkg_vers"
 	local pkg_temp="/tmp/$(whoami)/my1/$MY1TOOL"
 	local pkg_list="SLACKBUILDS.TXT"
+	local pkg_base
 	# prepare temp - get the list!
 	mkdir -p $pkg_temp 2>/dev/null
 	[ $? -ne 0 ] &&
@@ -220,15 +221,19 @@ function do_build()
 			tar xf $pkg_test 2>/dev/null
 			[ $? -ne 0 ] &&
 				echo -e "[ERROR] Cannot extract $pkg_test!\n" >&2 && exit 1
-			# download source tarball
-			do_loadball $pkg_path $pkg_file
-			[ "$pkg_fil2" != "" ] && do_loadball $pkg_path $pkg_fil2
 			cd - >/dev/null
 		fi
 	fi
 	# have we got the buildscript?
 	[ ! -f ${pkg_path}/${pkg_name}.SlackBuild ] &&
 		echo -e "SlackBuild for '$pkg_name' not found!\n" && exit 1
+	# check if tarball available?
+	local pkg_ball=`basename $pkg_file`
+	[ ! -f "${pkg_path}/${pkg_ball}" ] && do_loadball $pkg_path $pkg_file
+	if [ "$pkg_fil2" != "" ] ; then
+		pkg_ball=`basename $pkg_fil2`
+		[ ! -f "${pkg_path}/${pkg_ball}" ] && do_loadball $pkg_path $pkg_fil2
+	fi
 	# some deps asks to refer to README
 	[ "$pkg_deps" == "%README%" ] && pkg_deps=""
 	# show this before dependencies if not building
@@ -246,18 +251,22 @@ function do_build()
 	fi
 	# build only if explicitly requested
 	if [ "$OPT_EXECUTE" == "YES" ]; then
-		[ $UID -ne 0 ] && echo -e "Must run as root!\n" && exit 1
-		# check if already installed?
-		local chk_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
-		local chk_base=`ls /var/log/packages | grep -e "$chk_temp"`
-		[ "$chk_base" != "" ] &&
-			echo "Package ${chk_base} installed." && return
-		# are we building x86_64?
-		[ "$SLACKARCH" == "x86_64" -a "$pkg_fil2" != "" ] &&
-			pkg_file="$pkg_fil2"
-		# check if tarball available?
-		local pkg_ball=`basename $pkg_file`
-		[ ! -f "${pkg_path}/${pkg_ball}" ] && do_loadball $pkg_path $pkg_file
+		# check if already installed? should check version as well?
+		pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
+		pkg_base=`ls /var/log/packages | grep -e "$pkg_temp"`
+		if [ "$pkg_base" != "" ] ; then
+			echo -n "Package ${pkg_base} installed."
+			pkg_temp=`echo $pkg_base | sed 's/\(.*\)-\(.*\)/\1/'`
+			pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\1/'`
+			pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\2/'`
+			[ "$pkg_vers" != "$pkg_temp" ] &&
+				echo -n " Version mismatch! {$pkg_temp}<>{$pkg_vers}"
+			echo
+			return
+		fi
+		# only root can actually build!
+		[ $UID -ne 0 ] && echo -e "Must run as root!\n" && return
+		# start build?
 		local log_file=/tmp/${pkg_name}.buildlog
 		cd ${pkg_path}
 		echo -n "Building '$pkg_name' ... "
@@ -269,16 +278,6 @@ function do_build()
 		pkg_file=`echo "$pkg_file" | sed 's/^.*package \(.*\) created.*$/\1/'`
 		[ ! -f "$pkg_file" ] &&
 			echo "Cannot find package '$pkg_file'!" && exit 1
-		# check for previous installation
-		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
-		local pkg_base=`ls /var/log/packages | grep -e "$pkg_temp"`
-		if [ "$pkg_base" != "" ] ; then
-			if [ "$opt_inst" == "--install" ] ; then
-				echo -n "[$pkg_name] Installed ($pkg_base)! "
-				echo -e "Installation cancelled!\n"
-				opt_inst="";
-			fi
-		fi
 		if [ "$opt_inst" == "--install" ] ; then
 			# go install!
 			echo -n "Installing '$pkg_file'... "
