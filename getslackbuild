@@ -255,14 +255,14 @@ function do_build()
 		pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
 		pkg_base=`ls /var/log/packages | grep -e "$pkg_temp"`
 		if [ "$pkg_base" != "" ] ; then
-			echo -n "Package ${pkg_base} installed."
+			# check version - stop if exactly the same!
 			pkg_temp=`echo $pkg_base | sed 's/\(.*\)-\(.*\)/\1/'`
 			pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\1/'`
 			pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\2/'`
-			[ "$pkg_vers" != "$pkg_temp" ] &&
-				echo -n " Version mismatch! {$pkg_temp}<>{$pkg_vers}"
-			echo
-			return
+			[ "$pkg_vers" == "$pkg_temp" ] &&
+				echo "Package ${pkg_base} installed." && return
+			# continue, but do not install?
+			opt_inst=""
 		fi
 		# only root can actually build!
 		[ $UID -ne 0 ] && echo -e "Must run as root!\n" && return
