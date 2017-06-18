@@ -265,7 +265,8 @@ function do_build()
 			opt_inst=""
 		fi
 		# only root can actually build!
-		[ $UID -ne 0 ] && echo -e "Must run as root!\n" && return
+		[ $UID -ne 0 ] &&
+			echo -e "Must run as root! ($pkg_name-$pkg_vers)\n" && return
 		# start build?
 		local log_file=/tmp/${pkg_name}.buildlog
 		cd ${pkg_path}
