@@ -43,6 +43,7 @@ OPT_INSTALL=""
 OPT_DEPENDS="NO"
 OPT_EXECUTE="NO"
 OPT_CLEANUP="NO"
+OPT_WARNOLD="NO"
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
   $MY1TOOL [options] <pkg_name>
@@ -115,7 +116,8 @@ function get_userngrp()
 function get_buildinfo()
 {
 	local pkg_name=$1
-	local inf_file="${MY1_BUILDDIR}/${pkg_name}/${pkg_name}.info"
+	local pkg_path=$2
+	local inf_file="${pkg_path}/${pkg_name}/${pkg_name}.info"
 	[ ! -f ${inf_file} ] && return
 	local pkg_info=`cat $inf_file`
 	# get package version
@@ -137,12 +139,14 @@ function get_buildinfo()
 function do_build()
 {
 	local pkg_name=$1
-	local opt_inst=$2
+	local pkg_path=$2
+	local opt_inst=$3
 	local chk_path=${MY1_THISPATH}
-	local pkg_path=${MY1_BUILDDIR}/${pkg_name}/
+	local sav_path=${pkg_path}
 	local pkg_vers=${SLACKVERS}
 	local pkg_root="http://slackbuilds.org/slackbuilds/$pkg_vers"
-	local pkg_temp="/tmp/$(whoami)/my1/$MY1TOOL"
+	local chk_user=`whoami`
+	local pkg_temp="/tmp/$chk_user/my1/$MY1TOOL"
 	local pkg_list="SLACKBUILDS.TXT"
 	local pkg_base
 	# prepare temp - get the list!
@@ -161,7 +165,7 @@ function do_build()
 				echo -e "[ERROR] Cannot download $pkg_list.gz!\n" >&2 && exit 1
 			gzip -d $pkg_list.gz
 		else
-			[ -r "$pkg_list" ] &&
+			[ -r "$pkg_list" -a "$OPT_WARNOLD" = "YES" ] &&
 				echo -e "[WARNING] NOT using latest $pkg_list!\n"
 		fi
 		cd - >/dev/null
@@ -193,40 +197,54 @@ function do_build()
 	pkg_deps=`echo "$pkg_deps" | sed 's/.*: \(.*\)$/\1/'`
 	# check if local version is available
 	local tmp_vers=""
-	local pkg_info=`get_buildinfo $pkg_name`
+	local pkg_info=`get_buildinfo $pkg_name $pkg_path`
 	[ "$pkg_info" != "" ] && tmp_vers=`echo "$pkg_info" | cut -d';' -f2`
 	# do we need to fetch?
 	if [ "$tmp_vers" != "$pkg_vers" ] ; then
-		if [ "$tmp_vers" == "" -o "$OPT_CLEANUP" == "YES" ] ; then
-			pkg_test=`dirname $pkg_load`
-			pkg_text=`basename $pkg_load`
-			cd $pkg_temp
-			wget --spider $pkg_test >/dev/null 2>&1
-			[ $? -ne 0 ] &&
-				echo -e "[ERROR] Cannot find $pkg_test!\n" >&2 && exit 1
-			# remove old tarballs?
-			rm -rf ${pkg_text}*
-			do_download $pkg_load $pkg_text 2>/dev/null
-			[ ! -r "$pkg_text" ] &&
-				echo -e "[ERROR] Cannot download $pkg_load!\n" >&2 && exit 1
-			cd - >/dev/null
-			tmp_vers=$pkg_vers
-			pkg_test=$pkg_temp/$pkg_text
-			top_path=`dirname $pkg_path`
-			[ ! -d "$top_path" ] && mkdir -p $top_path
-			cd $top_path
-			# remove old?
-			rm -rf ${pkg_name}
-			# extract accordingly?
-			tar xf $pkg_test 2>/dev/null
-			[ $? -ne 0 ] &&
-				echo -e "[ERROR] Cannot extract $pkg_test!\n" >&2 && exit 1
-			cd - >/dev/null
+		if [ "$tmp_vers" == "" ] ; then
+			# look within tree?
+			local top_path=${MY1_BUILDDIR}
+			pkg_test=`find $top_path -name "$pkg_name" -type d`
+			if [ -d "$pkg_test" ] ; then
+				local tmp_path=`dirname $pkg_test`
+				pkg_info=`get_buildinfo $pkg_name $tmp_path`
+				if [ "$pkg_info" != "" ] ; then
+					tmp_vers=`echo "$pkg_info" | cut -d';' -f2`
+					pkg_path=${tmp_path}
+				fi
+			fi
+			if [ "$tmp_vers" == "" -o "$OPT_CLEANUP" == "YES" ] ; then
+				pkg_test=`dirname $pkg_load`
+				pkg_text=`basename $pkg_load`
+				cd $pkg_temp
+				wget --spider $pkg_test >/dev/null 2>&1
+				[ $? -ne 0 ] &&
+					echo -e "[ERROR] Cannot find $pkg_test!\n" >&2 && exit 1
+				# remove old tarballs?
+				rm -rf ${pkg_text}*
+				do_download $pkg_load $pkg_text 2>/dev/null
+				[ ! -r "$pkg_text" ] &&
+					echo -e "[ERROR] Cannot download $pkg_load!\n" >&2 && exit 1
+				cd - >/dev/null
+				tmp_vers=$pkg_vers
+				pkg_test=$pkg_temp/$pkg_text
+				[ ! -d "$pkg_path" ] && mkdir -p $pkg_path
+				cd $pkg_path
+				# remove old?
+				rm -rf ${pkg_name}
+				# extract accordingly?
+				tar xf $pkg_test 2>/dev/null
+				[ $? -ne 0 ] &&
+					echo -e "[ERROR] Cannot extract $pkg_test!\n" >&2 && exit 1
+				cd - >/dev/null
+			fi
 		fi
 	fi
+	pkg_path=${pkg_path}/${pkg_name}
 	# have we got the buildscript?
-	[ ! -f ${pkg_path}/${pkg_name}.SlackBuild ] &&
-		echo -e "SlackBuild for '$pkg_name' not found!\n" && exit 1
+	local pkg_exec=${pkg_path}/${pkg_name}.SlackBuild
+	[ ! -f "$pkg_exec" ] &&
+		echo -e "Script '$pkg_exec' not found!\n" && exit 1
 	# check if tarball available?
 	local pkg_ball=`basename $pkg_file`
 	[ ! -f "${pkg_path}/${pkg_ball}" ] && do_loadball $pkg_path $pkg_file
@@ -246,7 +264,7 @@ function do_build()
 	# iterate through dependencies, if requested
 	if [ "$OPT_DEPENDS" == "YES" ]; then
 		for pkg in $pkg_deps ; do
-			do_build $pkg --install
+			do_build $pkg $sav_path --install
 		done
 	fi
 	# build only if explicitly requested
@@ -304,7 +322,7 @@ function do_build()
 
 function process_command()
 {
-	local pkg_name
+	local pkg_name pkg_path
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
@@ -319,6 +337,7 @@ function process_command()
 				;;
 			--update|-u)
 				OPT_CLEANUP="YES"
+				OPT_WARNOLD="YES"
 				;;
 			--path|-p)
 				shift
@@ -345,9 +364,10 @@ function process_command()
 	# check if name supplied
 	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
 	# check if package path supplied
-	[ "$MY1_PACKPATH" != "" ] && MY1_BUILDDIR=${MY1_BUILDDIR}/${MY1_PACKPATH}
+	pkg_path=${MY1_BUILDDIR}
+	[ "$MY1_PACKPATH" != "" ] && pkg_path=${pkg_path}/${MY1_PACKPATH}
 	# do your thing!
-	do_build $pkg_name ${OPT_INSTALL}
+	do_build ${pkg_name} ${pkg_path} ${OPT_INSTALL}
 }
 
 # BEGIN MAIN SCRIPT
