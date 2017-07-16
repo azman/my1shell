@@ -53,6 +53,7 @@ Usage:
 Options:
   --path </path/to/slackbuilds>
   --pack </sub/path/to/package/group>
+  --update-local : Updates all locally saved build scripts
   --update  : Fetch new build script if available
   --install : Install when (and if) the build completes
   --depends : Check (and build) dependencies
@@ -443,6 +444,7 @@ function process_command()
 				;;
 			--update-local)
 				OPT_ALL_NEW="YES"
+				OPT_CLEANUP="YES"
 				;;
 			--path|-p)
 				shift
