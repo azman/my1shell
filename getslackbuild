@@ -298,7 +298,7 @@ function do_build()
 	local pkg_name=$1
 	local pkg_vers=$2
 	local pkg_path=$3
-	local pkg_temp=$4
+	local opt_temp=$4
 	local opt_inst=$5
 	# check if already installed? should check version as well?
 	local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
@@ -317,7 +317,7 @@ function do_build()
 	[ $UID -ne 0 ] &&
 		echo -e "Must run as root! ($pkg_name-$pkg_vers)\n" && return
 	# start build?
-	local log_file=${pkg_temp}/${pkg_name}.buildlog
+	local log_file=${opt_temp}/${pkg_name}.buildlog
 	cd ${pkg_path}
 	[ ! -f "${pkg_name}.SlackBuild" ] &&
 		echo -e "Script '$pkg_exec' not found in $pkg_path!\n" && exit 1
