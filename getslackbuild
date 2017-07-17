@@ -75,7 +75,7 @@ function do_download()
 		awk '{printf("\b\b\b\b%4s", $2)}'
 	[ ! -r "$label" ] &&
 		echo -e "\nCannot download source $fname to $cpath/$label!\n" && exit 1
-	echo -ne "\b\b\b\b DONE!\n"
+	echo -e "\b\b\b\b DONE!\n"
 }
 
 function do_loadball()
@@ -352,7 +352,7 @@ function do_build()
 	fi
 }
 
-function do_build_all()
+function do_build_this()
 {
 	local pkg_name=$1
 	local pkg_path=$2
@@ -382,7 +382,7 @@ function do_build_all()
 	# iterate through dependencies, if requested
 	if [ "$OPT_DEPENDS" == "YES" ]; then
 		for pkg in $pkg_deps ; do
-			do_build_all $pkg $sav_path --install
+			do_build_this $pkg $sav_path --install
 		done
 	fi
 	# build only if explicitly requested
@@ -479,7 +479,7 @@ function process_command()
 	# check if package path supplied
 	[ "$MY1_PACKPATH" != "" ] && pkg_path=${pkg_path}/${MY1_PACKPATH}
 	# do your thing!
-	do_build_all ${pkg_name} ${pkg_path} ${OPT_INSTALL}
+	do_build_this ${pkg_name} ${pkg_path} ${OPT_INSTALL}
 }
 
 # BEGIN MAIN SCRIPT
