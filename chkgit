@@ -237,7 +237,7 @@ elif [ "$do_command" == "create" ]; then
 	[ "$PROJ_NAME" == "" ] && echo "No project name given!" && exit 1
 	cd $PATH2PROJ
 	FULL_PATH=${PATH2BUND}/${PROJ_NAME}.git # dummy ???
-	FULL_FIND=`find ${PATH2BUND} -name ${PROJ_NAME}-*.git | sort`
+	FULL_FIND=`find ${PATH2BUND} -name "${PROJ_NAME}-*.git" | sort`
 	for FULL_TEST in $FULL_FIND ; do
 		FULL_PATH=$FULL_TEST
 	done # will get latest???
