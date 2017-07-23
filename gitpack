@@ -69,11 +69,43 @@ GIT_BIN=`which git 2>/dev/null`
 [ ! -d "$CURRPATH/.git" ] &&
 	echo "Not a git repo! Abort!" && exit 1
 
+function get_branch()
+{
+	local chk_branch=`git branch | grep "* "`
+	chk_branch=`echo "$chk_branch" | sed "s/^.*\* \(.*\)$/\1/"`
+	echo -n "$chk_branch"
+}
+
+#trap trap_break INT
+#function trap_break()
+#{
+#	# user break!
+#}
+
+trap trap_error ERR
+function trap_error()
+{
+	local cur_branch=`get_branch`
+	[ "$cur_branch" == "master" -a "$CHK_BRANCH" != "master" ] &&
+		git checkout $CHK_BRANCH 2>/dev/null
+}
+
 # check if NOT on master branch
-CHK_BRANCH="$(git branch|grep "* ")"
-CHK_BRANCH="${CHK_BRANCH#* }"
-[ "$CHK_BRANCH" != "master" -a "$DOMASTER" != "YES" ] &&
-	BALLSUFX="${BALLSUFX}-${CHK_BRANCH}_active"
+CHK_BRANCH=`get_branch`
+if [ "$CHK_BRANCH" != "master" ] ; then
+	if [ "$DOMASTER" == "YES" ] ; then
+		# try to get to master branch
+		git checkout master 2>/dev/null
+		[ $? -ne 0 ] && echo "Cannot change branch! Aborting!" && exit 1
+	else
+		# update tarball suffix
+		BALLSUFX="${BALLSUFX}-${CHK_BRANCH}_active"
+	fi
+fi
+
+#DUMMY=`get_branch`
+#false
+#[ $? -ne 0 ] && echo "Testing trap! ($DUMMY)" && exit 1
 
 # create git bundle
 if [ "$DOBUNDLE" == "YES" ]; then
@@ -85,22 +117,15 @@ if [ "$DOBUNDLE" == "YES" ]; then
 		echo "Bundle '$CHK_FILE' exists!"
 	else
 		echo "Creating git bundle '$CHK_FILE' ..."
-		[ "$CHK_BRANCH" != "master" -a "$DOMASTER" == "YES" ] &&
-			git checkout master
 		# HEAD is not bundled if using '--branches --tags'
 		git bundle create $CHK_FILE --all
-		RESULT=$?
-		[ "$CHK_BRANCH" != "master" -a "$DOMASTER" == "YES" ] &&
-			git checkout $CHK_BRANCH
-		[ $RESULT -ne 0 ] && echo "Error running git?" && exit 1
+		[ $? -ne 0 ] && echo "Error running git?" && exit 1
 	fi
 fi
 
 # prepare name - for patches!
 CHK_DATE=`date ${DATE_FMT}`
 CHK_NAME=${MAINNAME}-${CHK_DATE}
-[ "$CHK_BRANCH" != "master" ] &&
-	BALLSUFX="${BALLSUFX}-${CHK_BRANCH}_active"
 
 # create diff - if we have one?
 GIT_DIFF=`git diff`
@@ -117,3 +142,6 @@ if [ "$PATCHGIT" == "YES" ]; then
 	git format-patch -o ${BALLPATH}/${CHK_NAME}${BALLSUFX} -${PATCHNUM}
 	[ $? -ne 0 ] && echo "Error running git?" && exit 1
 fi
+
+# make sure original branch restored
+trap_error
