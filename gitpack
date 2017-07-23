@@ -7,11 +7,13 @@
 
 CURRPATH=$(pwd)
 WORKPATH=$(dirname $CURRPATH)
+ARCHPATH=$HOME/archive/project
 BALLPATH=$HOME/temp
 BALLNAME=$(basename $CURRPATH)
 MAINNAME=${MAINNAME:="$BALLNAME"}
 BALLSUFX=${BALLSUFX:=""}
 DOBUNDLE=${DOBUNDLE:="YES"}
+DOMASTER=${DOMASTER:="NO"}
 DATE_FMT=${DATE_FMT:="+%Y%m%d%H%M%S"}
 PATCHGIT=${PATCHGIT:="NO"}
 PATCHNUM=${PATCHNUM:="4"}
@@ -33,9 +35,17 @@ while [ "$1" != "" ]; do
 				echo "No name given ['$1']?" && exit 1
 			MAINNAME="$1"
 			;;
+		--archive)
+			[ ! -d "$ARCHPATH" ] &&
+				echo "Archive path '$ARCHPATH' not found!" && exit 1
+			BALLPATH=$ARCHPATH
+			;;
+		--master)
+			DOMASTER="YES"
+			;;
 		--path)
 			shift
-			[ ! -d "$1" ] && echo "Path '$1' not found!"
+			[ ! -d "$1" ] && echo "Path '$1' not found!" && exit 1
 			[ -d "$1" ] && BALLPATH=$(cd $1;pwd)
 			;;
 		--format-patch)
@@ -62,7 +72,7 @@ GIT_BIN=`which git 2>/dev/null`
 # check if NOT on master branch
 CHK_BRANCH="$(git branch|grep "* ")"
 CHK_BRANCH="${CHK_BRANCH#* }"
-[ "$CHK_BRANCH" != "master" ] &&
+[ "$CHK_BRANCH" != "master" -a "$DOMASTER" != "YES" ] &&
 	BALLSUFX="${BALLSUFX}-${CHK_BRANCH}_active"
 
 # create git bundle
@@ -74,15 +84,23 @@ if [ "$DOBUNDLE" == "YES" ]; then
 	if [ -f "$CHK_FILE" ]; then
 		echo "Bundle '$CHK_FILE' exists!"
 	else
+		echo "Creating git bundle '$CHK_FILE' ..."
+		[ "$CHK_BRANCH" != "master" -a "$DOMASTER" == "YES" ] &&
+			git checkout master
 		# HEAD is not bundled if using '--branches --tags'
 		git bundle create $CHK_FILE --all
-		[ $? -ne 0 ] && echo "Error running git?" && exit 1
+		RESULT=$?
+		[ "$CHK_BRANCH" != "master" -a "$DOMASTER" == "YES" ] &&
+			git checkout $CHK_BRANCH
+		[ $RESULT -ne 0 ] && echo "Error running git?" && exit 1
 	fi
 fi
 
 # prepare name - for patches!
 CHK_DATE=`date ${DATE_FMT}`
 CHK_NAME=${MAINNAME}-${CHK_DATE}
+[ "$CHK_BRANCH" != "master" ] &&
+	BALLSUFX="${BALLSUFX}-${CHK_BRANCH}_active"
 
 # create diff - if we have one?
 GIT_DIFF=`git diff`
