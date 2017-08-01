@@ -172,22 +172,21 @@ function chkgit_archive()
 {
 	local chk_path=`pwd`
 	local chk_base=`basename $chk_path`
-	local chk_name chk_date
+	local chk_full chk_name chk_date
 	if [ -d .git ]; then
 		chk_date=`$GIT_BIN log -1 --format=%cd --date=format:'%Y%m%d%H%M%S'`
 		chk_name=${chk_base}-${chk_date}.git
-		if [ -f "$PATH2BUND/$chk_name" ] ; then
+		chk_full=${PATH2BUND}/${chk_name}
+		local that_find=`find ${PATH2BUND} -name ${chk_base}-*.git`
+		for this_find in $that_find ; do
+			if [ -f "$this_find" -a "$this_find" != "$chk_full" ] ; then
+				echo "Old archive '$this_find' found?"
+			fi
+		done
+		if [ -f "$chk_full" ] ; then
 			[ "$B_VERBOSE" == "YES"  ] &&
 				echo "File '$PATH2BUND/$chk_name' found! Archive is up to date!"
 			return
-		fi
-		local that_path=${PATH2BUND}/${chk_name}*.git
-		local that_find=`find ${PATH2BUND} -name ${chk_base}*.git`
-		for this_test in $that_find ; do
-			that_path=$this_test
-		done
-		if [ -f "$that_path" ] ; then
-			echo "Old archive '$that_path' found!"
 		fi
 		echo -n "Creating new archive '$chk_name' in $PATH2BUND... "
 		git bundle create ${PATH2BUND}/${chk_name} --all 2>/dev/null
