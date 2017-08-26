@@ -16,7 +16,7 @@ done
 
 # my1slack tool specific
 MY1_TOOLNAME="my1 SlackBuilds.org Executor"
-MY1_TOOLVERS="2017.03.03"
+MY1_TOOLVERS="2017.03.04"
 MY1_TOOLPDIR=`dirname $MY1PATH`
 MY1_BUILDDIR=${MY1_BUILDDIR:="${MY1_TOOLPDIR}/slackbuilds"}
 MY1_THISPATH=`pwd -P`
@@ -47,6 +47,7 @@ OPT_EXECUTE="NO"
 OPT_CLEANUP="NO"
 OPT_WARNOLD="NO"
 OPT_ALL_NEW="NO"
+OPT_CHK_SYS="NO"
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
   $MY1TOOL [options] <pkg_name>
@@ -423,6 +424,30 @@ function do_update_all()
 	done ; echo
 }
 
+function do_check_installed()
+{
+	local chk_path=$1
+	local chk_list=`find $pkg_path -name "*.SlackBuild"`
+	for pkg in $chk_list ; do
+		local tmp_path=`dirname $pkg`
+		local pkg_path=`dirname $tmp_path`
+		local pkg_name=`basename $tmp_path`
+		local pkg_info=`get_buildinfo $pkg_name $pkg_path`
+		[ "$pkg_info" == "" ] &&
+			echo -e "Error updating '$pkg_name'! Aborting!\n" && exit 1
+		local pkg_vers=`echo "$pkg_info" | cut -d';' -f2`
+		# look for installed only!
+		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
+		local pkg_root=`ls /var/log/packages | grep -e "$pkg_temp"`
+		[ "$pkg_root" == "" ] && continue;
+		# show this before dependencies if not really building
+		echo -n "Installed: {$pkg_root}, "
+		echo -n "Build: $pkg_name ($pkg_vers)"
+		pkg_path=`echo $pkg_path | sed "s|$chk_path||"`
+		echo " [Path: $pkg_path]"
+	done ; echo
+}
+
 function process_command()
 {
 	local pkg_name pkg_path
@@ -445,6 +470,9 @@ function process_command()
 			--update-local)
 				OPT_ALL_NEW="YES"
 				OPT_CLEANUP="YES"
+				;;
+			--check-installed)
+				OPT_CHK_SYS="YES"
 				;;
 			--path|-p)
 				shift
@@ -472,6 +500,8 @@ function process_command()
 	pkg_path=${MY1_BUILDDIR}
 	[ ! -d "$pkg_path" ] &&
 		echo -e "Path '$pkg_path' not found! Aborting!\n" && exit 1
+	# check option to check installed build script(s)
+	[ "$OPT_CHK_SYS" == "YES" ] && do_check_installed ${pkg_path} && exit 0
 	# check option to update ALL build scripts found
 	[ "$OPT_ALL_NEW" == "YES" ] && do_update_all ${pkg_path} && exit 0
 	# check if name supplied
