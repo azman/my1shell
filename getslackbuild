@@ -48,6 +48,7 @@ OPT_CLEANUP="NO"
 OPT_WARNOLD="NO"
 OPT_ALL_NEW="NO"
 OPT_CHK_SYS="NO"
+OPT_BUILDUP="NO"
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
   $MY1TOOL [options] <pkg_name>
@@ -55,6 +56,8 @@ Options:
   --path </path/to/slackbuilds>
   --pack </sub/path/to/package/group>
   --update-local : Updates all locally saved build scripts
+  --check-installed : Compares installed version against buildscript
+  --buildup : Force build even already installed
   --update  : Fetch new build script if available
   --install : Install when (and if) the build completes
   --depends : Check (and build) dependencies
@@ -309,8 +312,10 @@ function do_build()
 		pkg_temp=`echo $pkg_root | sed 's/\(.*\)-\(.*\)/\1/'`
 		pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\1/'`
 		pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\2/'`
-		[ "$pkg_vers" == "$pkg_temp" ] &&
-			echo "Package ${pkg_root} installed." && return
+		if [ "$pkg_vers" == "$pkg_temp" ] ; then
+			echo "Package ${pkg_root} installed."
+			[ "$OPT_BUILDUP" == "NO" ] && return
+		fi
 		# continue, but do not install?
 		opt_inst=""
 	fi
@@ -473,6 +478,9 @@ function process_command()
 				;;
 			--check-installed)
 				OPT_CHK_SYS="YES"
+				;;
+			--buildup)
+				OPT_BUILDUP="YES"
 				;;
 			--path|-p)
 				shift
