@@ -44,7 +44,8 @@ case $SLACKARCH in
 esac
 
 # default repo - alien stuffs!
-DEF_ROOT="http://taper.alienbase.nl/mirrors/people/alien/slackbuilds"
+BOB_ROOT="http://bear.alienbase.nl"
+DEF_ROOT="${BOB_ROOT}/mirrors/people/alien/slackbuilds"
 DEF_REPO="alien"
 DEF_PACK="libreoffice libreoffice-dict-en openjdk icedtea-web rhino"
 MTL_REPO="multilib"
@@ -241,7 +242,7 @@ function do_readconf()
 	while [[ "$1" != "" ]]; do
 		case "$1" in
 			--alien)
-				pkg_root="http://taper.alienbase.nl"
+				pkg_root="${BOB_ROOT}"
 				pkg_root="${pkg_root}/mirrors/people/alien/slackbuilds"
 				pkg_repo="alien"
 				pkg_rawp=""
@@ -265,7 +266,7 @@ function do_readconf()
 				pkg_rawp=",go_raw"
 				;;
 			--multilib)
-				pkg_root="http://taper.alienbase.nl"
+				pkg_root="${BOB_ROOT}"
 				pkg_root="${pkg_root}/mirrors/people/alien/multilib"
 				pkg_repo="multilib"
 				pkg_rawp=""
