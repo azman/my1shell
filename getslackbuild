@@ -95,7 +95,8 @@ function do_loadball()
 	#wget --spider $pkg_file >/dev/null 2>&1
 	#[ $? -ne 0 ] && echo -e "[ERROR] Cannot get $pkg_file!\n" >&2 && exit 1
 	local chk_test=`curl -s -o /dev/null -w '%{http_code}' $pkg_file`
-	[ $chk_test -ne 200 -a $chk_test -ne 302 -a $chk_test -ne 303 ] &&
+	[ $chk_test -ne 200 -a $chk_test -ne 301 \
+			-a $chk_test -ne 302 -a $chk_test -ne 303 ] &&
 		echo -e "[ERROR] Cannot get $pkg_file! ($chk_test)\n" >&2 && exit 1
 	cd $pkg_path
 	do_download $pkg_file $pkg_ball 2>/dev/null
