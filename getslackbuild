@@ -49,19 +49,21 @@ OPT_WARNOLD="NO"
 OPT_ALL_NEW="NO"
 OPT_CHK_SYS="NO"
 OPT_BUILDUP="NO"
+OPT_VERBOSE="NO"
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
   $MY1TOOL [options] <pkg_name>
 Options:
-  --path </path/to/slackbuilds>
-  --pack </sub/path/to/package/group>
-  --update-local : Updates all locally saved build scripts
-  --check-installed : Compares installed version against buildscript
-  --buildup : Force build even already installed
-  --update  : Fetch new build script if available
-  --install : Install when (and if) the build completes
-  --depends : Check (and build) dependencies
-  --execute : Execute build (else, simply check @ dry-run)
+  --path|-p </path/to/slackbuilds>
+  --pack|-f </sub/path/to/package/group>
+  --depends|-d : Check (and build) dependencies
+  --update |-u : Fetch new build script if available
+  --install|-i : Install when (and if) the build completes
+  --execute|-x : Execute build (else, simply check @ dry-run)
+  --buildup|-b : Force build even already installed
+  --verbose|-v : Show more information (for --check-installed)
+  --update-local|-a : Update all locally saved build scripts
+  --check-installed|-c : Compare installed version against build script
 SETHELPMSG`
 
 function do_download()
@@ -445,7 +447,12 @@ function do_check_installed()
 		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
 		local pkg_root=`ls /var/log/packages | grep -e "$pkg_temp"`
 		[ "$pkg_root" == "" ] && continue;
-		# show this before dependencies if not really building
+		# check version
+		pkg_temp=`echo $pkg_root | sed 's/\(.*\)-\(.*\)/\1/'`
+		pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\1/'`
+		pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\2/'`
+		[ "$pkg_temp" == "$pkg_vers" -a "$OPT_VERBOSE" != "YES" ] && continue;
+		# show if not the same version
 		echo -n "Installed: {$pkg_root}, "
 		echo -n "Build: $pkg_name ($pkg_vers)"
 		pkg_path=`echo $pkg_path | sed "s|$chk_path||"`
@@ -472,14 +479,17 @@ function process_command()
 				OPT_CLEANUP="YES"
 				OPT_WARNOLD="YES"
 				;;
-			--update-local)
+			--update-local|-a)
 				OPT_ALL_NEW="YES"
 				OPT_CLEANUP="YES"
 				;;
-			--check-installed)
+			--check-installed|-c)
 				OPT_CHK_SYS="YES"
 				;;
-			--buildup)
+			--verbose|-v)
+				OPT_VERBOSE="YES"
+				;;
+			--buildup|-b)
 				OPT_BUILDUP="YES"
 				;;
 			--path|-p)
@@ -488,7 +498,7 @@ function process_command()
 					echo -e "[ERROR] Invalid path!? [$1]\n" && exit 1
 				MY1_BUILDDIR=`cd $1;pwd`
 				;;
-			--pack)
+			--pack|-f)
 				shift
 				MY1_PACKPATH="$1"
 				;;
