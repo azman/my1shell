@@ -13,7 +13,7 @@ STUDIO_PATH=${STUDIO_PATH:="/home/share/appx/android-studio"}
 SDK_PATH=${SDK_PATH:="/home/share/tool/android-sdk"}
 NDK_PATH=${NDK_PATH:="/home/share/tool/android-ndk"}
 TOOLPATH="${GRADLE_HOME}/bin:${SDK_PATH}/platform-tools:${SDK_PATH}/tools"
-TOOLPATH="${TOOLPATH}:${NDK_PATH}/bin"
+TOOLPATH="${TOOLPATH}:${SDK_PATH}/tools/bin:${NDK_PATH}/bin"
 [ -d "${STUDIO_PATH}/bin" ] && TOOLPATH="${TOOLPATH}:${STUDIO_PATH}/bin"
 # set home
 ANDROID_HOME=${ANDROID_HOME:="$SDK_PATH"}
