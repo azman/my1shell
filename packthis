@@ -28,6 +28,8 @@ CHK_EXEC=
 CHK_NAME=
 CHK_COPY=
 CHK_EXTN=
+CHK_CONT=
+CHK_DATE="DATE"
 
 # if this is a git repo, use gitpack?
 GIT_REQS=`echo $@ | grep -- "--no-gitpack"`
@@ -57,8 +59,14 @@ while [ "$1" != "" ]; do
 			[ ! -d "$1" ] && echo "Path '$1' not found!"
 			[ -d "$1" ] && BALLPATH=$(cd $1;pwd)
 			;;
+		--content)
+			CHK_CONT="YES"
+			;;
 		--no-gitpack)
 			# just to skip gitpack!
+			;;
+		--no-date)
+			CHK_DATE=""
 			;;
 		--time)
 			DATE_FMT="+%Y%m%d%H%M"
@@ -102,12 +110,18 @@ if [ -d $WORKPATH ]; then
 	fi
 	CHK_NAME=${MAINNAME}${NAMESUFX}
 	CHK_COPY=${BALLSUFX}${CHK_EXTN}
-	while [ -f ${BALLPATH}/${CHK_NAME}-$(date ${DATE_FMT})${CHK_COPY} ]; do
+	[ "$CHK_DATE" == "DATE" ] && CHK_DATE="-"`date ${DATE_FMT}`
+	while [ -f ${BALLPATH}/${CHK_NAME}${CHK_DATE}${CHK_COPY} ]; do
 		(( NUM_COPY=NUM_COPY+1 ))
 		CHK_COPY="${BALLSUFX}_${NUM_COPY}${CHK_EXTN}"
 	done
 	CHK_EXTN=${CHK_COPY}
-	CHK_NAME=${CHK_NAME}-$(date ${DATE_FMT})${CHK_EXTN}
-	${CHK_EXEC} ${BALLPATH}/${CHK_NAME} ${BALLNAME}
+	CHK_NAME=${CHK_NAME}${CHK_DATE}${CHK_EXTN}
+	if [ "${CHK_CONT}" == "YES" ] ; then
+		cd $CURRPATH
+		${CHK_EXEC} ${BALLPATH}/${CHK_NAME} .
+	else
+		${CHK_EXEC} ${BALLPATH}/${CHK_NAME} ${BALLNAME}
+	fi
 	[ "$CHK_VERB" == "NO" ] && echo "done."
 fi
