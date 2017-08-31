@@ -5,21 +5,34 @@
 # - start shell for android sdk (with some utilities for android dev)
 
 # using gradle - GRADLE_VERS is plugin version, NOT gradle version itself!
-GRADLE_VERS=${GRADLE_VERS:="2.13"}
+GRADLE_VERS=${GRADLE_VERS:="2.3.0"}
 GRADLE_HOME=${GRADLE_HOME:="/home/share/tool/gradle"}
 # android studio?
 STUDIO_PATH=${STUDIO_PATH:="/home/share/appx/android-studio"}
 # set paths
 SDK_PATH=${SDK_PATH:="/home/share/tool/android-sdk"}
 NDK_PATH=${NDK_PATH:="/home/share/tool/android-ndk"}
-TOOLPATH="${GRADLE_HOME}/bin:${SDK_PATH}/platform-tools:${SDK_PATH}/tools"
-TOOLPATH="${TOOLPATH}:${SDK_PATH}/tools/bin:${NDK_PATH}/bin"
-[ -d "${STUDIO_PATH}/bin" ] && TOOLPATH="${TOOLPATH}:${STUDIO_PATH}/bin"
-# set home
-ANDROID_HOME=${ANDROID_HOME:="$SDK_PATH"}
-ANDROID_NDK_HOME=${ANDROID_NDK_HOME:="$NDK_PATH"}
-# export everything
-export GRADLE_HOME PATH=$TOOLPATH:$PATH ANDROID_HOME ANDROID_NDK_HOME
+TOOLPATH=${TOOLPATH:=`pwd`}
+[ -d "${STUDIO_PATH}/bin" ] &&
+	TOOLPATH="${TOOLPATH}:${STUDIO_PATH}/bin"
+# set gradle home
+if [ -d "${GRADLE_HOME}/bin" ] ; then
+	TOOLPATH="${TOOLPATH}:${GRADLE_HOME}/bin"
+	export GRADLE_HOME
+fi
+# set sdk home path
+if [ -d "$SDK_PATH" ] ; then
+	TOOLPATH="${TOOLPATH}:${SDK_PATH}/platform-tools:${SDK_PATH}/tools"
+	TOOLPATH="${TOOLPATH}:${SDK_PATH}/tools/bin"
+	export ANDROID_HOME=${ANDROID_HOME:="$SDK_PATH"}
+fi
+# set ndk home path
+if [ -d "$NDK_PATH" ] ; then
+	TOOLPATH="${TOOLPATH}:${NDK_PATH}/bin"
+	export ANDROID_NDK_HOME=${ANDROID_NDK_HOME:="$NDK_PATH"}
+fi
+# export path
+[ "$TOOLPATH" != "" ] && export PATH=$TOOLPATH:$PATH
 
 # check java
 TESTJAVA=`which java 2>/dev/null`
