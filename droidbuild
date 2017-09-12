@@ -11,7 +11,7 @@ GRADLE_HOME=${GRADLE_HOME:="/home/share/tool/gradle"}
 STUDIO_PATH=${STUDIO_PATH:="/home/share/appx/android-studio"}
 # set paths
 SDK_PATH=${SDK_PATH:="/home/share/tool/android-sdk"}
-NDK_PATH=${NDK_PATH:="/home/share/tool/android-ndk"}
+NDK_PATH=${NDK_PATH:="/home/share/tool/android-sdk/ndk-bundle"}
 TOOLPATH=${TOOLPATH:=`pwd`}
 [ -d "${STUDIO_PATH}/bin" ] &&
 	TOOLPATH="${TOOLPATH}:${STUDIO_PATH}/bin"
@@ -28,7 +28,7 @@ if [ -d "$SDK_PATH" ] ; then
 fi
 # set ndk home path
 if [ -d "$NDK_PATH" ] ; then
-	TOOLPATH="${TOOLPATH}:${NDK_PATH}/bin"
+	TOOLPATH="${TOOLPATH}:${NDK_PATH}"
 	export ANDROID_NDK_HOME=${ANDROID_NDK_HOME:="$NDK_PATH"}
 fi
 # export path
