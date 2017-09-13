@@ -202,7 +202,7 @@ function do_list_search()
 	pkg_load="${pkg_root}${pkg_load}.tar.gz"
 	local pkg_vers=`echo "$pkg_text" | grep 'SLACKBUILD VERSION'`
 	pkg_vers=`echo "$pkg_vers" | sed 's/.*: \(.*\)$/\1/'`
-	local pkg_file=`echo "$pkg_text" | grep 'SLACKBUILD DOWNLOAD'`
+	local pkg_file=`echo "$pkg_text" | grep 'SLACKBUILD DOWNLOAD:'`
 	pkg_file=`echo "$pkg_file" | sed 's/.*: \(.*\)$/\1/'`
 	local pkg_fil2=`echo "$pkg_text" | grep 'SLACKBUILD DOWNLOAD_x86_64'`
 	pkg_fil2=`echo "$pkg_fil2" | sed 's/.*: \(.*\)$/\1/'`
