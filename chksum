@@ -15,10 +15,18 @@ MD5SUM_BIN=${MD5SUM_BIN:="$(which md5sum 2>/dev/null)"}
 
 if [ "$(echo $@|grep -- '--create')" != "" ]; then
 	if [ "$(echo $@|grep -- '--bundle')" == "" ]; then
-		for a in $(find . -maxdepth 1 -type f); do
+		CHKLIST=""
+		while [ "$1" != "" ] ; do
+			[ -f "$1" ] && CHKLIST="$CHKLIST $1"
+			shift
+		done
+		[ "$CHKLIST" == "" ] && CHKLIST=`find . -maxdepth 1 -type f`
+		for a in ${CHKLIST} ; do
 			a=$(basename $a)
 			[ "$(echo $a|grep ".md5")" != "" ] && continue
+			echo -n "Creating sum for $a... "
 			md5sum $a >${a}.md5
+			echo "done."
 		done
 	else
 		echo -n "" >$MD5FILE
