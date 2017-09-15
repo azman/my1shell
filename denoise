@@ -1,0 +1,78 @@
+#!/bin/bash
+# - from https://github.com/yonilevy/noiseclean
+
+CHK_NAME=`basename $0 .sh`
+FFMPEG="ffmpeg"
+FFMPEG_BIN=`which $FFMPEG 2>/dev/null`
+FFMPEG_OPT="-v warning -y"
+SOX="sox"
+SOX_BIN=`which $SOX 2>/dev/null`
+
+[ ! -x "$FFMPEG_BIN" ] && echo "Cannot find $FFMPEG!" && exit 1
+[ ! -x "$SOX_BIN" ] && echo "Cannot find $SOX!" && exit 1
+
+SRC_FILE=$1
+[ ! -r "$SRC_FILE" ] && echo "File not found: '$SRC_FILE'" && exit 1
+SRC_PATH=`dirname $SRC_FILE`
+SRC_PATH=`cd $SRC_PATH;pwd`
+SRC_FILE=`basename $SRC_FILE`
+SRC_FULL=${SRC_PATH}/${SRC_FILE}
+
+DST_FILE=$2
+if [ "$DST_FILE" == "" ] ; then
+	FILE_EXT=${SRC_FILE##*.}
+	DST_FILE=${SRC_FILE//.$FILE_EXT/_denoise.$FILE_EXT}
+fi
+if [ -r "$DST_FILE" ] ; then
+	read -p "File '$DST_FILE' exists. Overwrite? [y/N]: " dummy
+	case $dummy in
+		[Yy]*) break;;
+		*) exit 2;;
+	esac
+fi
+
+CHK_FILE=`ffprobe -v warning -show_streams "$SRC_FULL" | grep codec_type=video`
+if [ ! -z $CHK_FILE ] ; then
+	CHK_FILE=1
+    echo "'$SRC_FULL' is a video file."
+else
+	CHK_FILE=0
+	echo "'$SRC_FULL' is an audio file."
+fi
+
+read -p "Sample noise start time [00:00:00]: " isample
+[ -z "$isample" ] && isample="00:00:00"
+read -p "Sample noise end time [00:00:00.500]: " dsample
+[ -z "$dsample" ] && dsample="00:00:00.500"
+read -p "Noise reduction amount [0.2]: " chksens
+[ -z "$chksens" ] && chksens="0.2"
+
+tmpVidFile="/tmp/${CHK_NAME}_tmpvid.$FILE_EXT"
+tmpAudFile="/tmp/${CHK_NAME}_tmpaud.wav"
+noiseAFile="/tmp/${CHK_NAME}_noiseaud.wav"
+noisePFile="/tmp/${CHK_NAME}_noisepro.prof"
+chkAudFile="/tmp/${CHK_NAME}_tmpaud-clean.wav"
+
+echo "Removing noise on '$SRC_FULL'... "
+
+if [ $CHK_FILE -eq 1 ]; then
+	$FFMPEG $FFMPEG_OPT -i $SRC_FULL -qscale:v 0 -vcodec copy -an $tmpVidFile
+	$FFMPEG $FFMPEG_OPT -i $SRC_FULL -qscale:a 0 $tmpAudFile
+else
+	cp $SRC_FULL $tmpAudFile
+fi
+$FFMPEG $FFMPEG_OPT -i $SRC_FULL -vn -ss $isample -t $dsample $noiseAFile
+$SOX $noiseAFile -n noiseprof $noisePFile
+$SOX $tmpAudFile $chkAudFile noisered $noisePFile $chksens
+if [ $CHK_FILE -eq 1 ]; then
+	MERGE="-i $chkAudFile -i $tmpVidFile"
+	$FFMPEG $FFMPEG_OPT $MERGE -vcodec copy -qscale:v 0 -qscale:a 0 $DST_FILE
+else
+	cp $chkAudFile $DST_FILE
+fi
+
+echo "done."
+
+# cleanup!
+[ "$(echo $@|grep -- '--cleanup')" != "" ] &&
+	rm -rf tmpVidFile tmpAudFile noiseAFile noisePFile chkAudFile
