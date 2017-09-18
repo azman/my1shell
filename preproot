@@ -1,0 +1,22 @@
+#!/bin/bash
+
+ROOT_PATH=${ROOT_PATH:="/opt/chroot32"}
+BIND_THIS="proc sys home"
+
+[ $UID -ne 0 ] && echo "Must run as root!" && exit 1
+
+for path in ${BIND_THIS} ; do
+	target=${ROOT_PATH}/$path
+	dotest=`mount | grep $target`
+	if [ "$1" == "--release" ] ; then
+		[ "$dotest" == "" ] && continue
+		echo "Release bind to /$path at $target"
+		umount $target
+	else
+		[ "$dotest" != "" ] && continue
+		echo "Create bind to /$path at $target"
+		mount --bind /$path $target
+	fi
+done
+
+exit 0

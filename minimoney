@@ -1,0 +1,16 @@
+#!/bin/bash
+
+JAVABIN="java"
+MM_EXEC=`which $JAVABIN`
+MM_FILE=${MM_FILE:="minimoney.jar"}
+MM_PATH=${MM_PATH:="/home/share/appx/java-jar"}
+MM_FULL=${MM_PATH}/${MM_FILE}
+
+[ ! -x "$MM_EXEC" ] &&
+	echo "Cannot exec $JAVABIN! Aborting!" && exit 1
+
+[ ! -f "$MM_FULL" ] &&
+	echo "Cannot find $MM_FULL! Aborting!" && exit 1
+
+# show time!
+${MM_EXEC} -jar ${MM_FULL}
