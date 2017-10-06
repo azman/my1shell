@@ -154,7 +154,7 @@ function go_findpack()
 	# info structure?
 	local pkg_file pkg_path
 	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*.t[gx]z$"
-	local pkg_text="$(cat $pkgs_txt | grep -e "$pkg_temp" -A1 | tr '\n' ';')"
+	local pkg_text="$(cat $pkgs_txt | grep -e "$pkg_temp" -A2 | tr '\n' ';')"
 	[ "$pkg_text" = "" ] && return
 	local ifs_save=$IFS
 	IFS=$'\n'
@@ -177,6 +177,8 @@ function go_findpack()
 		pkg_path="${pkg_path##${check_name}* }"
 		pkg_path=$(echo $pkg_path|sed 's/^.\(.*\)$/\1/')
 		[ "$pkg_repo" == "alien" ] &&
+			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
+		[ "$pkg_repo" == "aliensec" ] &&
 			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
 		[ "$pkg_repo" == "multilib" ] &&
 			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
@@ -255,6 +257,13 @@ function do_readconf()
 				pkg_root="${BOB_ROOT}"
 				pkg_root="${pkg_root}/mirrors/people/alien/slackbuilds"
 				pkg_repo="alien"
+				pkg_rawp=""
+				;;
+			--aliensec)
+				pkg_root="${BOB_ROOT}"
+				pkg_root="${pkg_root}/mirrors/people/alien"
+				pkg_root="${pkg_root}/restricted_slackbuilds"
+				pkg_repo="aliensec"
 				pkg_rawp=""
 				;;
 			--slack)
@@ -418,7 +427,7 @@ function do_execthis()
 		#echo "[DEBUG] '$pkg_root','$pkg_repo','$pkg_name','$pkg_rawp'"
 		if [ "$pkg_rawp" == "go_raw" ]; then
 			go_loadrawl $pkg_root $pkg_repo $pkg_arch
-			echo -n "{$pkg_repo-RAW} '$pkg_name': "
+			echo -n "{$pkg_repo} '$pkg_name': "
 			pkg_this="$(go_findrawl $pkg_repo $pkg_name $pkg_arch $pkg_vers)"
 			if [ "$pkg_this" != "" ]; then
 				if [ "${pkg_this//,/;}" != "${pkg_this}" ]; then
@@ -454,6 +463,9 @@ function chk_param()
 	while [ "$1" != "" ]; do
 		case "$1" in
 			--alien)
+				chk_valid="$1"
+				;;
+			--aliensec)
 				chk_valid="$1"
 				;;
 			--slack)
