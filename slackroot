@@ -642,11 +642,12 @@ function find_patches_root()
 	local pkg_temp pkg_base pkg_name
 	local pkg_vers pkg_arch pkg_extd
 	local chk_name chk_stat chk_file chk_vers
-	local pkg_path="$1"
+	local pkg_path="$1/packages"
 	local log_path="$2"
 	local pat_list pat_full pat_path
 	# look for all package files
-	for pat_full in $(find $pkg_path -name "*.t[gx]z" -type f); do
+	local pkg_list=`find $pkg_path -name "*.t[gx]z" -type f -maxdepth 2`
+	for pat_full in $pkg_list; do
 		pat_file="$(basename $pat_full)"
 		pat_path="$(dirname $pat_full)"
 		# check extension first

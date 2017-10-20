@@ -7,6 +7,8 @@ BIND_THIS="proc sys home"
 
 for path in ${BIND_THIS} ; do
 	target=${ROOT_PATH}/$path
+	[ ! -d "$target" ] && echo "Cannot find $target! Ignored!" && continue
+	[ ! -d "/$path" ] && echo "Cannot find /$path! Ignored!" && continue
 	dotest=`mount | grep $target`
 	if [ "$1" == "--release" ] ; then
 		[ "$dotest" == "" ] && continue
