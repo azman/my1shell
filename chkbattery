@@ -27,35 +27,35 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	((PREV_BATT=`cat ${BATT_PATH}/charge_full`/1000))
 	((CURR_BATT=`cat ${BATT_PATH}/charge_now`/1000))
 	CURR_PCTG=`cat ${BATT_PATH}/capacity`
-	((RATE_BATT=`cat ${BATT_PATH}/current_now`/1000))
 	_CHARGING=`cat ${BATT_PATH}/status`
-	if [ "$_CHARGING" == "Discharging" ] ; then
-		((TIME1PART=${CURR_BATT}/${RATE_BATT}))
-		if [ $TIME1PART -ne 0 ] ; then
-			((TIME2PART=${CURR_BATT}-${TIME1PART}*${RATE_BATT}))
-			TIME2LIVE="${TIME1PART}H"
-		else
-			TIME2PART=${CURR_BATT}
-			TIME2LIVE=""
+	RATE_TEST=`cat ${BATT_PATH}/current_now 2>/dev/null`
+	TIME2DONE="??M"
+	# calculate time to finish if rate available
+	if [ "$RATE_TEST" != "" ] ; then
+		((RATE_BATT=${RATE_TEST}/1000))
+		DONE_BATT=${CURR_BATT}
+		if [ "$_CHARGING" == "Discharging" ] ; then
+			((LEFT_BATT=${FULL_BATT}-${CURR_BATT}))
+			DONE_BATT=${LEFT_BATT}
 		fi
-		((TIME2PART=${TIME2PART}*60/${RATE_BATT}))
-		TIME2LIVE="${TIME2LIVE}${TIME2PART}M"
-		CHK_STATE="$CURR_PCTG%-- ($TIME2LIVE)"
-		_CHARGING="$_CHARGING:${TIME2LIVE}"
-	elif [ "$_CHARGING" == "Charging" ] ; then
-		((LEFT_BATT=${FULL_BATT}-${CURR_BATT}))
 		((TIME1PART=${LEFT_BATT}/${RATE_BATT}))
 		if [ $TIME1PART -ne 0 ] ; then
-			((TIME2PART=${LEFT_BATT}-${TIME1PART}*${RATE_BATT}))
-			TIME2FULL="${TIME1PART}H"
+			((TIME2PART=${DONE_BATT}-${TIME1PART}*${RATE_BATT}))
+			TIME2DONE="${TIME1PART}H"
 		else
-			TIME2PART=${LEFT_BATT}
-			TIME2FULL=""
+			TIME2PART=${DONE_BATT}
+			TIME2DONE=""
 		fi
 		((TIME2PART=${TIME2PART}*60/${RATE_BATT}))
-		TIME2FULL="${TIME2FULL}${TIME2PART}M"
-		CHK_STATE="$CURR_PCTG%++ ($TIME2FULL)"
-		_CHARGING="$_CHARGING:${TIME2FULL}"
+		TIME2DONE="${TIME2DONE}${TIME2PART}M"
+	fi
+	# output formatting
+	if [ "$_CHARGING" == "Discharging" ] ; then
+		CHK_STATE="$CURR_PCTG%-- ($TIME2DONE)"
+		_CHARGING="$_CHARGING:${TIME2DONE}"
+	elif [ "$_CHARGING" == "Charging" ] ; then
+		CHK_STATE="$CURR_PCTG%++ ($TIME2DONE)"
+		_CHARGING="$_CHARGING:${TIME2DONE}"
 	elif [ "$_CHARGING" == "Full" ] ; then
 		CHK_STATE="$CURR_PCTG%##"
 	else
