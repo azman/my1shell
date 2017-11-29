@@ -468,7 +468,7 @@ function process_command()
 	while [ "$1" != "" ]; do
 		case "$1" in
 			--install|-i)
-				OPT_INSTALL="$1"
+				OPT_INSTALL="--install"
 				;;
 			--depends|-d)
 				OPT_DEPENDS="YES"
