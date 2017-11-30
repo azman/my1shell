@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# robo-exec
+# - written by azman@my1matrix.net
+# - prepare shell to run nwjs/nodejs stuff
+
+export NODE_PATH=${NODE_PATH:="/home/share/tool/node-js"}
+export NWJS_PATH=${NWJS_PATH:="/home/share/tool/nwjs-sdk"}
+
+# start a shell
+export PATH=${NWJS_PATH}:${NODE_PATH}/bin:$PATH
+exec env PS1="(NWJS-EXEC) \u@\h:\w$ " `which bash 2>/dev/null`
+exit 0
