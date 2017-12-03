@@ -160,7 +160,7 @@ function execute_patches()
 		pat_vers=`echo $pat_loop | cut -d':' -f4`
 		[ "$pat_stat" != "check" ] && continue # patch not needed
 		pat_temp=`echo $pkg_list | grep $pat_name`
-		if [ "$pat_temp" == "" ] ; then
+		if [ "$pkg_list" == "" -o "$pat_temp" != "" ] ; then
 			chk_list="${chk_list}${pat_loop} "
 		fi
 	done
