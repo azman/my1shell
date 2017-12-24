@@ -29,16 +29,15 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	CURR_PCTG=`cat ${BATT_PATH}/capacity`
 	_CHARGING=`cat ${BATT_PATH}/status`
 	RATE_TEST=`cat ${BATT_PATH}/current_now 2>/dev/null`
+	RATE_BATT=0
+	[ "$RATE_TEST" != "" ] && ((RATE_BATT=${RATE_TEST}/1000))
 	TIME2DONE="??M"
 	# calculate time to finish if rate available
-	if [ "$RATE_TEST" != "" ] ; then
-		((RATE_BATT=${RATE_TEST}/1000))
-		DONE_BATT=${CURR_BATT}
-		if [ "$_CHARGING" == "Discharging" ] ; then
-			((LEFT_BATT=${FULL_BATT}-${CURR_BATT}))
-			DONE_BATT=${LEFT_BATT}
-		fi
-		((TIME1PART=${LEFT_BATT}/${RATE_BATT}))
+	if [ $RATE_BATT -ne 0 ] ; then
+		DONE_BATT=${CURR_BATT} # assume charging
+		[ "$_CHARGING" == "Discharging" ] &&
+			((DONE_BATT=${FULL_BATT}-${CURR_BATT}))
+		((TIME1PART=${DONE_BATT}/${RATE_BATT}))
 		if [ $TIME1PART -ne 0 ] ; then
 			((TIME2PART=${DONE_BATT}-${TIME1PART}*${RATE_BATT}))
 			TIME2DONE="${TIME1PART}H"
