@@ -4,13 +4,15 @@
 # - written by azman@my1matrix.net
 # - prepare shell to run nodejs stuff
 
-export NODE_PATH=${NODE_PATH:="/home/share/tool/node-js"}
+export NDJS_PATH=${NDJS_PATH:="/home/share/tool/node-js"}
 export NWJS_PATH=${NWJS_PATH:="/home/share/tool/nwjs-sdk"}
 
-# start a shell
-[ -d "$NODE_PATH" ] &&
-	export PATH=${NODE_PATH}/bin:$PATH
+[ -d "$NDJS_PATH" ] &&
+	export PATH=${NDJS_PATH}/bin:$PATH
+[ -d "$NDJS_PATH" ] &&
+	export NODE_PATH=${NDJS_PATH}/lib/node_modules
 [ -d "$NWJS_PATH" ] &&
 	export PATH=${NWJS_PATH}:$PATH
+# start a shell
 exec env PS1="(NODEJS-EXEC) \u@\h:\w$ " `which bash 2>/dev/null`
 exit 0

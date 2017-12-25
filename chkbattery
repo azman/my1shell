@@ -34,8 +34,8 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	TIME2DONE="??M"
 	# calculate time to finish if rate available
 	if [ $RATE_BATT -ne 0 ] ; then
-		DONE_BATT=${CURR_BATT} # assume charging
-		[ "$_CHARGING" == "Discharging" ] &&
+		DONE_BATT=${CURR_BATT} # assume discharging
+		[ "$_CHARGING" == "Charging" ] &&
 			((DONE_BATT=${FULL_BATT}-${CURR_BATT}))
 		((TIME1PART=${DONE_BATT}/${RATE_BATT}))
 		if [ $TIME1PART -ne 0 ] ; then
