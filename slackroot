@@ -91,7 +91,7 @@ function do_root_update()
 	for pkg_file in $pkg_list; do
 		[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
 		[ "$chk_syyy" != "YES" ] &&
-			info_msg "Updating $(basename $pkg_file) to $chk_root ..."
+			info_msg "Updating $(basename $pkg_file) in $chk_root ..."
 		[ "$chk_exec" == "YES" ] &&
 			ROOT=$chk_root upgradepkg $pkg_opts $pkg_file >>$MY1_TOOL_LOG
 		[ "$chk_syyy" != "YES" ] && info_msg --no-tag " done!"
