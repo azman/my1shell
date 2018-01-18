@@ -284,6 +284,18 @@ function do_fetch()
 		# check if tarball available?
 		local pkg_file=`echo "$pkg_info" | cut -d';' -f3`
 		local pkg_fil2=`echo "$pkg_info" | cut -d';' -f4`
+		if [ "$pkg_file" != "${pkg_file#* }" ] ; then
+			local tmp_file
+			#echo -e "[ERROR] Multiple source files '$pkg_file'!\n" >&2 &&
+			#exit 1
+			for chk in $pkg_file ; do
+				[ "$tmp_file" = "" ] && tmp_file=$chk && continue
+				local tmp_ball=`basename $chk`
+				[ ! -f "${pkg_path}/${tmp_ball}" ] &&
+					do_loadball $pkg_path $chk
+			done
+			pkg_file=$tmp_file
+		fi
 		local pkg_ball=`basename $pkg_file`
 		[ ! -f "${pkg_path}/${pkg_ball}" ] &&
 			do_loadball $pkg_path $pkg_file
