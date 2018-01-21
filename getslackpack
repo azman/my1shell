@@ -232,6 +232,25 @@ function go_loadpack()
 		fi
 	fi
 	echo
+	# find old files?
+	pkg_name=${pkg_file%-*} # strip build
+	pkg_name=${pkg_name%-*} # strip arch
+	pkg_name=${pkg_name%-*} # strip vers
+	for tmp in ${pkg_name}* ; do
+		# make sure same package name (not extended)
+		tmp_name=${tmp%-*} # strip build
+		tmp_name=${tmp_name%-*} # strip arch
+		tmp_name=${tmp_name%-*} # strip vers
+		[ "$tmp_name" != "$pkg_name" ] && continue;
+		# leave the current ones
+		[ "$tmp" == "${pkg_file}" ] && continue;
+		[ "$tmp" == "${pkg_file}.md5" ] && continue;
+		echo -n "Found '$tmp'"
+		[ "$OPT_CHECK" == "YES" -o "$OPT_CLEAN" == "NO" ] &&
+			echo && continue
+		rm -rf $tmp
+		echo ": REMOVED."
+	done
 	if [ "$OPT_CHECK" != "YES" ] && [ "$pkg_test" == "KO" ]; then
 		# download if not found or invalid
 		do_download $pkg_root/$pkg_file $pkg_file
