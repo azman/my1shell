@@ -56,6 +56,7 @@ MTL_PACK="$MTL_PACK gcc gcc-g++ gcc-gfortran gcc-gnat gcc-go gcc-java gcc-objc"
 # tool options - allow config file to set these...
 OPT_CHECK=${OPT_CHECK:="YES"}
 OPT_CLEAN=${OPT_CLEAN:="NO"}
+OPT_SWEEP=${OPT_SWEEP:="NO"}
 THIS_CONF=${THIS_CONF:=""}
 
 function do_download()
@@ -246,8 +247,7 @@ function go_loadpack()
 		[ "$tmp" == "${pkg_file}" ] && continue;
 		[ "$tmp" == "${pkg_file}.md5" ] && continue;
 		echo -n "Found '$tmp'"
-		[ "$OPT_CHECK" == "YES" -o "$OPT_CLEAN" == "NO" ] &&
-			echo && continue
+		[ "$OPT_SWEEP" == "NO" ] && echo && continue
 		rm -rf $tmp
 		echo ": REMOVED."
 	done
@@ -396,6 +396,24 @@ function go_packrawl()
 		fi
 	fi
 	echo
+	# find old files?
+	pkg_name=${pkg_file%-*} # strip build
+	pkg_name=${pkg_name%-*} # strip arch
+	pkg_name=${pkg_name%-*} # strip vers
+	for tmp in ${pkg_name}* ; do
+		# make sure same package name (not extended)
+		tmp_name=${tmp%-*} # strip build
+		tmp_name=${tmp_name%-*} # strip arch
+		tmp_name=${tmp_name%-*} # strip vers
+		[ "$tmp_name" != "$pkg_name" ] && continue;
+		# leave the current ones
+		[ "$tmp" == "${pkg_file}" ] && continue;
+		[ "$tmp" == "${pkg_file}.md5" ] && continue;
+		echo -n "Found '$tmp'"
+		[ "$OPT_SWEEP" == "NO" ] && echo && continue
+		rm -rf $tmp
+		echo ": REMOVED."
+	done
 	if [ "$OPT_CHECK" != "YES" ] && [ "$pkg_test" == "KO" ]; then
 		# download if old?
 		if [ "$(find $pkg_file -mmin -1440 2>/dev/null)" == "" ]; then
@@ -513,6 +531,9 @@ function chk_param()
 				;;
 			--clean)
 				OPT_CLEAN="YES"
+				;;
+			--sweep)
+				OPT_SWEEP="YES"
 				;;
 			--path)
 				shift
