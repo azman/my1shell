@@ -13,6 +13,7 @@ BALLNAME=$(basename $CURRPATH)
 MAINNAME=${MAINNAME:="$BALLNAME"}
 BALLSUFX=${BALLSUFX:=""}
 DOBUNDLE=${DOBUNDLE:="YES"}
+CHKPATCH=${CHKPATCH:="YES"}
 DOMASTER=${DOMASTER:="NO"}
 DATE_FMT=${DATE_FMT:="+%Y%m%d%H%M%S"}
 PATCHGIT=${PATCHGIT:="NO"}
@@ -52,6 +53,7 @@ while [ "$1" != "" ]; do
 			shift
 			PATCHNUM="$1"
 			PATCHGIT="YES"
+			CHKPATCH="NO"
 			;;
 		* )
 			echo "Unknown parameter ($1)!" && exit 1
@@ -127,14 +129,17 @@ fi
 CHK_DATE=`date ${DATE_FMT}`
 CHK_NAME=${MAINNAME}-${CHK_DATE}
 
-# create diff - if we have one?
-GIT_DIFF=`git diff`
-if [ "$GIT_DIFF" != "" ]; then
-	echo "$GIT_DIFF" >${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch
-	echo "Patch file '${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch' created."
+# diff patch is ignored if formatted patch has been requested
+if [ "$CHKPATCH" == "YES" ]; then
+	# create diff - if we have one?
+	GIT_DIFF=`git diff`
+	if [ "$GIT_DIFF" != "" ]; then
+		echo "$GIT_DIFF" >${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch
+		echo "Patch file '${BALLPATH}/${CHK_NAME}${BALLSUFX}.patch' created."
+	fi
 fi
 
-# are we formatting patches?
+# are we formatting committed patches?
 if [ "$PATCHGIT" == "YES" ]; then
 	[ "$PATCHNUM" == "" ] && PATCHNUM=1
 	BALLSUFX="${BALLSUFX}_patches"
