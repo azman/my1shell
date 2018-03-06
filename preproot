@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT_PATH=${ROOT_PATH:="/opt/chroot32"}
-BIND_THIS="proc sys home"
+BIND_THIS="proc sys home dev"
 
 [ $UID -ne 0 ] && echo "Must run as root!" && exit 1
 
@@ -12,12 +12,22 @@ for path in ${BIND_THIS} ; do
 	dotest=`mount | grep $target`
 	if [ "$1" == "--release" ] ; then
 		[ "$dotest" == "" ] && continue
+		if [ "$path" = "dev" ] ; then
+			# unbind ${ROOT_PATH}/dev 'recursively'
+			checks=`cat /proc/mounts|awk '{print $2}'|grep ${target}/|sort -r`
+			for rmnt in $checks ; do
+				echo "Release rbinded $rmnt"
+				umount -n $rmnt
+			done
+		fi
 		echo "Release bind to /$path at $target"
 		umount $target
 	else
 		[ "$dotest" != "" ] && continue
-		echo "Create bind to /$path at $target"
-		mount --bind /$path $target
+		dobind="bind"
+		[ "$path" = "dev" ] && dobind="rbind"
+		echo "Create $dobind to /$path at $target"
+		mount --$dobind /$path $target
 	fi
 done
 
