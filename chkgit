@@ -238,6 +238,9 @@ elif [ "$do_command" == "create" ]; then
 	FULL_PATH=${PATH2BUND}/${PROJ_NAME}.git # dummy ???
 	FULL_FIND=`find ${PATH2BUND} -name "${PROJ_NAME}-*.git" | sort`
 	for FULL_TEST in $FULL_FIND ; do
+		TEMP_TEST=`echo $FULL_TEST | sed 's/\(.*\)-[0-9]\{12,14\}.*$/\1/'`
+		TEMP_TEST=`basename $TEMP_TEST`
+		[ "$TEMP_TEST" != "$PROJ_NAME" ] && continue;
 		FULL_PATH=$FULL_TEST
 	done # will get latest???
 	if [ ! -f "$FULL_PATH" ] ; then
