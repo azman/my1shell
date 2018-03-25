@@ -4,43 +4,44 @@
 # - written by azman@my1matrix.net
 # - standalone slackware package retriever
 
-MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(dirname $0)"
+MY1TOOL=`basename $0 .sh`
+MY1PATH=`dirname $0`
 # look for config file
-for config in $(pwd) $HOME; do
+for config in `pwd` $HOME; do
 	config=$config/.$MY1TOOL
 	[ -r $config ] && source $config && break
 done
 
 # setup path to slackware tree
-SLACKROOT=${SLACKROOT:="$(pwd)"}
+[ -z "$SLACKROOT" ] && SLACKROOT=`pwd`
 [ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
-SLACKARCH=${SLACKARCH:="$(uname -m)"}
-SLACKSUFX=${SLACKSUFX:=""}
+[ -z "$SLACKARCH" ] && SLACKARCH=`uname -m`
+SLACKSUFX="" # reset... just in case!
 [ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
-SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
+[ -z "$SLACKFULL" ] && SLACKFULL="slackware$SLACKSUFX"
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
-SLACKVERS=${SLACKVERS:=""}
+[ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
 if [ "$SLACKVERS" == "" ]; then
-	if [ ! -f /etc/slackware-version ]; then
-		# if running from other than slack
+	if [ ! -f /etc/slackware-version ]; then # running other than slack?
 		SLACKVERS="current"
 	else
-		SLACKVERS=$(cat /etc/slackware-version)
-		SLACKVERS=${SLACKVERS#Slackware }
-		SLACKVMAJ=${SLACKVERS%%.*}
-		SLACKVMIN=${SLACKVERS#*.}
-		[ "${SLACKVMIN//./}" != "$SLACKVMIN" ] && SLACKVMIN=${SLACKVMIN%%.*}
-		SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
+		SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+		SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
+		SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
+		SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
 	fi
 fi
-SLACKFULL=${SLACKFULL}-${SLACKVERS}
-SLACKPATH=${SLACKROOT}/slackpack${SLACKSUFX}-${SLACKVERS}
+SLACKFULL=$SLACKFULL-$SLACKVERS
+SLACKPATH=$SLACKROOT/slackpack$SLACKSUFX-$SLACKVERS
 
-# x86 packages usually target specific arch
-ARCH_X86=${ARCH_X86:="i486"}
+# temporary path
+MY1USER=`whoami`
+MY1TEMP="/tmp/$MY1USER/$MY1TOOL"
+
+# x86 packages usually target specific arch - used in salix/rwork repos!
+[ -z "$ARCH_X86" ] && ARCH_X86="i486"
 case $SLACKARCH in
-	x86|i*86) SLACKARCH=${ARCH_X86} ;;
+	x86|i*86) SLACKARCH=$ARCH_X86 ;;
 esac
 
 # default repo - alien stuffs!
@@ -81,11 +82,16 @@ function go_loadsums()
 {
 	local pkg_root=$1
 	local pkg_repo=$2
-	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
+	case "$pkg_repo" in
+		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+	esac
+	local pkg_temp="$MY1TEMP/$pkg_repo"
 	local pkg_sums="CHECKSUMS.md5"
 	# check clean option
 	if [ "$OPT_CLEAN" == "YES" ] ; then
-		rm -rf /tmp/$MY1TOOL
+		rm -rf $MY1TEMP
 		[ $? -eq 0 ] && OPT_CLEAN="NO"
 	fi
 	# prepare temp
@@ -111,7 +117,12 @@ function go_loadinfo()
 {
 	local pkg_root=$1
 	local pkg_repo=$2
-	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
+	case "$pkg_repo" in
+		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+	esac
+	local pkg_temp="$MY1TEMP/$pkg_repo"
 	local pkg_sums="CHECKSUMS.md5"
 	local pkg_file="PACKAGES.TXT"
 	# obtain checksum
@@ -151,7 +162,12 @@ function go_findpack()
 	local pkg_arch=$3
 	local pkg_vers=$4
 	local pkg_temp=""
-	local pkgs_txt="/tmp/$MY1TOOL/$pkg_repo/PACKAGES.TXT"
+	case "$pkg_repo" in
+		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+	esac
+	local pkgs_txt="$MY1TEMP/$pkg_repo/PACKAGES.TXT"
 	# info structure?
 	local pkg_file pkg_path
 	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*.t[gx]z$"
@@ -196,7 +212,12 @@ function go_loadpack()
 	local pkg_repo=$3
 	local pkg_path=$4
 	local pkg_file=$5
-	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo"
+	case "$pkg_repo" in
+		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+	esac
+	local pkg_temp="$MY1TEMP/$pkg_repo"
 	local pkg_sums="CHECKSUMS.md5"
 	local pkg_md5f="$pkg_path/$pkg_file.md5"
 	# obtain checksum
@@ -325,11 +346,16 @@ function go_loadrawl()
 	local pkg_root=$1
 	local pkg_repo=$2
 	local pkg_arch=$3
-	local pkg_temp="/tmp/$MY1TOOL/$pkg_repo/$pkg_arch"
+	case "$pkg_repo" in
+		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+	esac
+	local pkg_temp="$MY1TEMP/$pkg_repo"
 	local pkg_list="index.html"
 	# check clean option
 	if [ "$OPT_CLEAN" == "YES" ] ; then
-		rm -rf /tmp/$MY1TOOL
+		rm -rf $MY1TEMP
 		[ $? -eq 0 ] && OPT_CLEAN="NO"
 	fi
 	# prepare temp
@@ -354,7 +380,12 @@ function go_findrawl()
 	local pkg_name=$2
 	local pkg_arch=$3
 	local pkg_vers=$4
-	local pkgs_txt="/tmp/$MY1TOOL/$pkg_repo/$pkg_arch/index.html"
+	case "$pkg_repo" in
+		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+	esac
+	local pkgs_txt="$MY1TEMP/$pkg_repo/index.html"
 	# info structure?
 	local pkg_temp="${pkg_name}-[^-]*-${pkg_arch}-[^-]*.t[gx]z "
 	local pkg_text="$(cat $pkgs_txt | sed -e :a -e 's/<[^>]*>//g;/</N;//ba')"
@@ -441,7 +472,7 @@ function go_packrawl()
 
 function do_execthis()
 {
-	local pkg_root pkg_repo pkg_name pkg_this
+	local pkg_root pkg_repo pkg_name pkg_this pkg_rawp
 	local pkg_file pkg_rsrc pkg_path=$SLACKPATH
 	local pkg_arch=$SLACKARCH
 	local pkg_vers=$SLACKVERS
@@ -516,6 +547,9 @@ function chk_param()
 				;;
 			--reset)
 				THIS_CONF=""
+				;;
+			--check)
+				OPT_CHECK="YES"
 				;;
 			--default)
 				THIS_CONF="${THIS_CONF} --$DEF_REPO $DEF_PACK"

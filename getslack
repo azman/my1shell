@@ -4,52 +4,49 @@
 # - written by azman@my1matrix.net
 # - a 'reduced' version of alien_bob's mirror_slackware_current.sh
 
-MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(dirname $0)"
+MY1TOOL=`basename $0 .sh`
+MY1PATH=`dirname $0`
 # look for config file
-for config in $(pwd) $HOME; do
+for config in `pwd` $HOME; do
 	config=$config/.$MY1TOOL
 	[ -r $config ] && source $config && break
 done
 
 # setup path to slackware tree
-SLACKROOT=${SLACKROOT:="$(pwd)"}
+[ -z "$SLACKROOT" ] && SLACKROOT=`pwd`
 [ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
-SLACKARCH=${SLACKARCH:="$(uname -m)"}
-SLACKSUFX=${SLACKSUFX:=""}
+[ -z "$SLACKARCH" ] && SLACKARCH=`uname -m`
+SLACKSUFX="" # reset... just in case!
 [ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
-SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
+[ -z "$SLACKFULL" ] && SLACKFULL="slackware$SLACKSUFX"
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
-SLACKVERS=${SLACKVERS:=""}
+[ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
 if [ "$SLACKVERS" == "" ]; then
-	if [ ! -f /etc/slackware-version ]; then
-		# if running from other than slack
+	if [ ! -f /etc/slackware-version ]; then # running other than slack?
 		SLACKVERS="current"
 	else
-		SLACKVERS=$(cat /etc/slackware-version)
-		SLACKVERS=${SLACKVERS#Slackware }
-		SLACKVMAJ=${SLACKVERS%%.*}
-		SLACKVMIN=${SLACKVERS#*.}
-		[ "${SLACKVMIN//./}" != "$SLACKVMIN" ] && SLACKVMIN=${SLACKVMIN%%.*}
-		SLACKVERS=${SLACKVMAJ}.${SLACKVMIN}
+		SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+		SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
+		SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
+		SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
 	fi
 fi
-SLACKFULL=${SLACKFULL}-${SLACKVERS}
-SLACKPATH=${SLACKROOT}/${SLACKFULL}
+SLACKFULL=$SLACKFULL-$SLACKVERS
+SLACKPATH=$SLACKROOT/$SLACKFULL
 
 # capture error in sub-shells
 set -e # activates errexit
 # setup rsync parameters
-RSYNCURLROOT=${RSYNCURLROOT:="rsync.osuosl.org::slackware/"}
-RSYNCURL=${RSYNCURL:="${RSYNCURLROOT}${SLACKFULL}"}
-RSYNCOPT=${RSYNCOPT:="--delete --delete-excluded --partial -rlptD --progress"}
-# check required binary
-RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
+[ -z "$RSYNCURLROOT" ] && RSYNCURLROOT="slackware.mirrors.tds.net::slackware/"
+RSYNCURL="$RSYNCURLROOT$SLACKFULL/"
+RSYNCOPT="--delete --delete-excluded --partial -rlptD --progress"
+# check if rsync binary is available
+RSYNC=`which rsync 2>/dev/null`
 [ "$RSYNC" == "" ] && echo "Cannot find rsync! Aborting!" && exit 1
 
 # customized default sync list
-EXCLUDES=${EXCLUDES:="--exclude=pasture/ --exclude=testing/ --exclude=source/"}
-INCLUDES=${INCLUDES:=""}
+[ -z "$EXCLUDES" ] && EXCLUDES="--exclude=source/"
+[ -z "$INCLUDES" ] && INCLUDES="" # not needed really!
 [ -r "$EXCLUDEFILE" ] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
 [ -r "$INCLUDEFILE" ] && INCLUDES="--include-from=$INCLUDEFILE"
 
@@ -59,10 +56,10 @@ echo -e "#\n# Checking and changing to $SLACKPATH ...\n#"
 cd $SLACKPATH
 umask 022
 
-echo "*** Using ${RSYNCURL} ***"
-$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ ${SLACKPATH}
-echo "*** Using ${RSYNCURL} - (2nd Run) ***"
-$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCURL}/ ${SLACKPATH}
-echo "$(date) [$$]: Done mirroring ${SLACKFULL} (exit code $?)."
+echo "*** Using $RSYNCURL ***"
+$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKPATH
+echo "*** Using $RSYNCURL - (2nd Run) ***"
+$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKPATH
+echo `date`" [$$]: Done mirroring $SLACKFULL (exit code $?)."
 
 exit 0

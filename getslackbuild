@@ -2,10 +2,8 @@
 
 # getslackbuild
 # - written by azman@my1matrix.net
-# - get/execute slackbuild scripts from SlackBuilds.org
-# - builds dependencies (based on .info file) if requested
+# - get/execute slackbuild scripts from SlackBuilds.org (supports dependencies)
 
-# standard tool info
 MY1TOOL=`basename $0 .sh`
 MY1PATH=`dirname $0`
 # look for config file
@@ -13,6 +11,10 @@ for config in `pwd` $HOME; do
 	config=$config/.$MY1TOOL
 	[ -r $config ] && source $config && break
 done
+
+# temporary path
+MY1USER=`whoami`
+MY1TEMP="/tmp/$MY1USER/$MY1TOOL"
 
 # my1slack tool specific
 MY1_TOOLNAME="my1 SlackBuilds.org Executor"
@@ -149,8 +151,7 @@ function get_buildinfo()
 
 function do_list_update()
 {
-	local chk_user=`whoami`
-	local pkg_temp="/tmp/$chk_user/my1/$MY1TOOL"
+	local pkg_temp="$MY1TEMP"
 	local pkg_vers=${SLACKVERS}
 	local pkg_root="http://slackbuilds.org/slackbuilds/$pkg_vers"
 	local pkg_list="SLACKBUILDS.TXT"
