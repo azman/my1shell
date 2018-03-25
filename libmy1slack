@@ -5,11 +5,10 @@
 # - library functions for slackware system management
 
 MY1_LIBNAME="libmy1slack"
-MY1_LIBVERS="2016.12.00"
+MY1_LIBVERS="2018.03.00"
 MY1_LIBCALL=`basename $0 .sh`
 
 # determine slackware architecture, NOT machine's!
-SLACKARCH=${SLACKARCH:=""}
 case $SLACKARCH in
 	x86) SLACKARCH="" ;;
 	x86_64) SLACKARCH="64" ;;
@@ -18,19 +17,16 @@ case $SLACKARCH in
 		if [ "$SLACKARCH" == "/lib64" ] ; then SLACKARCH="64"
 		else SLACKARCH="" ; fi ;;
 esac
+SLACKNAME="slackware$SLACKARCH"
 # get slackware release version - not sure if current is supported!
-SLACKNAME=${SLACKNAME:="slackware$SLACKARCH"}
-SLACKVERS=${SLACKVERS:=""}
 if [ "$SLACKVERS" == "" ]; then
 	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
 	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
 	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
-	# just in case?
 	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
 fi
+SLACKRELEASE="$SLACKNAME-$SLACKVERS"
 # find slackware tree
-SLACKRELEASE=${SLACKRELEASE:="$SLACKNAME-$SLACKVERS"}
-SLACKROOTDIR=${SLACKROOTDIR:=""}
 if [ "$SLACKROOTDIR" == "" ]; then
 	SLACKFINDDIR=${SLACKFINDDIR:="/home"} # default path to look for
 	SLACKFINDOPT="-maxdepth 3 -name $SLACKRELEASE -type d"
@@ -40,7 +36,7 @@ if [ "$SLACKROOTDIR" == "" ]; then
 	SLACKROOTDIR=`dirname $SLACKROOTDIR`
 fi
 SLACKRELPATH=${SLACKRELPATH:="${SLACKROOTDIR}/${SLACKRELEASE}"}
-SLACKPKGPATH=${SLACKPKGPATH:="${SLACKRELPATH}/slackware$SLACKARCH"}
+SLACKPKGPATH=${SLACKPKGPATH:="${SLACKRELPATH}/${SLACKNAME}"}
 SLACKEXTPATH=${SLACKEXTPATH:="${SLACKRELPATH}/extra"}
 SLACKPKGFILE=${SLACKPKGFILE:="${SLACKPKGPATH}/PACKAGES.TXT"}
 SLACKEXTFILE=${SLACKEXTFILE:="${SLACKEXTPATH}/PACKAGES.TXT"}
