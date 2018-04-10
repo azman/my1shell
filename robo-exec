@@ -6,8 +6,11 @@
 
 export STAGE_PATH=${STAGE_PATH:="/home/share/tool/stage"}
 ARCH_BITS=""
-[[ "$(uname -m)" == "x86_64" ]] && ARCH_BITS="64"
-
+if [ "$(uname -m)" == "x86_64" ] ; then
+	ARCH_BITS="64"
+	# stage lib is without 64 when using my1ubuild?
+	[ ! -d ${STAGE_PATH}/lib${ARCH_BITS} ] && ARCH_BITS=""
+fi
 export STAGEPATH=${STAGE_PATH}/lib${ARCH_BITS}:.
 export LD_LIBRARY_PATH=${STAGEPATH}
 export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${STAGEPATH}/pkgconfig
