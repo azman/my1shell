@@ -3,25 +3,37 @@
 # chktouch
 # - written by azman@my1matrix.net
 # - to disable touchpad on asus eeepc x101h
+# - can now detect other touchpads... :p
 
-TOUCH_NAME=${TOUCH_NAME:="FSPPS/2 Sentelic FingerSensingPad"}
-DEVICE_CHK="Device Enabled"
+PAD_NAME=${PAD_NAME:="FSPPS/2 Sentelic FingerSensingPad"}
+DEV_STAT="Device Enabled"
 
-XINPUT_BIN="xinput"
-XINPUT_CHK=$(which $XINPUT_BIN 2>/dev/null)
-[[ ! -x "$XINPUT_CHK" ]] &&
-	echo "Cannot find binary '$XINPUT_BIN'!" && exit 1
+TOOL_BIN="xinput"
+TOOL_CHK=`which $TOOL_BIN 2>/dev/null`
+[ ! -x "$TOOL_CHK" ] &&
+	echo "Cannot find binary '$TOOL_BIN'!" && exit 1
 
-XINPUT_BIN=${XINPUT_CHK}
-XINPUT_CHK=$($XINPUT_BIN list "$TOUCH_NAME" 2>/dev/null)
-[[ $? -ne 0 ]] &&
-	echo "Cannot find touch device '$TOUCH_NAME'!" && exit 1
+TYPE="slave  pointer"
+TOOL_BIN=${TOOL_CHK}
+TOOL_TMP=`$TOOL_BIN list | sed -e 's/[\x80-\xff]//g' -e 's/^[ \t]*//g'`
+TOOL_CHK=`echo "$TOOL_TMP" | grep "$TYPE" | grep -v "Virtual" | grep -i "pad"`
+
+[ "$TOOL_CHK" == "" ] &&
+	echo "Cannot find any touch device!" && exit 1
+TOOL_TMP=`echo "$TOOL_CHK" | wc -l`
+[ "$TOOL_TMP" -gt 1 ] &&
+	echo "Found more than one touch device! Aborting!" && exit 1
+
+PAD_NAME=`echo "$TOOL_CHK" | sed -e 's/^\(.*\)id.*$/\1/' -e 's/[ \t]*$//g'`
+PAD_TPID=`echo "$TOOL_CHK" | sed -e 's/^.*id=\([0-9]*\).*$/\1/'`
+
+echo "Touchpad detected: '$PAD_NAME' (ID=$PAD_TPID)"
 
 do_command=""
 ok_command="toggle enable disable"
 
 # check parameters for command
-while  [[ "$1" != "" ]]; do
+while  [ "$1" != "" ]; do
 	case $1 in
 		1)
 			do_command="enable"
@@ -34,24 +46,24 @@ while  [[ "$1" != "" ]]; do
 			exit
 			;;
 		*)
-			[[ "$do_command" != "" ]] &&
+			[ "$do_command" != "" ] &&
 				echo "Command already given ($do_command)!" && exit 1
 			for a in $ok_command; do
-				if [[ $1 == $a ]]; then
+				if [ $1 == $a ]; then
 					do_command=$1
 					break;
 				fi
 			done
-			[[ "$do_command" == "" ]] && echo "Unknown command ($1)!" && exit 1
+			[ "$do_command" == "" ] && echo "Unknown command ($1)!" && exit 1
 			;;
 	esac
 	shift
 done
 
-[[ "$do_command" == "enable" ]] &&
-	$XINPUT_BIN set-prop "$TOUCH_NAME" "$DEVICE_CHK" 1
-[[ "$do_command" == "disable" ]] &&
-	$XINPUT_BIN set-prop "$TOUCH_NAME" "$DEVICE_CHK" 0
+[ "$do_command" == "enable" ] &&
+	$TOOL_BIN set-prop "$PAD_NAME" "$DEV_STAT" 1
+[ "$do_command" == "disable" ] &&
+	$TOOL_BIN set-prop "$PAD_NAME" "$DEV_STAT" 0
 
-XINPUT_CHK=$(xinput --list-props "$TOUCH_NAME"|grep "$DEVICE_CHK"|cut -f3)
-echo "Device '$TOUCH_NAME' Status: $XINPUT_CHK"
+TOOL_CHK=`xinput --list-props "$PAD_NAME"|grep "$DEV_STAT"|cut -f3`
+echo "Device '$PAD_NAME' Status: $TOOL_CHK"
