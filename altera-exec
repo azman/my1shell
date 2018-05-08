@@ -24,7 +24,7 @@ MODSIM_PATH=${ALTERA_ROOT}/modelsim_ase/bin
 [ ! -d $ALTERA_PATH ] && echo "Cannot find path $ALTERA_PATH!"
 [ ! -d $MODSIM_PATH ] && echo "Cannot find path $MODSIM_PATH!"
 
-export PATH=$PATH:$ALTERA_PATH:$MODSIM_PATH
+export PATH=$ALTERA_PATH:$MODSIM_PATH:$PATH
 
 FFTYPE_PATH=${ALTERA_ROOT}/libfreetype
 
