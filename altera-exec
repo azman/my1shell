@@ -11,7 +11,7 @@ MY1CONF="$(pwd)/.$MY1TOOL"
 [ -f "$MY1CONF" ] && source $MY1CONF
 
 ALTERA_VERS=${ALTERA_VERS:="13.0sp1"}
-ALTERA_ROOT=${ALTERA_ROOT:="/home/share/apps/altera-${ALTERA_VERS}"}
+ALTERA_ROOT=${ALTERA_ROOT:="/home/share/appx/altera-${ALTERA_VERS}"}
 ARCH_BITS="32"
 BIN_TYPE=$(file -L /bin/bash)
 if [ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] ; then

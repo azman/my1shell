@@ -13,7 +13,7 @@ for conffile in "$(pwd)/.$MY1TOOL" "$HOME/.$MY1TOOL"; do
 done
 
 XILINX_VERS=${XILINX_VERS:="12.1"}
-XILINX_PATH=${XILINX_PATH:="/home/share/apps/xilinx-${XILINX_VERS}"}
+XILINX_PATH=${XILINX_PATH:="/home/share/appx/xilinx-${XILINX_VERS}"}
 ARCH_BITS="32"
 BIN_TYPE=$(file -L /bin/bash)
 if [ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] ; then
