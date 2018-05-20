@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# icestorm
+# - written by azman@my1matrix.net
+# - start icestorm environment
+
+MY1TOOL=`basename $0 .sh`
+MY1PATH=`dirname $0`
+CURPATH=`pwd`
+MY1CONF=$CURPATH/.$MY1TOOL
+# look for config file
+[ -f "$MY1CONF" ] && source $MY1CONF
+
+EXEPATH=${EXEPATH:="/home/share/tool/icestorm"}
+export PATH=$EXEPATH/bin:$PATH
+
+LIBPATH=$EXEPATH/lib
+[ -d "$LIBPATH" ] && export LD_LIBRARY_PATH="$LIBPATH"
+
+# start a shell
+exec env PS1="(ICESTORM-EXEC) \u@\h:\w$ " `which bash 2>/dev/null`
+exit 0
