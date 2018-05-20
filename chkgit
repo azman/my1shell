@@ -28,7 +28,7 @@ PROJ_COPY=${PROJ_COPY:=""}
 B_VERBOSE="NO"
 
 do_command=""
-ok_command="create check origin update remote archive"
+ok_command="create check origin update remote archive cleanup"
 
 # check parameters for command
 while  [ "$1" != "" ]; do
@@ -85,12 +85,16 @@ function chkgit_isclean()
 	if [ -d .git ]; then
 		local is_clean=`$GIT_BIN status | grep "$CLEAN_MSG"`
 		local is_ahead=`$GIT_BIN status | grep "$AHEAD_MSG"`
+		local do_sweep=`$GIT_BIN status --ignored | grep "Ignored files:"`
 		if [ "$is_clean" == "" ]; then
 			[ "$chk_quiet" != "YES" ] && echo "Check: $chk_path [unclean]"
 			chk_value=2
 		elif [ "$is_ahead" != "" ]; then
 			[ "$chk_quiet" != "YES" ] && echo "Check: $chk_path [ahead]"
 			chk_value=3
+		elif [ "$do_sweep" != "" ]; then
+			[ "$chk_quiet" != "YES" ] && echo "Check: $chk_path [ignored]"
+			chk_value=4
 		else
 			[ "$B_VERBOSE" == "YES"  ] &&
 				[ "$chk_quiet" != "YES" ] && echo "GIT: $chk_path"
@@ -166,6 +170,25 @@ function chkgit_update()
 	[ $chk_value -ne 0 ] && echo "No origin found! Skipped!" && return
 	echo -n "Running update... "
 	$GIT_BIN pull
+}
+
+function chkgit_cleanup()
+{
+	local chk_path=`pwd`
+	local chk_base=`basename $chk_path`
+	local chk_value chk_source
+	echo -n "$chk_base: "
+	chkgit_isclean --silent
+	chk_value=$?
+	[ $chk_value -eq 0 ] && echo "Clean!" && return
+	[ $chk_value -eq 1 ] && echo "Not a git repo!" && return
+	[ $chk_value -eq 2 ] && echo "Repo not clean! Skipped!" && return
+	[ $chk_value -eq 3 ] && echo "Repo is ahead!" && return
+	# reset to HEAD
+	echo -n "Cleaning up... "
+	$GIT_BIN clean -ffdx >/dev/null
+	if [ $? -ne 0 ] ; then echo "something is wrong?! ($?)"
+	else echo "done!" ; fi
 }
 
 function chkgit_archive()
@@ -290,6 +313,13 @@ elif [ "$do_command" == "archive" ]; then
 			cd $CURPATH
 		done
 	fi
+elif [ "$do_command" == "cleanup" ]; then
+	# browse subfolders and clean up all git repo!
+	for path in `find -L * -maxdepth 0 -type d` ; do
+		cd $path
+		chkgit_cleanup
+		cd $CURPATH
+	done
 fi
 
 exit 0
