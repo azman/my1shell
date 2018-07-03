@@ -13,8 +13,11 @@ CFGFILE="$CURPATH/.$MY1TOOL"
 [ -f "$CFGFILE" ] && source $CFGFILE
 
 # tool & env setup
+SSH_PORT=${SSH_PORT:="22"}
+SSH_EXEC=${SSH_EXEC:="ssh"}
+[ "$SSH_PORT" -ne 22 ] && SSH_EXEC="ssh -p $SSH_PORT"
 RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
-RSYNCOPT=${RSYNCOPT:="-e ssh -rpltD --partial --progress --dry-run"}
+RSYNCOPT=${RSYNCOPT:="-e '$SSH_EXEC' -rpltD --partial --progress --dry-run"}
 # RSYNCURL="user@server:/path/to/home/"
 RSYNCURL=${RSYNCURL:=""}
 LOCALURL=${LOCALURL:="."}
