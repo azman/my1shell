@@ -32,6 +32,7 @@ STOP_OPT=""
 CHK_VOLUME=""
 CHK_SINGLE=""
 CHK_DELACE=""
+CHK_XAUDIO=""
 
 AVIGAIN_DB_VALUE="100"
 DO_AVIGAIN=""
@@ -46,8 +47,8 @@ CROPDETECT_OPT=""
 function find_binary()
 {
 	local chk_exec=$1
-	local set_exec=$(which $chk_exec 2>/dev/null)
-	[[ "$set_exec" == "" ]] &&
+	local set_exec=`which $chk_exec 2>/dev/null`
+	[ "$set_exec" == "" ] &&
 		echo "Binary '$chk_exec' not found! Aborting!" && exit 1
 	echo -n $set_exec
 }
@@ -65,9 +66,9 @@ function avigain()
 	local adb_gain=$3
 	local avi_temp="/tmp/temp-video-$$.avi"
 	local mp3_temp="/tmp/temp-audio-$$.mp3"
-	local FFMPEG_BIN=$(find_binary ffmpeg)
-	local MP3GAIN_BIN=$(find_binary mp3gain)
-	[[ "$adb_gain" == "" ]] && adb_gain="100" # default value!
+	local FFMPEG_BIN=`find_binary ffmpeg`
+	local MP3GAIN_BIN=`find_binary mp3gain`
+	[ "$adb_gain" == "" ] && adb_gain="100" # default value!
 	$FFMPEG_BIN -i $avi_file -vcodec copy -acodec copy $out_file
 	$FFMPEG_BIN -i $out_file -vcodec copy -an -y $avi_temp
 	$FFMPEG_BIN -i $out_file -vn -acodec copy -y $mp3_temp
@@ -84,11 +85,11 @@ function avi23gp()
 	local avi_file=$1
 	local out_file=$2
 	local 3gp_opts="-vcodec h263 -acodec libfaac -ac 1 -ar 8000 -r 25 -ab 12200"
-	local FFMPEG_BIN=$(find_binary ffmpeg)
+	local FFMPEG_BIN=`find_binary ffmpeg`
 	$FFMPEG_BIN -i $avi_file -s cif $3gp_opts -y $OUT_FILE
 }
 
-while [[ "$1" != "" ]]; do
+while [ "$1" != "" ]; do
 	case $1 in
 		-h | --help )
 			cat $0 | sed -n -e '/^## show help - begin ##/,/^## show help - end ##/p' | less
@@ -167,7 +168,7 @@ while [[ "$1" != "" ]]; do
 			;;
 		--skip-frame )
 			shift
-			if [[ "$1" == "" ]] ; then
+			if [ "$1" == "" ] ; then
 				echo "Missing params [$1] for (-ss)!"
 				exit 1
 			fi;
@@ -175,7 +176,7 @@ while [[ "$1" != "" ]]; do
 			;;
 		--stop-frame )
 			shift
-			if [[ "$1" == "" ]] ; then
+			if [ "$1" == "" ] ; then
 				echo "Missing params [$1] for (-endpos)!"
 				exit 1
 			fi;
@@ -183,12 +184,15 @@ while [[ "$1" != "" ]]; do
 			;;
 		--cut-frame )
 			shift
-			if [[ "$1" == "" ]] || [[ "$2" == "" ]]; then
+			if [ "$1" == "" -o "$2" == "" ] ; then
 				echo "Missing params [$1] for (-ss) and [$2] for (-endpos)!"
 				exit 1
 			fi;
 			SINGLE_PASS_OPT="-forceidx -ss $1 -endpos $2 -ovc copy -oac copy"
 			shift
+			;;
+		--extra-audio )
+			CHK_XAUDIO="-mc 0 -noskip -ni"
 			;;
 		--output )
 			shift
@@ -238,7 +242,7 @@ while [[ "$1" != "" ]]; do
 			;;
 ## show help - end ##
 		* )
-			if [[ "$MOVIE_FILE" != "" ]] || [[ ! -r "$1" ]]; then
+			if [ "$MOVIE_FILE" != "" -o ! -r "$1" ] ; then
 				echo "Unknown command '$1'! [$MOVIE_FILE]"
 				exit 1
 			fi
@@ -248,7 +252,7 @@ while [[ "$1" != "" ]]; do
 	shift
 done
 
-if [[ -r "$MOVIE_FILE" ]]; then
+if [ -r "$MOVIE_FILE" ] ; then
 	# MOVIE_FILE=${MOVIE_FILE:="$1"}
 	MOVIE_PATH=$(dirname $MOVIE_FILE)
 	MOVIE_PATH=$(cd $MOVIE_PATH;pwd)
@@ -327,7 +331,7 @@ LAMEENC_OPT="br=56:abr" # use average br instead of constant, what's mode?
 XVID1_OPT="$VFILTER_OPT -ovc xvid -xvidencopts pass=1:$XVIDENC_OPT"
 XVID2_OPT="$VFILTER_OPT -ovc xvid -xvidencopts pass=2:$XVIDENC_OPT"
 LAME1_OPT="$AFILTER_OPT -nosound"
-LAME2_OPT="$AFILTER_OPT -oac mp3lame -lameopts $LAMEENC_OPT"
+LAME2_OPT="$AFILTER_OPT -oac mp3lame -lameopts $LAMEENC_OPT $CHK_XAUDIO"
 
 FIXED_OPT="$RUN_QUIET $VIDEO_INPUT"
 VIDEO_OPT="-force-avi-aspect $ASPECT_RATIO -ofps 25"
