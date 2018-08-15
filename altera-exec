@@ -13,7 +13,7 @@ MY1CONF="$(pwd)/.$MY1TOOL"
 ALTERA_VERS=${ALTERA_VERS:="13.0sp1"}
 ALTERA_ROOT=${ALTERA_ROOT:="/home/share/appx/altera-${ALTERA_VERS}"}
 ARCH_BITS="32"
-BIN_TYPE=$(file -L /bin/bash)
+BIN_TYPE=`file -L /bin/bash`
 if [ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] ; then
 	ARCH_BITS="64"
 fi
@@ -26,10 +26,9 @@ MODSIM_PATH=${ALTERA_ROOT}/modelsim_ase/bin
 
 export PATH=$ALTERA_PATH:$MODSIM_PATH:$PATH
 
-FFTYPE_PATH=${ALTERA_ROOT}/libfreetype
-
 # added to allow modelsim binary to run
-[ -d "$FFTYPE_PATH" ] && export LD_LIBRARY_PATH="$FFTYPE_PATH"
+#LIB32_PATH="${ALTERA_ROOT}/lib32"
+#[ -d "$LIB32_PATH" ] && export LD_LIBRARY_PATH="$LIB32_PATH"
 
 if [ "$1" == "" ] ; then
 	# start a shell
