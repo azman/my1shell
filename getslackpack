@@ -185,8 +185,9 @@ function go_findpack()
 		pkg_file=$(echo "$pkg_test" | grep "^$chk_name")
 		pkg_file="${pkg_file##${check_name}* }"
 		local tmp_arch=$pkg_arch
-		[ "$pkg_arch" == "i486" ] && [ "$pkg_repo" == "salix" ] &&
-			tmp_arch="i686"
+		#[ "$pkg_arch" == "i486" ] && [ "$pkg_repo" == "salix" ] &&
+		#	tmp_arch="i686"
+		[ "$pkg_arch" == "i486" ] && tmp_arch="i[3456]86"
 		[ "$(echo $pkg_file|grep -e "$tmp_arch")" == "" ] &&
 			[ "$(echo $pkg_file|grep -e "noarch")" == "" ] && continue;
 		chk_name="PACKAGE LOCATION:"
