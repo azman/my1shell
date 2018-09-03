@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# getslack-multilib
+# - written by azman@my1matrix.net
+# - alien_bob's multilib package retriever
+
+MY1TOOL=`basename $0 .sh`
+MY1PATH=`dirname $0`
+# look for config file
+for config in `pwd` $HOME; do
+	config=$config/.$MY1TOOL
+	[ -r $config ] && source $config && break
+done
+
+# setup path to slackware tree
+[ -z "$SLACKROOT" ] && SLACKROOT=`pwd`
+[ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
+[ -z "$SLACKARCH" ] && SLACKARCH=`uname -m`
+SLACKSUFX="" # reset... just in case!
+[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
+[ -z "$SLACKFULL" ] && SLACKFULL="slackware$SLACKSUFX"
+[ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
+[ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
+[ "$SLACKVERS" == "" ] &&
+	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+SLACKFULL=$SLACKFULL-$SLACKVERS
+SLACKPATH=$SLACKROOT/$SLACKFULL-multilib
+
+# temporary path
+MY1USER=`whoami`
+MY1TEMP="/tmp/$MY1USER/$MY1TOOL"
+
+# capture error in sub-shells
+set -e # activates errexit
+# setup rsync parameters
+[ -z "$RSYNCURLROOT" ] && RSYNCURLROOT="bear.alienbase.nl::mirrors/"
+RSYNCURL="${RSYNCURLROOT}people/alien/multilib/${SLACKVERS}/"
+RSYNCOPT="--delete --delete-excluded --partial -rlptD --progress"
+# check if rsync binary is available
+RSYNC=`which rsync 2>/dev/null`
+[ "$RSYNC" == "" ] && echo "Cannot find rsync! Aborting!" && exit 1
+
+# customized default sync list
+[ -z "$EXCLUDES" ] && EXCLUDES="--exclude=source/"
+[ -z "$INCLUDES" ] && INCLUDES="" # not needed really!
+[ -r "$EXCLUDEFILE" ] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
+[ -r "$INCLUDEFILE" ] && INCLUDES="--include-from=$INCLUDEFILE"
+
+# start actual mirroring process - reduced version of alien_bob's script
+echo -e "#\n# Checking and changing to $SLACKPATH ...\n#"
+[ ! -d $SLACKPATH ] && mkdir -pv $SLACKPATH
+cd $SLACKPATH
+umask 022
+
+echo "*** Using $RSYNCURL ***"
+$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKPATH
+echo `date`" [$$]: Done mirroring $SLACKFULL-multilib (exit code $?)."
+
+exit 0
