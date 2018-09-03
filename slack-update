@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# slack-update
+# - written by azman@my1matrix.net
+# - get updates for slackware system
+# - requires getslack, getslackpack, getslackbuild scripts
+
+# standard tool info
+MY1_TOOLNAME="my1 Slackware Update Tool"
+MY1_TOOLVERS="2018.09.00"
+MY1_TOOLBASE=`basename $0 .sh`
+MY1_TOOLPATH=`dirname $0`
+MY1_TOOL_LIB="libmy1slack"
+# look for config file
+for config in `pwd` $HOME; do
+	config=$config/.$MY1_TOOLBASE
+	[ -r $config ] && . $config && break
+done
+# look for my1slack library
+[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
+
+function slack_vers()
+{
+	local path=$1
+	local file="/etc/slackware-version"
+	# make sure path is valid
+	[ "$path" != "" -a ! -d "$path" ] && path=""
+	[ "$path" == "/" ] && path=""
+	[ ! -f "${path}${file}" ] && echo -n "" && return
+	# get slackware version
+	local vers=`cat ${path}${file} | sed 's/Slackware //'`
+	echo -n $vers
+}
+
+function slack_arch()
+{
+	local path=$1
+	local file="/bin/bash"
+	# make sure path is valid
+	[ "$path" != "" -a ! -d "$path" ] && path=""
+	[ "$path" == "/" ] && path=""
+	[ ! -f "${path}${file}" ] && echo -n "" && return
+	# get slackware arch... NOT machine arch!
+	local arch=`file $path/bin/bash | sed -e "s/^.*: \([^,]*\),.*$/\1/"`
+	arch=`echo $arch | cut -d' ' -f2`
+	if [ "$arch" = "64-bit" ] ; then arch="64"
+	else arch="" ; fi
+	echo -n slackware${arch}-$vers
+}
+
+# BEGIN MAIN SCRIPT
+
+echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+
+getslack ; getslackpack ; getslackbuild -a
+
+CHECK32=`slack_vers "/opt/chroot32"`
+if [ "$CHECK32" != "" ] ; then
+	ARCH=x86 getslack ; ARCH=x86 getslackpack --sweep --exec
+fi
+
+echo ; exit 0
+
+# END MAIN SCRIPT
