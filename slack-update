@@ -24,8 +24,9 @@ function slack_vers()
 	local path=$1
 	local file="/etc/slackware-version"
 	# make sure path is valid
-	[ "$path" != "" -a ! -d "$path" ] && path=""
 	[ "$path" == "/" ] && path=""
+	[ "$path" != "" -a ! -d "$path" ] && echo -n "" && return
+	# make sure file is valid
 	[ ! -f "${path}${file}" ] && echo -n "" && return
 	# get slackware version
 	local vers=`cat ${path}${file} | sed 's/Slackware //'`
@@ -37,15 +38,16 @@ function slack_arch()
 	local path=$1
 	local file="/bin/bash"
 	# make sure path is valid
-	[ "$path" != "" -a ! -d "$path" ] && path=""
 	[ "$path" == "/" ] && path=""
+	[ "$path" != "" -a ! -d "$path" ] && echo -n "" && return
+	# make sure file is valid
 	[ ! -f "${path}${file}" ] && echo -n "" && return
 	# get slackware arch... NOT machine arch!
-	local arch=`file $path/bin/bash | sed -e "s/^.*: \([^,]*\),.*$/\1/"`
+	local arch=`file ${path}${file} | sed -e "s/^.*: \([^,]*\),.*$/\1/"`
 	arch=`echo $arch | cut -d' ' -f2`
 	if [ "$arch" = "64-bit" ] ; then arch="64"
 	else arch="" ; fi
-	echo -n slackware${arch}-$vers
+	echo -n slackware${arch}
 }
 
 # BEGIN MAIN SCRIPT
@@ -54,8 +56,9 @@ echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 
 getslack ; getslackpack ; getslackbuild -a
 
-CHECK32=`slack_vers "/opt/chroot32"`
-if [ "$CHECK32" != "" ] ; then
+ARCH32=`slack_arch "/opt/chroot32"`
+#VERS32=`slack_vers "/opt/chroot32"`
+if [ "$ARCH32" != "" ] ; then
 	ARCH=x86 getslack ; ARCH=x86 getslackpack --sweep --exec
 fi
 
