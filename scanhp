@@ -5,6 +5,10 @@ OUTFILE="output"
 DOCOLOR="gray"
 CONVPDF=""
 FINDDEV=""
+PNM2PDF=""
+# a4 should be 210mm x 297mm @ 8.27in x 11.7in
+SCAN_OPTS="-p --resolution=300 --mode=$DOCOLOR -x 210.0 -y 296.926"
+TOPS_OPTS="-imageheight 11.7 -imagewidth 8.3"
 
 while [ "$1" != "" ]; do
 	case $1 in
@@ -27,6 +31,15 @@ while [ "$1" != "" ]; do
 			;;
 		--pdf)
 			CONVPDF="yes"
+			;;
+		--file)
+			shift
+			PNM2PDF=$1
+			[ ! -f "$PNM2PDF" ] &&
+				echo "Cannot find '$PNM2PDF'! Aborting!" && exit 1
+			OUTFILE=${PNM2PDF//.pnm/}
+			cat ${PNM2PDF} | pnmtops ${TOPS_OPTS} | ps2pdf - ${OUTFILE}.pdf
+			exit 0
 			;;
 		--output)
 			shift
@@ -53,9 +66,8 @@ DEVICE="${DEV_ID}${DEVICE}"
 echo "Scanner Device: $DEVICE"
 [ "$FINDDEV" == "only" ] && exit 0
 
-# a4 should be 210mm x 297mm @ 8.27in x 11.7in
-SCAN_OPTS="-d $DEVICE -p --resolution=300 --mode=$DOCOLOR -x 210.0 -y 296.926"
-TOPS_OPTS="-imageheight 11.7 -imagewidth 8.3"
+# update device info
+SCAN_OPTS="-d $DEVICE ${SCAN_OPTS}"
 
 if [ "$CONVPDF" == "yes" ]; then
 	${SCANBIN} ${SCAN_OPTS} | pnmtops ${TOPS_OPTS} | ps2pdf - ${OUTFILE}.pdf
