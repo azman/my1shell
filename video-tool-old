@@ -1,0 +1,389 @@
+#!/bin/bash
+
+# video-tool
+# - written by azman@my1matrix.net
+# - a front-end script for mencoder/ffmpeg tools
+
+DVD_RIP_TITLE=${DVD_RIP_TITLE:="dvd-rip"}
+MOVIE_SUFFIX=${MOVIE_SUFFIX:="conv"}
+VF_CROP_SEC=${VF_CROP_SEC:="600"}
+VF_CROP=${VF_CROP:=""}
+
+VF_SCALE=${VF_SCALE:=""}
+ASPECT_RATIO=${ASPECT_RATIO:=""}
+AVI_BITRATE=${AVI_BITRATE:=""}
+
+DVD_TITLE=${DVD_TITLE:="1"}
+DVD_DEVICE=${DVD_DEVICE:="/dev/dvd"}
+DVD_AUDIO_ID=${DVD_AUDIO_ID:=""}
+DVD_SUBT_ID=${DVD_SUBT_ID:=""}
+DVD_SUBT_OPT=""
+DVD_RIP_OPT=""
+
+VIDEO_INPUT=""
+VIDEO_OUTPUT=""
+VIDEO_OUTTMP=""
+RUN_TESTCODE=""
+RUN_QUIET="-quiet"
+SINGLE_PASS_OPT=""
+SECOND_PASS_CHK=""
+SKIP_OPT=""
+STOP_OPT=""
+CHK_VOLUME=""
+CHK_SINGLE=""
+CHK_DELACE=""
+CHK_XAUDIO=""
+
+AVIGAIN_DB_VALUE="100"
+DO_AVIGAIN=""
+
+VFILTER_OPT=""
+AFILTER_OPT=""
+
+CROPDETECT_MSG="vf crop="
+CROPDETECT_END=")."
+CROPDETECT_OPT=""
+
+function find_binary()
+{
+	local chk_exec=$1
+	local set_exec=`which $chk_exec 2>/dev/null`
+	[ "$set_exec" == "" ] &&
+		echo "Binary '$chk_exec' not found! Aborting!" && exit 1
+	echo -n $set_exec
+}
+
+#
+# This function is from http://forum.videohelp.com/threads/255147
+# - I just converted the batch file into shell script :p
+# - the audio file is out-of-sync if using mencoder, using ffmpeg instead
+#
+
+function avigain()
+{
+	local avi_file=$1
+	local out_file=$2
+	local adb_gain=$3
+	local avi_temp="/tmp/temp-video-$$.avi"
+	local mp3_temp="/tmp/temp-audio-$$.mp3"
+	local FFMPEG_BIN=`find_binary ffmpeg`
+	local MP3GAIN_BIN=`find_binary mp3gain`
+	[ "$adb_gain" == "" ] && adb_gain="100" # default value!
+	$FFMPEG_BIN -i $avi_file -vcodec copy -acodec copy $out_file
+	$FFMPEG_BIN -i $out_file -vcodec copy -an -y $avi_temp
+	$FFMPEG_BIN -i $out_file -vn -acodec copy -y $mp3_temp
+	$MP3GAIN_BIN -f -s s -d $adb_gain -k -r $mp3_temp
+	$FFMPEG_BIN -i $avi_temp -i $mp3_temp -vcodec copy -acodec copy -y $out_file
+}
+
+#
+# This is from alien_bob's reply on LQ forum
+#
+
+function avi23gp()
+{
+	local avi_file=$1
+	local out_file=$2
+	local 3gp_opts="-vcodec h263 -acodec libfaac -ac 1 -ar 8000 -r 25 -ab 12200"
+	local FFMPEG_BIN=`find_binary ffmpeg`
+	$FFMPEG_BIN -i $avi_file -s cif $3gp_opts -y $OUT_FILE
+}
+
+while [ "$1" != "" ]; do
+	case $1 in
+		-h | --help )
+			cat $0 | sed -n -e '/^## show help - begin ##/,/^## show help - end ##/p' | less
+			exit 0
+			;;
+## show help - begin ##
+		--testcode )
+			RUN_TESTCODE="YES"
+			;;
+		--silent )
+			RUN_QUIET="-really-quiet"
+			;;
+		--cropdetect )
+			CROPDETECT_OPT="YES"
+			;;
+		--cropcheck )
+			CROPDETECT_OPT="ONLY"
+			;;
+		--croptime )
+			shift
+			VF_CROP_SEC="$1"
+			;;
+		--cropvf )
+			shift
+			VF_CROP="$1"
+			;;
+		--no-af )
+			AFILTER_OPT="NAY"
+			;;
+		--no-vf )
+			VFILTER_OPT="NAY"
+			;;
+		--dvd-rip )
+			DVD_RIP_OPT="YES"
+			;;
+		--dvd-title )
+			shift
+			DVD_TITLE="$1"
+			;;
+		--dvd-device )
+			shift
+			DVD_DEVICE="$1"
+			;;
+		--dvd-aid )
+			shift
+			DVD_AUDIO_ID="-aid $1"
+			;;
+		--dvd-sid )
+			shift
+			DVD_SUBT_ID="-sid $1"
+			;;
+		--avigain-dbvalue )
+			shift
+			AVIGAIN_DB_VALUE=$1
+			;;
+		--do-avigain )
+			DO_AVIGAIN="YES"
+			;;
+		--volume )
+			shift
+			CHK_VOLUME=$1
+			;;
+		--chk2nd )
+			SECOND_PASS_CHK="YES"
+			;;
+		--single )
+			RUN_TESTCODE="YES"
+			CHK_SINGLE="YES"
+			;;
+		--single-high )
+			RUN_TESTCODE="YES"
+			CHK_SINGLE="HIGH"
+			;;
+		--deinterlace )
+			CHK_DELACE="YES"
+			;;
+		--skip-frame )
+			shift
+			if [ "$1" == "" ] ; then
+				echo "Missing params [$1] for (-ss)!"
+				exit 1
+			fi;
+			SKIP_OPT="-ss $1"
+			;;
+		--stop-frame )
+			shift
+			if [ "$1" == "" ] ; then
+				echo "Missing params [$1] for (-endpos)!"
+				exit 1
+			fi;
+			STOP_OPT="-endpos $1"
+			;;
+		--cut-frame )
+			shift
+			if [ "$1" == "" -o "$2" == "" ] ; then
+				echo "Missing params [$1] for (-ss) and [$2] for (-endpos)!"
+				exit 1
+			fi;
+			SINGLE_PASS_OPT="-forceidx -ss $1 -endpos $2 -ovc copy -oac copy"
+			shift
+			;;
+		--extra-audio )
+			CHK_XAUDIO="-mc 0 -noskip -ni"
+			;;
+		--output )
+			shift
+			VIDEO_OUTPUT=$1
+			;;
+		--vga | --480p )
+			VF_SCALE=${VF_SCALE:="640:480"} # EnhancedDefinitionTV
+			ASPECT_RATIO=${ASPECT_RATIO:="4:3"}
+			AVI_BITRATE=${AVI_BITRATE:="700"} # in progress...
+			echo "VGA (480p) SETTINGS!"
+			;;
+		--wvga )
+			VF_SCALE=${VF_SCALE:="848:480"} # should 854, keep mod16?
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="800"} # in progress...
+			echo "WVGA (480p) SETTINGS!"
+			;;
+		--hdreal | --720p )
+			VF_SCALE=${VF_SCALE:="1280:720"}
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="1500"} # in progress...
+			echo "HD (720p) SETTINGS!"
+			;;
+		--hdmovie )
+			VF_SCALE=${VF_SCALE:="704:304"} #mod16 resolution
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="700"}
+			echo "MOVIE SETTINGS!"
+			;;
+		-m | --movie )
+			VF_SCALE=${VF_SCALE:="704:304"} #mod16 resolution
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="500"}
+			echo "MOVIE SETTINGS!"
+			;;
+		-t | --tv )
+			VF_SCALE=${VF_SCALE:="512:384"} #mod16 resolution
+			ASPECT_RATIO=${ASPECT_RATIO:="4:3"}
+			AVI_BITRATE=${AVI_BITRATE:="350"}
+			echo "TV SETTINGS!"
+			;;
+		-p | --personal )
+			VF_SCALE=${VF_SCALE:="640:352"} #mod16 resolution
+			ASPECT_RATIO=${ASPECT_RATIO:="16:9"}
+			AVI_BITRATE=${AVI_BITRATE:="700"}
+			echo "PERSONAL SETTINGS!"
+			;;
+## show help - end ##
+		* )
+			if [ "$MOVIE_FILE" != "" -o ! -r "$1" ] ; then
+				echo "Unknown command '$1'! [$MOVIE_FILE]"
+				exit 1
+			fi
+			MOVIE_FILE="$1"
+			;;
+	esac
+	shift
+done
+
+if [ -r "$MOVIE_FILE" ] ; then
+	# MOVIE_FILE=${MOVIE_FILE:="$1"}
+	MOVIE_PATH=$(dirname $MOVIE_FILE)
+	MOVIE_PATH=$(cd $MOVIE_PATH;pwd)
+	MOVIE_FILE=$(basename $MOVIE_FILE)
+	MOVIE_TYPE=${MOVIE_FILE##*.}
+	MOVIE_TITLE=${MOVIE_FILE%%.$MOVIE_TYPE}
+	VIDEO_INPUT=$MOVIE_PATH/$MOVIE_TITLE.$MOVIE_TYPE
+elif [[ "$DVD_RIP_OPT" == "YES" ]]; then
+	if [[ "$DVD_SUBT_ID" != "" ]]; then
+		DVD_SUBT_OPT="$DVD_SUBT_ID"
+	else
+		DVD_SUBT_OPT="-nosub -vobsubout /dev/null"
+	fi
+	MOVIE_TITLE="$DVD_RIP_TITLE-$DVD_TITLE"
+	VIDEO_INPUT="-dvd-device $DVD_DEVICE dvd://$DVD_TITLE $DVD_AUDIO_ID"
+else
+	echo "No source found!"
+	exit 1
+fi
+VIDEO_OUTPUT=${VIDEO_OUTPUT:="$MOVIE_TITLE-$MOVIE_SUFFIX.avi"}
+
+if [[ "$DO_AVIGAIN" == "YES" ]]; then
+	avigain $VIDEO_INPUT $VIDEO_OUTPUT $AVIGAIN_DB_VALUE 1>/dev/null 2>/dev/null
+	echo "[AVIGAIN] ==> 'avigain $VIDEO_INPUT $VIDEO_OUTPUT $AVIGAIN_DB_VALUE'"
+	exit 0
+fi
+
+if [[ "$SINGLE_PASS_OPT" != "" ]]; then
+	mencoder $RUN_QUIET $VIDEO_INPUT $SINGLE_PASS_OPT -o $VIDEO_OUTPUT
+	echo "[FRAMECUT] ==> 'mencoder $RUN_QUIET $VIDEO_INPUT $SINGLE_PASS_OPT -o $VIDEO_OUTPUT'"
+	exit 0
+fi
+
+if [[ "$CROPDETECT_OPT" == "YES" ]] || [[ "$CROPDETECT_OPT" == "ONLY" ]]; then
+	VF_CROP_TEST="$(mplayer ${VIDEO_INPUT} -vo null -ao null -identify -ss $VF_CROP_SEC -endpos 5 -vf cropdetect)"
+	VF_CROP="$(echo "$VF_CROP_TEST" | tail -n 7 | grep -m 1 "${CROPDETECT_MSG}")"
+	VF_CROP="${VF_CROP##*${CROPDETECT_MSG}}"
+	VF_CROP="${VF_CROP%%${CROPDETECT_END}*}"
+	if [[ "$CROPDETECT_OPT" == "ONLY" ]]; then
+		echo "$VF_CROP_TEST"
+		echo "[CROPDETECT] ==> $VF_CROP"
+		exit 0
+	fi
+fi
+
+if [[ "$VF_SCALE" == "" ]] || [[ "$ASPECT_RATIO" == "" ]] || [[ "$AVI_BITRATE" == "" ]]; then
+	echo "Not enough info! (scale=$VF_SCALE, ratio=$ASPECT_RATIO, bitrate=$AVI_BITRATE)"
+	exit 1
+fi
+
+# set video filtering options
+if [[ "$VFILTER_OPT" == "" ]]; then
+	VFILTER_OPT="-vf "
+	[ "$CHK_DELACE" == "YES" ] && VFILTER_OPT="${VFILTER_OPT}pp=lb,"
+	[ "$VF_CROP" != "" ] && VFILTER_OPT="${VFILTER_OPT}crop=${VF_CROP},"
+	VFILTER_OPT="${VFILTER_OPT}scale=${VF_SCALE}"
+else
+	VFILTER_OPT=""
+fi
+[ "$SKIP_OPT" != "" ] && VFILTER_OPT="${VFILTER_OPT} $SKIP_OPT"
+[ "$STOP_OPT" != "" ] && VFILTER_OPT="${VFILTER_OPT} $STOP_OPT"
+
+# set audio filtering options
+if [[ "$AFILTER_OPT" == "" ]]; then
+	AFILTER_OPT="-af resample=48000:1:2"
+else
+	AFILTER_OPT=""
+fi
+
+# set encoder options
+XVIDENC_OPT="bitrate=${AVI_BITRATE}:bvhq=1:chroma_opt:quant_type=mpeg"
+XVIDENC_OPT="${XVIDENC_OPT}:aspect=${ASPECT_RATIO//://}"
+LAMEENC_OPT="br=56:abr" # use average br instead of constant, what's mode?
+[ "$CHK_VOLUME" != "" ] && LAMEENC_OPT="${LAMEENC_OPT}:vol=${CHK_VOLUME}"
+
+XVID1_OPT="$VFILTER_OPT -ovc xvid -xvidencopts pass=1:$XVIDENC_OPT"
+XVID2_OPT="$VFILTER_OPT -ovc xvid -xvidencopts pass=2:$XVIDENC_OPT"
+LAME1_OPT="$AFILTER_OPT -nosound"
+LAME2_OPT="$AFILTER_OPT -oac mp3lame -lameopts $LAMEENC_OPT $CHK_XAUDIO"
+
+FIXED_OPT="$RUN_QUIET $VIDEO_INPUT"
+VIDEO_OPT="-force-avi-aspect $ASPECT_RATIO -ofps 25"
+#VIDEO_OPT=""
+
+PASS1_OPT="$XVID1_OPT $LAME1_OPT $VIDEO_OPT -o /dev/null $DVD_SUBT_OPT"
+PASS2_OPT="$XVID2_OPT $LAME2_OPT $VIDEO_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
+
+SINGLE_OPT="$FIXED_OPT"
+SINGLE_OPT="$SINGLE_OPT $VFILTER_OPT"
+SINGLE_OPT="$SINGLE_OPT -ovc xvid -xvidencopts fixed_quant=4:autoaspect"
+[ "$CHK_SINGLE" == "HIGH" ] &&
+	SINGLE_OPT="${SINGLE_OPT//fixed_quant=4/fixed_quant=2}"
+SINGLE_OPT="$SINGLE_OPT $AFILTER_OPT"
+SINGLE_OPT="$SINGLE_OPT -oac mp3lame -lameopts q=0:aq=0"
+SINGLE_OPT="$SINGLE_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
+
+TEST1_OPT="$FIXED_OPT"
+TEST1_OPT="$TEST1_OPT $VFILTER_OPT"
+TEST1_OPT="$TEST1_OPT -ovc xvid -xvidencopts pass=1:turbo:autoaspect"
+TEST1_OPT="$TEST1_OPT $AFILTER_OPT"
+TEST1_OPT="$TEST1_OPT -nosound"
+TEST1_OPT="$TEST1_OPT -o /dev/null $DVD_SUBT_OPT"
+[ "$CHK_SINGLE" != "" ] && TEST1_OPT="$SINGLE_OPT"
+
+TEST2_OPT="$FIXED_OPT"
+TEST2_OPT="$TEST2_OPT $VFILTER_OPT"
+TEST2_OPT="$TEST2_OPT -ovc xvid -xvidencopts pass=2:autoaspect:bitrate=700"
+TEST2_OPT="$TEST2_OPT $AFILTER_OPT"
+TEST2_OPT="$TEST2_OPT -oac mp3lame -lameopts $LAMEENC_OPT"
+TEST2_OPT="$TEST2_OPT -o $VIDEO_OUTPUT $DVD_SUBT_OPT"
+
+if [[ "$RUN_TESTCODE" == "YES" ]]; then
+	echo "[TESTCODE] - Processing ($VIDEO_INPUT)..."
+	mencoder $TEST1_OPT
+	[ "$CHK_SINGLE" == "" ] && mencoder $TEST2_OPT
+	if [[ "$RUN_QUIET" == "-really-quiet" ]]; then
+		echo "[TESTCODE] - Done."
+	else
+		echo "[TEST1_OPT] ==> $TEST1_OPT"
+		[ "$CHK_SINGLE" == "" ] && echo "[TEST2_OPT] ==> $TEST2_OPT"
+	fi
+else
+	echo "[STD_CODE] - Processing ($VIDEO_INPUT)..."
+	[ "$SECOND_PASS_CHK" == "" ] && mencoder $FIXED_OPT $PASS1_OPT
+	mencoder $FIXED_OPT $PASS2_OPT
+	if [[ "$RUN_QUIET" == "-really-quiet" ]]; then
+		echo "[STD_CODE] - Done."
+	else
+		echo "[PASS1_OPT] ==> $PASS1_OPT"
+		echo "[PASS2_OPT] ==> $PASS2_OPT"
+	fi
+fi
+
+echo "[DONE] ==> $(basename $0)"
