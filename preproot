@@ -31,4 +31,15 @@ for path in ${BIND_THIS} ; do
 	fi
 done
 
+# special case for resolv.conf
+BIND_FILE="/etc/resolv.conf"
+BIND_THAT=${ROOT_PATH}${BIND_FILE}
+if [ "$1" == "--release" ] ; then
+	echo "Release bind to $BIND_FILE at $BIND_THAT"
+	umount ${BIND_THAT}
+else
+	echo "Create bind to $BIND_FILE at $BIND_THAT"
+	mount --bind ${BIND_FILE} ${BIND_THAT}
+fi
+
 exit 0
