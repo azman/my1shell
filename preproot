@@ -31,15 +31,26 @@ for path in ${BIND_THIS} ; do
 	fi
 done
 
-# special case for resolv.conf
+# special case files
 BIND_FILE="/etc/resolv.conf"
-BIND_THAT=${ROOT_PATH}${BIND_FILE}
-if [ "$1" == "--release" ] ; then
-	echo "Release bind to $BIND_FILE at $BIND_THAT"
-	umount ${BIND_THAT}
-else
-	echo "Create bind to $BIND_FILE at $BIND_THAT"
-	mount --bind ${BIND_FILE} ${BIND_THAT}
-fi
+BIND_FILE="${BIND_FILE} /var/lib/dbus/machine-id"
+for that in ${BIND_FILE} ; do
+	[ ! -f "$that" ] &&
+		echo "Cannot find $that! Ignored!" && continue
+	BIND_THAT=${ROOT_PATH}${that}
+	BIND_PATH=`dirname ${BIND_THAT}`
+	[ ! -d "$BIND_PATH" ] &&
+		echo "Invalid path $BIND_PATH! Ignored!" && continue
+	if [ "$1" == "--release" ] ; then
+		dotest=`mount | grep $BIND_THAT`
+		[ "$dotest" == "" ] && continue
+		echo "Release bind to $that at $BIND_THAT"
+		umount ${BIND_THAT}
+	else
+		[ ! -f "$BIND_THAT" ] && touch ${BIND_THAT}
+		echo "Create bind to $that at $BIND_THAT"
+		mount --bind ${that} ${BIND_THAT}
+	fi
+done
 
 exit 0
