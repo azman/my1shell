@@ -1,0 +1,32 @@
+#!/bin/bash
+
+CHK_NAME=""
+CHK_LINE="\n"
+DATE_FMT=${DATE_FMT:="+%Y%m%d"}
+
+while [ "$1" != "" ]; do
+	case $1 in
+		--name)
+			shift
+			[ "$1" == "" ] &&
+				echo "No name given ? ['$1']?" >&2 && exit 1
+			CHK_NAME="$1"
+			;;
+		--time)
+			DATE_FMT="+%Y%m%d%H%M"
+			;;
+		--seconds)
+			DATE_FMT="+%Y%m%d%H%M%S"
+			;;
+		--string)
+			CHK_LINE=""
+			;;
+		* )
+			echo "Unknown parameter ($1)!"  >&2 && exit 1
+			;;
+	esac
+	shift
+done
+
+[ "$CHK_NAME" != "" ] && CHK_NAME="$CHK_NAME-"
+echo -ne `date ${DATE_FMT}`"$CHK_LINE"
