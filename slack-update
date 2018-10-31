@@ -54,7 +54,7 @@ function slack_arch()
 
 echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 
-getslack ; getslackpack ; getslackbuild -a
+getslack ; getslackpack --sweep --exec ; getslackbuild -a
 
 ARCH32=`slack_arch "/opt/chroot32"`
 #VERS32=`slack_vers "/opt/chroot32"`
