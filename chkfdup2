@@ -23,11 +23,16 @@ for that in `find ${SRC_PATH} -type f` ; do
 		if [ -f "$this" ] ; then
 			# in case the same file
 			[ "$that" == "$this" ] && continue
+			phat=`dirname $this`
 			what=`basename $this`
+			dhat=`echo $phat | grep .git`
+			[ "$dhat" != "" ] && continue
 			SUM1=`md5sum $that 2>/dev/null | cut -f1 -d' '`
 			SUM2=`md5sum $this 2>/dev/null | cut -f1 -d' '`
 			if [ "${file}" = "${what}" -a "${SUM1}" = "${SUM2}" ] ; then
 				echo "[FOUND]"
+				echo "  PATH1: $path"
+				echo "  PATH2: $phat"
 				echo "  $file: $SUM1"
 				echo "  $what: $SUM2"
 				if [ "$CHK_EXEC" == "--exec" ] ; then
