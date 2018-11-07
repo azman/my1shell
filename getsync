@@ -17,7 +17,7 @@ SSH_PORT=${SSH_PORT:="22"}
 SSH_EXEC=${SSH_EXEC:="ssh"}
 [ "$SSH_PORT" -ne 22 ] && SSH_EXEC="ssh -p $SSH_PORT"
 RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
-RSYNCOPT=${RSYNCOPT:="-e '$SSH_EXEC' -rpltD --partial --progress --dry-run"}
+RSYNCOPT=${RSYNCOPT:="-rpltD --partial --progress --dry-run"}
 # RSYNCURL="user@server:/path/to/home/"
 RSYNCURL=${RSYNCURL:=""}
 LOCALURL=${LOCALURL:="."}
@@ -98,10 +98,11 @@ while  [ "$1" != "" ]; do
 	esac
 	shift
 done
+RSYNCOPT="${RSYNCOPT} ${INCLUDES} ${EXCLUDES}"
 
 # start actual mirroring process
 echo "*** From ${RSYNCSRC} To ${RSYNCTGT} ***"
-$RSYNC ${RSYNCOPT} ${INCLUDES} ${EXCLUDES} ${RSYNCSRC} ${RSYNCTGT}
+$RSYNC -e "$SSH_EXEC" ${RSYNCOPT} ${RSYNCSRC} ${RSYNCTGT}
 echo "$(date) [$$]: Done mirroring (exit code $?)."
 
 exit 0
