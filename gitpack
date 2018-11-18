@@ -36,6 +36,11 @@ while [ "$1" != "" ]; do
 				echo "No name given ['$1']?" && exit 1
 			MAINNAME="$1"
 			;;
+		--parent-name)
+			TESTNAME=$(basename $WORKPATH)
+			[ "$TESTNAME" = "/" ] && TESTNAME="root"
+			MAINNAME="${TESTNAME}-${BALLNAME}"
+			;;
 		--archive)
 			[ ! -d "$ARCHPATH" ] &&
 				echo "Archive path '$ARCHPATH' not found!" && exit 1

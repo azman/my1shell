@@ -54,6 +54,11 @@ while [ "$1" != "" ]; do
 				echo "No name given ? ['$1']?" && exit 1
 			MAINNAME="$1"
 			;;
+		--parent-name)
+			TESTNAME=$(basename $WORKPATH)
+			[ "$TESTNAME" = "/" ] && TESTNAME="root"
+			MAINNAME="${TESTNAME}-${BALLNAME}"
+			;;
 		--path)
 			shift
 			[ ! -d "$1" ] && echo "Path '$1' not found!"
