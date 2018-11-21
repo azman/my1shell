@@ -58,6 +58,7 @@ while  [ "$1" != "" ]; do
 			echo "  --no-update       Cancels --update"
 			echo "  --dolink          Copy links as well (now default?)"
 			echo "  --exec            Execute (else, only dry-run)"
+			echo "  --timestamp       Update timestamps only (special case)"
 			echo "  --exclude=/path/  Specify additional exclude path"
 			echo "  --include=/path/  Specify additional include path"
 			exit
@@ -84,6 +85,9 @@ while  [ "$1" != "" ]; do
 			;;
 		--exec)
 			RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --dry-run//'`
+			;;
+		--timestamp)
+			RSYNCOPT="${RSYNCOPT} --size-only"
 			;;
 		--exclude*)
 			EXCLUDES="$EXCLUDES $1"
