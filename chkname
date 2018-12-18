@@ -15,12 +15,14 @@ DO_EXEC=""
 [ "$(echo $@|grep -- '--lowercase')" != "" ] && DO_LOWER="YES"
 [ "$(echo $@|grep -- '--exec')" != "" ] && DO_EXEC="YES"
 
-# check this path and this path only
-if [ "$DO_HERE" == "YES" ]; then
+function chk_file()
+{
+	# check files
 	IFS_SAVE=$IFS
 	IFS=$'\n'
-	files=($(find . -maxdepth 1 -type f))
+	local files=($(find `pwd` -maxdepth 1 -type f | sort))
 	IFS=$IFS_SAVE
+	local tfile tconv loop
 	for (( loop=0;loop<${#files[@]};loop++ )); do
 		tfile="${files[$loop]}"
 		tconv="$(echo "$tfile"|tr ' ' '_')"
@@ -33,43 +35,43 @@ if [ "$DO_HERE" == "YES" ]; then
 			fi
 		fi
 	done
-	exit 0
-fi
+}
 
-# check paths
-IFS_SAVE=$IFS
-IFS=$'\n'
-paths=($(find . -type d))
-IFS=$IFS_SAVE
-for (( loop=0;loop<${#paths[@]};loop++ )); do
-	tpath="${paths[$loop]}"
-	tconv="$(echo "$tpath"|tr ' ' '_')"
-	[ "$DO_LOWER" == "YES" ] && tconv="$(echo "$tconv"|tr '[A-Z]' '[a-z]')"
-	if [ "$tconv" != "$tpath" ] ; then
-		if [ "$DO_EXEC" == "YES" ]; then
-			mv "$tpath" "$tconv"
-		else
-			echo "Candidate => '$tpath' to '$tconv'"
-		fi
+function chk_path()
+{
+	if [ "$DO_HERE" == "" ] ; then
+		# check paths
+		IFS_SAVE=$IFS
+		IFS=$'\n'
+		local paths=($(find . -maxdepth 1 -type d))
+		IFS=$IFS_SAVE
+		local tcurr=`pwd`
+		local tpath tconv loop
+		for (( loop=0;loop<${#paths[@]};loop++ )); do
+			tpath="${paths[$loop]}"
+			[ "$tpath" = "." ] && continue
+			tpath="${tcurr}${tpath:1}"
+			tconv="$(echo "$tpath"|tr ' ' '_')"
+			[ "$DO_LOWER" == "YES" ] &&
+				tconv="$(echo "$tconv"|tr '[A-Z]' '[a-z]')"
+			#echo "  [CHECK] '$tpath' => '$tconv'"
+			if [ "$tconv" != "$tpath" ] ; then
+				if [ "$DO_EXEC" == "YES" ]; then
+					mv "$tpath" "$tconv"
+					tpath="$tconv"
+				else
+					echo "Candidate => '$tpath' to '$tconv'"
+				fi
+			fi
+			cd "$tpath"
+			chk_path
+			cd "$tcurr"
+		done
 	fi
-done
+	# process file in this path
+	chk_file
+}
 
-# check files
-IFS_SAVE=$IFS
-IFS=$'\n'
-files=($(find . -type f))
-IFS=$IFS_SAVE
-for (( loop=0;loop<${#files[@]};loop++ )); do
-	tfile="${files[$loop]}"
-	tconv="$(echo "$tfile"|tr ' ' '_')"
-	[ "$DO_LOWER" == "YES" ] && tconv="$(echo "$tconv"|tr '[A-Z]' '[a-z]')"
-	if [ "$tconv" != "$tfile" ] ; then
-		if [ "$DO_EXEC" == "YES" ]; then
-			mv "$tfile" "$tconv"
-		else
-			echo "Candidate => '$tfile' to '$tconv'"
-		fi
-	fi
-done
+chk_path
 
 exit 0
