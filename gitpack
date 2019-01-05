@@ -18,6 +18,7 @@ DOMASTER=${DOMASTER:="NO"}
 DATE_FMT=${DATE_FMT:="+%Y%m%d%H%M%S"}
 PATCHGIT=${PATCHGIT:="NO"}
 PATCHNUM=${PATCHNUM:="4"}
+DO_SWEEP=${DO_SWEEP:="NO"}
 
 #echo "[INFO] Running "`basename $0`
 
@@ -45,6 +46,12 @@ while [ "$1" != "" ]; do
 			[ ! -d "$ARCHPATH" ] &&
 				echo "Archive path '$ARCHPATH' not found!" && exit 1
 			BALLPATH=$ARCHPATH
+			# not archiving patches!
+			CHKPATCH="NO"
+			PATCHGIT="NO"
+			;;
+		--sweep)
+			DO_SWEEP="YES"
 			;;
 		--master)
 			DOMASTER="YES"
@@ -120,6 +127,17 @@ if [ "$DOBUNDLE" == "YES" ]; then
 	CHK_DATE=`git log -1 --format=%cd --date=format:'%Y%m%d%H%M%S'`
 	CHK_NAME=${MAINNAME}-${CHK_DATE}
 	CHK_FILE=${BALLPATH}/${CHK_NAME}${BALLSUFX}.git
+	# check older archive?
+	for temp in ${BALLPATH}/${MAINNAME}-* ; do
+		# leave the current ones
+		[ "${temp}" == "${CHK_FILE}" ] && continue;
+		# tell them
+		echo -n "Found old archive '$temp'"
+		[ "$DO_SWEEP" != "YES" ] && echo && continue
+		rm -rf ${temp}
+		echo ": REMOVED."
+	done
+	# check if current exists
 	if [ -f "$CHK_FILE" ]; then
 		echo "Bundle '$CHK_FILE' exists!"
 	else
