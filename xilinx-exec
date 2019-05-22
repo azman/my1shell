@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# xil-exec
+# xilinx-exec
 # - written by azman@my1matrix.net
 # - start xilinx apps or xilinx-env shell
 
@@ -60,7 +60,7 @@ export PATH="$THISPATH:$PATH"
 
 if [ "$1" == "" ] ; then
 	# start a shell
-	exec env PS1="(XIL-EXEC) \u@\h:\w$ " $(which bash)
+	exec env PS1="(XILINX-EXEC) \u@\h:\w$ " $(which bash)
 else
 	target=$1
 	shift

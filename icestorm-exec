@@ -6,10 +6,11 @@
 
 MY1TOOL=`basename $0 .sh`
 MY1PATH=`dirname $0`
-CURPATH=`pwd`
-MY1CONF=$CURPATH/.$MY1TOOL
 # look for config file
-[ -f "$MY1CONF" ] && source $MY1CONF
+for conffile in "$(pwd)/.$MY1TOOL" "$HOME/.$MY1TOOL"; do
+	[ ! -f $conffile ] && continue
+	source $conffile ; break
+done
 
 EXEPATH=${EXEPATH:="/home/share/tool/icestorm"}
 export PATH=$EXEPATH/bin:$PATH
