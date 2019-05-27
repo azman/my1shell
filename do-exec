@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# do-exec
+# - written by azman@my1matrix.net
+# - prepare shell for work on specific task
+
+WORK=`echo $1 | tr [a-z] [A-Z]`
+
+case $WORK in
+	ICESTORM)
+	ICEPATH=${ICEPATH:="/home/share/tool/icestorm"}
+	LIBPATH=$ICEPATH/lib
+	[ -d "$LIBPATH" ] && export LD_LIBRARY_PATH="$LIBPATH"
+	export PATH=$ICEPATH/bin:$PATH
+	exec env PS1="(ICESTORM-EXEC) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+	;;
+	NODEJS)
+	export NDJS_PATH=${NDJS_PATH:="/home/share/tool/node-js"}
+	export NWJS_PATH=${NWJS_PATH:="/home/share/tool/nwjs-sdk"}
+	[ -d "$NDJS_PATH" ] &&
+		export PATH=${NDJS_PATH}/bin:$PATH
+	[ -d "$NDJS_PATH" ] &&
+		export NODE_PATH=${NDJS_PATH}/lib/node_modules
+	[ -d "$NWJS_PATH" ] &&
+		export PATH=${NWJS_PATH}:$PATH
+	exec env PS1="(NODEJS-EXEC) \u@\h:\w$ " `which bash 2>/dev/null`
+	;;
+	ANDROID-SDK)
+	GRADLE_VERSION=${GRADLE_VERSION:="5.4.1"}
+	export ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:="/home/share/tool/android-sdk"}
+	export SDK_PATH=${SDK_PATH:="$ANDROID_SDK_ROOT"}
+	export GRADLE_PATH=${GRADLE_PATH:="/home/share/tool/gradle-$GRADLE_VERSION"}
+	export PATH=$GRADLE_PATH/bin:$SDK_PATH/tools:$SDK_PATH/tools/bin:$PATH
+	exec env PS1="(ANDROID-SDK) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+	;;
+	ROBO-STAGE)
+	export STAGE_PATH=${STAGE_PATH:="/home/share/tool/stage"}
+	ARCH_BITS=""
+	if [ "$(uname -m)" == "x86_64" ] ; then
+		ARCH_BITS="64"
+		# stage lib is without 64 when using my1ubuild?
+		[ ! -d ${STAGE_PATH}/lib${ARCH_BITS} ] && ARCH_BITS=""
+	fi
+	export STAGE_LIBPATH=${STAGE_PATH}/lib${ARCH_BITS}
+	export STAGEPATH=${STAGE_LIBPATH}:.
+	export LD_LIBRARY_PATH=${STAGEPATH}
+	export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${STAGE_LIBPATH}/pkgconfig
+	export PATH=$STAGE_PATH/bin:$PATH
+	exec env PS1="(ROBO-EXEC) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+	;;
+	*)
+	echo "Unknown work '$1'! Aborting!"
+	exit 1
+	;;
+esac
+
+exit 0
