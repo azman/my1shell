@@ -28,6 +28,7 @@ case $WORK in
 	ANDROID-SDK)
 	GRADLE_VERSION=${GRADLE_VERSION:="5.4.1"}
 	export ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:="/home/share/tool/android-sdk"}
+	export ANDROID_HOME=${ANDROID_SDK_ROOT}
 	export SDK_PATH=${SDK_PATH:="$ANDROID_SDK_ROOT"}
 	export GRADLE_PATH=${GRADLE_PATH:="/home/share/tool/gradle-$GRADLE_VERSION"}
 	export PATH=$GRADLE_PATH/bin:$SDK_PATH/tools:$SDK_PATH/tools/bin:$PATH
