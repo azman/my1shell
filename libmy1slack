@@ -5,46 +5,55 @@
 # - library functions for slackware system management
 
 MY1_LIBNAME="libmy1slack"
-MY1_LIBVERS="2018.03.00"
+MY1_LIBVERS="2019.06.00"
 MY1_LIBCALL=`basename $0 .sh`
 
-# determine slackware architecture, NOT machine's!
-case $SLACKARCH in
-	x86) SLACKARCH="" ;;
-	x86_64) SLACKARCH="64" ;;
-	*)
-		SLACKARCH=`find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null`
-		if [ "$SLACKARCH" == "/lib64" ] ; then SLACKARCH="64"
-		else SLACKARCH="" ; fi ;;
-esac
-SLACKNAME="slackware$SLACKARCH"
-# get slackware release version - not sure if current is supported!
-if [ "$SLACKVERS" == "" ]; then
-	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
-	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
-	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
-	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
-fi
-SLACKRELEASE="$SLACKNAME-$SLACKVERS"
-# find slackware tree
-if [ "$SLACKROOTDIR" == "" ]; then
-	SLACKFINDDIR=${SLACKFINDDIR:="/home"} # default path to look for
-	SLACKFINDOPT="-maxdepth 3 -name $SLACKRELEASE -type d"
-	SLACKROOTDIR=`find $SLACKFINDDIR $SLACKFINDOPT 2>/dev/null`
-	[ ! -d "$SLACKROOTDIR" ] &&
-		echo "Cannot find Slackware Tree!" >&2 && exit 1
-	SLACKROOTDIR=`dirname $SLACKROOTDIR`
-fi
-SLACKRELPATH=${SLACKRELPATH:="${SLACKROOTDIR}/${SLACKRELEASE}"}
-SLACKPKGPATH=${SLACKPKGPATH:="${SLACKRELPATH}/${SLACKNAME}"}
-SLACKPATPATH=${SLACKPATPATH:="${SLACKRELPATH}/patches"}
-SLACKEXTPATH=${SLACKEXTPATH:="${SLACKRELPATH}/extra"}
-SLACKPKGFILE=${SLACKPKGFILE:="${SLACKPKGPATH}/PACKAGES.TXT"}
-SLACKPATFILE=${SLACKPATFILE:="${SLACKPATPATH}/PACKAGES.TXT"}
-SLACKEXTFILE=${SLACKEXTFILE:="${SLACKEXTPATH}/PACKAGES.TXT"}
-SLACKINSTLOG="/var/log/packages"
+find_slackname()
+{
+	local path=$1 # in case looking in a chroot installation?
+	local file="/bin/bash"
+	# make sure path is valid
+	[ "$path" == "/" ] && path=""
+	[ "$path" != "" -a ! -d "$path" ] && echo -n "" && return
+	# make sure file is valid
+	[ ! -f "${path}${file}" ] && echo -n "" && return
+	# get slackware arch... NOT machine arch!
+	local arch=`file ${path}${file} | sed -e "s/^.*: \([^,]*\),.*$/\1/"`
+	arch=`echo $arch | cut -d' ' -f2`
+	if [ "$arch" = "64-bit" ] ; then arch="64"
+	else arch="" ; fi
+	echo -n slackware${arch}
+}
 
-function tag_msg()
+find_slackvers()
+{
+	local path=$1 # in case looking in a chroot installation?
+	local file="/etc/slackware-version"
+	# make sure path is valid
+	[ "$path" == "/" ] && path=""
+	[ "$path" != "" -a ! -d "$path" ] && echo -n "" && return
+	# make sure file is valid
+	[ ! -f "${path}${file}" ] && echo -n "" && return
+	# get slackware version
+	local vers=`cat ${path}${file} | sed 's/Slackware //'`
+	echo -n $vers
+}
+
+find_slacktree()
+{
+	local name=$1
+	[ -z "$name" ] && name=`find_slackname`"-"`find_slackvers`
+	local path=$2
+	[ -z "$path" ] && path="/home" # default path to look for
+	[ ! -d "$path" ] && return
+	local opts="-maxdepth 3 -name $name -type d"
+	local tree=`find $path $opts 2>/dev/null`
+	echo -n "$tree"
+}
+
+# output functions
+
+tag_msg()
 {
 	local msg_tag=$1 ; shift
 	local col_tag=$1 ; shift
@@ -58,69 +67,93 @@ function tag_msg()
 	fi
 }
 
-function error_msg()
+error_msg()
 {
 	local error_tag="[ERROR]"
 	local color_tag="31"
 	tag_msg "$error_tag" "$color_tag" "$@"
 }
 
-function error_exit()
+error_exit()
 {
 	error_msg "--no-tag" "\n"
 	error_msg "$@ Aborting!\n\n"
 	exit 1
 }
 
-function debug_msg()
+debug_msg()
 {
 	local debug_tag="[DEBUG]"
 	local color_tag="33"
 	tag_msg "$debug_tag" "$color_tag" "$@"
 }
 
-function check_msg()
+check_msg()
 {
 	local check_tag="[CHECK]"
 	local color_tag="34"
 	tag_msg "$check_tag" "$color_tag" "$@"
 }
 
-function warn_msg()
+warn_msg()
 {
 	local warn0_tag="[WARN]"
 	local color_tag="33"
 	tag_msg "$warn0_tag" "$color_tag" "$@"
 }
 
-function info_msg()
+info_msg()
 {
 	local info0_tag="[INFO]"
 	local color_tag="32"
 	tag_msg "$info0_tag" "$color_tag" "--stdout" "$@"
 }
 
-if [ "$MY1_DEBUG" == "YES" ]; then
-	echo
+# debug function
+
+call_debug()
+{
+	SLACKNAME=`find_slackname`
+	SLACKVERS=`find_slackvers`
+	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
+	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
+	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
+	SLACKFULL="$SLACKNAME-$SLACKVERS"
+	SLACKTREE=`find_slacktree $SLACKFULL`
+	[ -d "$SLACKTREE" ] &&
+		SLACKROOT=`dirname $SLACKTREE` && SLACKPACK=$SLACKTREE/$SLACKNAME
+	SLACKLOGS="/var/log/packages"
 	debug_msg "my1slack Library Name is $MY1_LIBNAME\n"
 	debug_msg "my1slack Library Version is $MY1_LIBVERS\n"
-	debug_msg "System machine is $(uname -m)\n"
-	debug_msg "Slack Version is $(cat /etc/slackware-version)\n"
-	debug_msg "Slack Release is $SLACKRELEASE\n"
-	debug_msg "Slack Tree is at $SLACKROOTDIR\n"
 	debug_msg "Command Call '$MY1_LIBCALL'\n"
-fi
-
-function find_binary()
-{
-	local chk_exec=$1
-	local set_exec=$(which $chk_exec 2>/dev/null)
-	echo -n $set_exec
-	[ "$msg_fail" == "" ] && msg_fail="Binary '$chk_exec' not found!"
-	[ "$set_exec" == "" ] && error_exit "$msg_fail"
+	debug_msg "Slackware is $SLACKFULL @ $SLACKROOT\n"
+	debug_msg "Slackware tree: $SLACKTREE\n"
+	debug_msg "Slackware sets: $SLACKPACK\n"
+	echo
 }
 
-function must_have_path()
+[ "$MY1_DEBUG" == "YES" ] && call_debug
+
+# utility functions
+
+find_binary()
+{
+	local chk_exec=$1
+	local set_exec=`which $chk_exec 2>/dev/null`
+	echo -n $set_exec
+}
+
+must_have_binary()
+{
+	local chk_exec=$1 ; shift
+	local msg_fail=$@
+	[ "$msg_fail" == "" ] && msg_fail="Binary '$chk_exec' not found!"
+	local set_exec=`find_binary $chk_exec`
+	[ "$set_exec" == "" ] && error_exit "$msg_fail"
+	echo -n $set_exec
+}
+
+must_have_path()
 {
 	local chk_path=$1 ; shift
 	local msg_fail=$@
@@ -128,12 +161,14 @@ function must_have_path()
 	[ ! -d "$chk_path"  ] && error_exit "$msg_fail"
 }
 
-function must_be_root()
+must_be_root()
 {
 	[ $UID -ne 0 ] && error_exit "Must run as root!"
 }
 
-function get_pkg_info()
+# slack management functions
+
+get_pkg_info()
 {
 	# get pkg info from basename (i.e. filename minus extension!)
 	local pkg_name pkg_vers pkg_arch pkg_extd
@@ -147,11 +182,12 @@ function get_pkg_info()
 	echo -n "$pkg_name $pkg_vers $pkg_arch $pkg_extd"
 }
 
-function get_pathpack()
+get_pathpack()
 {
 	# make a package list from custom path
+	local pkg_path=$1
 	local pkg_list=""
-	if [ -d "$1" ]; then
+	if [ -d "$pkg_path" ]; then
 		cd $1
 		for pkg_file in *.t[gx]z; do
 			pkg_temp=`echo $pkg_file | sed 's/\.t[xg]z//'`
@@ -162,33 +198,38 @@ function get_pathpack()
 	echo -n "$pkg_list"
 }
 
-function get_softpack()
+get_pathsoft()
 {
 	# make a package list from official software set (e.g. a,d,l...)
-	echo -n `get_pathpack ${SLACKPKGPATH}/$1`
+	local pkg_pack=$1 # slackpack
+	local pkg_soft=$2
+	echo -n `get_pathpack $pkg_path/$pkg_soft`
 }
 
-function get_packsoft()
+get_packsoft()
 {
 	# get official software set for given package
-	local pkg_name="$1"
+	local pkg_pack=$1 # slackpack
+	local pkg_name=$2
 	local pkg_soft="z" # default unknown set
-	for pkg_path in ${SLACKPKGPATH}/* ; do
+	for tmp_path in $pkg_pack/* ; do
+		[ ! -d $tmp_path ] && continue
 		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z$"
-		local pkg_test=`ls $pkg_path | grep -e "$pkg_temp"`
+		local pkg_test=`ls $tmp_path | grep -e "$pkg_temp"`
 		if [ "$pkg_test" != "" ] ; then
-			pkg_soft=`basename ${pkg_path}`
+			pkg_soft=`basename ${tmp_path}`
 			break
 		fi
 	done
 	echo -n "$pkg_soft"
 }
 
-function comp_package()
+# review this... only used in slackview?
+pkg_compare()
 {
 	# compare 2 package basenames, returns non-zero if different!
-	local pkg1_base="$1"
-	local pkg2_base="$2"
+	local pkg1_base=$1
+	local pkg2_base=$2
 	local pkg_temp
 	local pkg1_name pkg1_vers pkg1_arch pkg1_extd
 	local pkg2_name pkg2_vers pkg2_arch pkg2_extd
@@ -212,40 +253,45 @@ function comp_package()
 	return 0
 }
 
-function find_desc()
+find_desc()
 {
 	# get package description from a PACKAGES.TXT file
-	local pkg_name="$1"
-	local pkgs_txt="$2"
+	local pkg_name=$1
+	local pkgs_txt=$2
 	local pkg_desc=`grep -e "^$pkg_name:" $pkgs_txt`
 	echo -n "$pkg_desc"
 }
 
-function find_package_desc()
+find_package_desc()
 {
 	# get package entry from mirror tree
-	local pkg_name="$1"
-	local pkg_desc=`find_desc $pkg_name $SLACKPKGFILE`
-	echo -n "$pkg_desc"
-}
-
-function find_install_desc()
-{
-	# get package entry from current installation
-	local pkg_name="$1"
-	local pkg_temp="\<${pkg_name}-[^-]*-[^-]*-[^-]*$"
-	local pkg_test=`ls $SLACKINSTLOG | grep -e "$pkg_temp"`
-	[ "$pkg_test" = "" ] && return
-	local pkgs_txt="$SLACKINSTLOG/$pkg_test"
+	local pkg_name=$1
+	local pkg_tree=$2 # slacktree OR slackpack
+	local pkgs_txt=$pkg_tree/PACKAGES.TXT
+	[ ! -f $pkgs_txt ] && return
 	local pkg_desc=`find_desc $pkg_name $pkgs_txt`
 	echo -n "$pkg_desc"
 }
 
-function find_info()
+find_install_desc()
 {
-	# get package info from a PACKAGES.TXT file or /var/log entry
-	local pkg_name="$1"
-	local pkgs_txt="$2"
+	# get package entry from current installation
+	local pkg_name=$1
+	local pkg_temp="\<${pkg_name}-[^-]*-[^-]*-[^-]*$"
+	local log_path="/var/log/packages"
+	local pkg_test=`ls $log_path | grep -e "$pkg_temp"`
+	[ "$pkg_test" = "" ] && return
+	local pkgs_txt="$log_path/$pkg_test"
+	local pkg_desc=`find_desc $pkg_name $pkgs_txt`
+	echo -n "$pkg_desc"
+}
+
+find_info()
+{
+	# get package info from a PACKAGES.TXT file or /var/log/packages entry
+	local pkg_name=$1
+	local pkgs_txt=$2
+	local pkg_pack=$3 # slackpack
 	# info structure?
 	local pkg_base pkg_file pkg_path pkg_size pkg_full
 	# pattern search?
@@ -260,18 +306,15 @@ function find_info()
 	chk_name="PACKAGE LOCATION:"
 	pkg_path=`echo "$pkg_test" | grep "^$chk_name"`
 	pkg_path=`echo "$pkg_path" | sed "s/$chk_name[[:space:]]*//"`
-	# check if location provided by /var/log/packages entry
+	# check if location provided is from initial installation
 	pkg_temp=`echo $pkg_path | grep "/var/log/mount/"`
 	if [ "$pkg_temp" != "" ] ; then
+		# yup... get path in slackware tree
 		pkg_file=`basename $pkg_path`
 		pkg_path=`dirname $pkg_path | sed 's|/var/log/mount/||'`
-		pkg_path=${SLACKPKGPATH}/${pkg_path}
-	else
-		pkg_temp=`echo $pkg_path | sed 's|^\./||'`
-		[ "$pkg_path" != "$pkg_temp" ] &&
-			pkg_path="${SLACKRELPATH}/${pkg_temp}"
+		pkg_path=${pkg_pack}/${pkg_path}
 	fi
-	#installed packages have package file info in location!
+	# installed packages have package file info in location!
 	pkg_base=`echo $pkg_file | sed 's/\.t[xg]z//'`
 	if [ "$pkg_base" == "$pkg_file" ]; then
 		pkg_file=`basename $pkg_path`
@@ -301,48 +344,57 @@ function find_info()
 	echo -n "$pkg_base $pkg_file $pkg_path $pkg_size $pkg_full"
 }
 
-function find_package()
+find_package()
 {
 	# get package entry from mirror tree
-	local pkg_name="$1"
-	local pkg_flag="$2"
+	local pkg_name=$1 ; shift
+	local pkg_flag=$1
+	[ "$pkg_flag" == "--full" ] && shift
+	local pkg_pack=$1 # slackpack
+	[ ! -d $pkg_pack ] && return
+	local pkg_tree=`dirname $pkg_pack`
+	local pkgs_txt=$pkg_tree/PACKAGES.TXT
+	local pkgs_ext=$pkg_tree/extra/PACKAGES.TXT
 	local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
-	local pkg_base=`cat $SLACKPKGFILE | grep -e "$pkg_temp"`
-	[ "$pkg_base" == "" ] && [ -r "$SLACKEXTFILE" ] &&
-		pkg_base=`cat $SLACKEXTFILE | grep -e "$pkg_temp"`
+	local pkg_base=`cat $pkgs_txt | grep -e "$pkg_temp"`
+	[ "$pkg_base" == "" ] && [ -r "$pkgs_ext" ] &&
+		pkg_base=`cat $pkgs_ext | grep -e "$pkg_temp"`
 	[ "$pkg_base" == "" ] && return
 	pkg_base=`echo $pkg_base | sed 's/PACKAGE NAME:[[:space:]]*//'`
 	pkg_base=`echo $pkg_base | sed 's|.*/||'`
 	pkg_base=`echo $pkg_base | sed 's/\.t[gx]z//'`
 	[ "$pkg_flag" != "--full" ] && echo -n "$pkg_base" && return
-	local pkg_test=`find_info $pkg_name $SLACKPKGFILE`
-	[ "$pkg_test" = "" ] && [ -r "$SLACKEXTFILE" ] &&
-		pkg_test=`find_info $pkg_name $SLACKEXTFILE`
+	local pkg_test=`find_info $pkg_name $pkgs_txt $pkg_pack`
+	[ "$pkg_test" = "" ] && [ -r "$pkgs_ext" ] &&
+		pkg_test=`find_info $pkg_name $pkgs_ext $pkg_pack`
 	echo -n "$pkg_test"
 }
 
-function find_install()
+find_install()
 {
 	# get package entry from current installation
-	local pkg_name="$1"
-	local pkg_flag="$2"
+	local pkg_name=$1 ; shift
+	local pkg_flag=$1
+	[ "$pkg_flag" == "--full" ] && shift
+	local pkg_pack=$1 # slackpack
 	local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
-	local pkg_base=`ls $SLACKINSTLOG | grep -e "$pkg_temp"`
+	local log_path="/var/log/packages"
+	local pkg_base=`ls $log_path | grep -e "$pkg_temp"`
 	[ "$pkg_base" == "" ] && return
 	[ "$pkg_flag" != "--full" ] && echo -n "$pkg_base" && return
-	local pkgs_txt="$SLACKINSTLOG/$pkg_base"
-	pkg_temp=`find_info $pkg_name $pkgs_txt`
+	local pkgs_txt="$log_path/$pkg_base"
+	pkg_temp=`find_info $pkg_name $pkgs_txt $pkg_pack`
 	echo -n "$pkg_temp"
 }
 
-function show_info()
+show_info()
 {
 	# get package info
-	local pkg_name="$1"
-	local pkg_flag=""
-	local pkg_stat=""
-	local pkg_info=`find_install $pkg_name --full`
-	local pkg_test=`find_package $pkg_name --full`
+	local pkg_name=$1
+	local pkg_pack=$2 # slackpack
+	local pkg_flag pkg_find pkg_stat
+	local pkg_info=`find_install $pkg_name --full $pkg_pack`
+	local pkg_test=`find_package $pkg_name --full $pkg_pack`
 	[ "$pkg_info" == "" ] && pkg_flag="NOT " && pkg_info=$pkg_test
 	[ "$pkg_info" == "" ] && return 1
 	[ "$pkg_test" == "" ] && pkg_stat=" (ALIEN!)"
@@ -353,6 +405,7 @@ function show_info()
 	pkg_path=`echo $pkg_info | cut -d' ' -f3`
 	pkg_size=`echo $pkg_info | cut -d' ' -f4`
 	pkg_full=`echo $pkg_info | cut -d' ' -f5`
+	[ ! -f $pkg_path/$pkg_file ] && pkg_find="NOT "
 	local pkg_temp pkg_name pkg_vers pkg_arch pkg_extd
 	pkg_temp=`get_pkg_info $pkg_base`
 	pkg_name=`echo $pkg_temp | cut -d' ' -f1`
@@ -372,6 +425,7 @@ function show_info()
 	echo "BUILD TAG          : $pkg_extd"
 	echo "SIZE (Compressed)  : $pkg_size"
 	echo "SIZE (Uncompressed): $pkg_full"
+	echo "PACKAGE STATUS     : ${pkg_find}FOUND"
 	echo "INSTALL STATUS     : ${pkg_flag}INSTALLED"
 	local pkg_desc=`find_install_desc $pkg_name`
 	[ "$pkg_desc" == "" ] && pkg_desc=`find_package_desc $pkg_name`
@@ -383,12 +437,12 @@ function show_info()
 	return 0
 }
 
-function list_package_path()
+list_package_path()
 {
 	# get all packages in given path
-	local lst_path="$1"
-	local log_path="$2"
-	# get the rest of parameters
+	local lst_path=$1
+	local log_path=$2
+	# get the rest of parameters (ignored packages)
 	shift ; shift
 	# process all package file(s) in path
 	for pkg_full in `find $lst_path -name "*.t[gx]z" -type f -maxdepth 1` ; do
@@ -428,19 +482,15 @@ function list_package_path()
 				[ "$pkg2extd" == "$pkg_extd" ]; then
 				chk_stat="pdone"
 			else
-				#pkg2temp=`echo $pkg_name | sed 's/kernel-//'`
-				#if [ "$pkg2temp" != "$pkg_name" ] ; then
-				#	chk_stat="pdone"
-				#else
-					chk_stat="check"
-					chk_vers="[${pkg2vers}/${pkg2extd}($pkg2base)]->"
-					chk_vers="${chk_vers}[${pkg_vers}/${pkg_extd}($pkg_base)]"
-				#fi
+				chk_stat="check"
+				chk_vers="[${pkg2vers}/${pkg2extd}($pkg2base)]->"
+				chk_vers="${chk_vers}[${pkg_vers}/${pkg_extd}($pkg_base)]"
 			fi
 			# DEBUG debug_msg "$pkg_full\n" && continue
 		else
 			local chk_arch sys_arch="x86"
-			[ "$SLACKARCH" == "64" ] && sys_arch="x86_64"
+			local tmp_arch=`find_slackname`
+			[ "$tmp_arch" == "slackware64" ] && sys_arch="x86_64"
 			case $pkg_arch in
 				i*86) chk_arch="x86" ;;
 				x86) chk_arch="x86" ;;
@@ -456,9 +506,10 @@ function list_package_path()
 	done
 }
 
-function format_text()
+# oooh! blinking color text!
+
+format_text()
 {
-	# oooh! blinking color text!
 	# format is "\033[<attr>;<textcolor>;<backcolor>m" \033 = \e (ESC char)
 	local ends="\033[0m"
 	# attributes

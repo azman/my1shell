@@ -7,24 +7,26 @@
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Patch Tool"
-MY1_TOOLVERS="2016.12.01"
+MY1_TOOLVERS="2019.06.00"
 MY1_TOOLBASE=`basename $0 .sh`
 MY1_TOOLPATH=`dirname $0`
 MY1_TOOL_LIB="libmy1slack"
+# look for my1slack library
+[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
+# get slackware tree info
+call_debug >/dev/null 2>&1
 # look for config file
 for config in `pwd` $HOME; do
 	config=$config/.$MY1_TOOLBASE
 	[ -r $config ] && . $config && break
 done
-# look for my1slack library
-[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 # my1slack tool specific
 MY1_TOOL_LOG=${MY1_TOOL_LOG:="/tmp/${MY1_TOOLBASE}.log"}
-MY1_SLACKDIR=${MY1_SLACKDIR:="${SLACKRELPATH}"}
-MY1_PATCHDIR=${MY1_PATCHDIR:="${MY1_SLACKDIR}/patches/packages"}
-MY1_SPACKDIR=${MY1_SPACKDIR:="slackpack$SLACKARCH-$SLACKVERS"}
-MY1_PATCHEXT=${MY1_PATCHEXT:="${MY1_SLACKDIR}/../$MY1_SPACKDIR"}
+MY1_SLACKDIR=${MY1_SLACKDIR:="${SLACKTREE}"}
+MY1_PATCHDIR=${MY1_PATCHDIR:="${SLACKTREE}/patches/packages"}
+MY1_SPACKDIR=${MY1_SPACKDIR:="${SLACKNAME//ware/pack}-$SLACKVERS"}
+MY1_PATCHEXT=${MY1_PATCHEXT:="${SLACKROOT}/$MY1_SPACKDIR"}
 # global options & settings
 OPT_VERBOSE="NO"
 OPT_LOGFILE="/dev/null"
@@ -55,25 +57,25 @@ function check_patches()
 	[ ! -d $MY1_PATCHDIR ] &&
 		error_exit "Path '$MY1_PATCHDIR' not found!"
 	MY1_PATCHDIR=`cd $MY1_PATCHDIR ; pwd`
-	pat_list=`list_package_path $MY1_PATCHDIR $SLACKINSTLOG $PKG_IGNORED`
+	pat_list=`list_package_path $MY1_PATCHDIR $SLACKLOGS $PKG_IGNORED`
 	# look for paths for kernel patches
 	lnx_path=`find $MY1_PATCHDIR -name "linux-*" -type d -maxdepth 1`
 	for path in $lnx_path ; do
-		pat_temp=`list_package_path $path $SLACKINSTLOG $PKG_IGNORED`
+		pat_temp=`list_package_path $path $SLACKLOGS $PKG_IGNORED`
 		pat_list="${pat_list}${pat_temp}"
 	done
 	if [ "$OPT_NOTHIRD" != "YES" ] ; then
 		# look for extra custom package path
 		if [ -d "$MY1_PATCHEXT" ] ; then
 			pat_path=$MY1_PATCHEXT
-			pat_temp=`list_package_path $pat_path $SLACKINSTLOG $PKG_IGNORED`
+			pat_temp=`list_package_path $pat_path $SLACKLOGS $PKG_IGNORED`
 			pat_list="${pat_list}${pat_temp}"
 		fi
 		# process extra paths
 		while [ "$1" != "" ] ; do
 			pat_path=`cd $1 ; pwd`
 			[ ! -d $pat_path ] && error_exit "Path '$pat_path' is invalid!"
-			pat_temp=`list_package_path $pat_path $SLACKINSTLOG $PKG_IGNORED`
+			pat_temp=`list_package_path $pat_path $SLACKLOGS $PKG_IGNORED`
 			pat_list="${pat_list}${pat_temp}"
 			shift
 		done
@@ -210,7 +212,7 @@ function process_command()
 			--pkg)
 				shift
 				# check discrete package name
-				pkg_temp=`find_install $1`
+				pkg_temp=`find_install $1 $SLACKPACK`
 				[ "$pkg_temp" == "" ] && error_exit "Unknown package '$1'!"
 				pkg_temp=`get_pkg_info $pkg_temp | cut -d' ' -f1`
 				pkg_list="${pkg_list} ${pkg_temp}"

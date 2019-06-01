@@ -2,26 +2,19 @@
 
 # slacktest
 # - written by azman@my1matrix.net
-# - my1slack test script (mainly to test libmy1slack functions)
+# - test script for libmy1slack functions
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Test Script"
-MY1_TOOLVERS="2016.12.00"
+MY1_TOOLVERS="2019.06.00"
 MY1_TOOLBASE=`basename $0 .sh`
 MY1_TOOLPATH=`dirname $0`
-MY1_TOOLPATH=`cd $MY1_TOOLPATH ; pwd`
 MY1_TOOL_LIB="libmy1slack"
-# look for config file
-for config in `pwd` $HOME ; do
-	config=$config/.$MY1_TOOLBASE
-	[ -r $config ] && . $config && break
-done
 # look for my1slack library
 [ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
 
-# BEGIN MAIN SCRIPT
-
 echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+call_debug
 if [ ! -z "$1" ] ; then
 	echo -e "[SLACKTEST] Executing '$@'...\n"
 	test_value="\"$1\" "
@@ -34,5 +27,3 @@ if [ ! -z "$1" ] ; then
 	echo -e "\n[SLACKTEST] Done.\n"
 	exit $retval
 fi
-
-# END MAIN SCRIPT
