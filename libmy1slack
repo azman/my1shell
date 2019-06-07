@@ -109,20 +109,28 @@ info_msg()
 	tag_msg "$info0_tag" "$color_tag" "--stdout" "$@"
 }
 
-# debug function
+# find current system info
 
-call_debug()
+call_setup()
 {
+	local pkg_home=$1
 	SLACKNAME=`find_slackname`
 	SLACKVERS=`find_slackvers`
 	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
 	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
 	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
 	SLACKFULL="$SLACKNAME-$SLACKVERS"
-	SLACKTREE=`find_slacktree $SLACKFULL`
+	SLACKTREE=`find_slacktree $SLACKFULL $pkg_home`
 	[ -d "$SLACKTREE" ] &&
 		SLACKROOT=`dirname $SLACKTREE` && SLACKPACK=$SLACKTREE/$SLACKNAME
 	SLACKLOGS="/var/log/packages"
+}
+
+# debug function
+
+call_debug()
+{
+	call_setup
 	debug_msg "my1slack Library Name is $MY1_LIBNAME\n"
 	debug_msg "my1slack Library Version is $MY1_LIBVERS\n"
 	debug_msg "Command Call '$MY1_LIBCALL'\n"
@@ -196,6 +204,17 @@ get_pathpack()
 		cd - >/dev/null
 	fi
 	echo -n "$pkg_list"
+}
+
+get_packpath()
+{
+	# get package file from a path
+	local pkg_path=$1
+	local pkg_name=$2
+	[ ! -d $pkg_path ] && return
+	local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z$"
+	local pkg_test=`ls $pkg_path | grep -e "$pkg_temp"`
+	echo -n "$pkg_test"
 }
 
 get_pathsoft()
@@ -296,7 +315,7 @@ find_info()
 	local pkg_base pkg_file pkg_path pkg_size pkg_full
 	# pattern search?
 	#local pkg_temp="\<PACKAGE NAME:  ${pkg_name}-[^-]*-[^-]*-[^-]*\.t[gx]z\>"
-	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*$"
+	local pkg_temp="\s${pkg_name}-[^-]*-[^-]*-[^-]*$"
 	local pkg_test=`cat $pkgs_txt | grep -e "$pkg_temp" -A3`
 	[ "$pkg_test" = "" ] && return
 	# extract basic info
@@ -313,6 +332,13 @@ find_info()
 		pkg_file=`basename $pkg_path`
 		pkg_path=`dirname $pkg_path | sed 's|/var/log/mount/||'`
 		pkg_path=${pkg_pack}/${pkg_path}
+	else
+		# check if relative path
+		pkg_temp=`echo $pkg_path | sed 's|^\./||'`
+		if [ "$pkg_path" != "$pkg_temp" ] ; then
+			pkg_tree=`dirname $pkg_pack`
+			pkg_path="${pkg_tree}/${pkg_temp}"
+		fi
 	fi
 	# installed packages have package file info in location!
 	pkg_base=`echo $pkg_file | sed 's/\.t[xg]z//'`
@@ -368,6 +394,22 @@ find_package()
 	[ "$pkg_test" = "" ] && [ -r "$pkgs_ext" ] &&
 		pkg_test=`find_info $pkg_name $pkgs_ext $pkg_pack`
 	echo -n "$pkg_test"
+}
+
+find_package_latest()
+{
+	# get package entry from mirror tree
+	local pkg_name=$1 ; shift
+	local pkg_pack=$1 # slackpack
+	[ ! -d $pkg_pack ] && return
+	local pkg_tree=`dirname $pkg_pack`
+	local pkgs_txt=$pkg_tree/PACKAGES.TXT
+	local pkg_info=`find_info $pkg_name $pkgs_txt $pkg_pack`
+	[ "$pkg_info" == "" ] && return
+	local pkgs_pat=$pkg_tree/patches/PACKAGES.TXT
+	local pkg_test=`find_info $pkg_name $pkgs_pat $pkg_pack`
+	[ "$pkg_test" != "" ]  && pkg_info="$pkg_test PATCH"
+	echo -n "$pkg_info"
 }
 
 find_install()
