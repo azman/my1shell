@@ -1,0 +1,456 @@
+#!/bin/bash
+
+# slacklive
+# - written by azman@my1matrix.net
+# - create slack live stuffs
+# - based on liveslak's make_slackware_live.sh
+
+# standard tool info
+TOOL_DESC="my1 Slackware LiveUSB Tool"
+TOOL_VERS="2019.06.00"
+TOOL_NAME=`basename $0 .sh`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH;pwd`
+TLIB_NAME="libmy1slack"
+# look for my1slack library
+[ -r "$TOOL_PATH/$TLIB_NAME" ] && . $TOOL_PATH/$TLIB_NAME
+# look for config file
+for config in `pwd` $HOME; do
+	config=$config/.$TOOL_NAME
+	[ -r $config ] && . $config && break
+done
+
+# my1slack tool specific
+CURR_PATH=`pwd`
+LIVE_NAME=${LIVE_NAME:="my1live"}
+# a place to store the package information lists
+LIST_PATH=${LIST_PATH:="$CURR_PATH/my1list"}
+# a place to store the built modules
+MODS_PATH=${MODS_PATH:="$CURR_PATH/my1mods"}
+# a place to work
+WORK_PATH=${WORK_PATH:="$CURR_PATH/my1work"}
+# a place for initial root
+LIVE_ROOT=${LIVE_ROOT:="$WORK_PATH/my1root"}
+# a place to mount everything
+FULL_ROOT=${FULL_ROOT:="$WORK_PATH/my1full"}
+# a place for working path in overlayfs
+TEMP_ROOT=${TEMP_ROOT:="$WORK_PATH/my1temp"}
+# a place to temporarily build a module
+PACK_TEMP=${PACK_TEMP:="$WORK_PATH/my1pack"}
+# list of squashfs mounted files
+PACK_LIST=""
+
+DEBUG_RUN=${DEBUG_RUN:="NO"}
+DEBUG_LOG=${DEBUG_LOG:="$CURR_PATH/$LIVE_NAME.log"} # /dev/null??
+LIVE_VERS=${LIVE_VERS:="14.2"}
+LIVE_ARCH=${LIVE_ARCH:="x86_64"}
+LIVE_MARK=${LIVE_MARK:="MY1LIVE"}
+DATE_FORM=${DATE_FORM:="+%Y%m%d%H%M"}
+MSFS_OPTS="-noappend -comp xz -b 1M" #mksquashfs options
+
+make_setup()
+{
+	SLACKNAME="slackware"
+	[ "$LIVE_ARCH" = "x86_64" ] &&
+		SLACKNAME="slackware64"
+	SLACKVERS="$LIVE_VERS"
+	SLACKFULL="$SLACKNAME-$SLACKVERS"
+	SLACKTREE=`find_slacktree $SLACKFULL`
+	[ -d "$SLACKTREE" ] &&
+		SLACKROOT=`dirname $SLACKTREE` && SLACKPACK=$SLACKTREE/$SLACKNAME
+	SLACKLOGS="/var/log/packages"
+	if [ "$MY1_DEBUG" = "YES" ] ; then
+		debug_msg "my1slack Library Name is $MY1_LIBNAME\n"
+		debug_msg "my1slack Library Version is $MY1_LIBVERS\n"
+		debug_msg "Command Call '$MY1_LIBCALL'\n"
+		debug_msg "Slackware is $SLACKFULL @ $SLACKROOT\n"
+		debug_msg "Slackware tree: $SLACKTREE\n"
+		debug_msg "Slackware sets: $SLACKPACK\n"
+		echo
+	fi
+}
+
+make_path()
+{
+	local path=$1
+	[ ! -d "$path" ] && mkdir -p $path
+}
+
+make_mark()
+{
+	local path=$1
+	echo `date ${DATE_FORM}`" ${LIVE_NAME}" > ${path}/${LIVE_MARK}
+}
+
+debug_info()
+{
+	echo -ne "$@" >>$DEBUG_LOG 2>&1
+	[ "$DEBUG_RUN" = "YES" ] && debug_msg "$@"
+}
+
+debug_exit()
+{
+	[ "$DEBUG_RUN" = "YES" ] && check_msg "$@" && exit 0
+}
+
+clean_exit()
+{
+	local mesg="$@"
+	sync
+	local what=`mount | grep ${FULL_ROOT}`
+	[ "$what" != "" ] &&
+		umount ${FULL_ROOT} 2>>${DEBUG_LOG} || true
+	for pack in $PACK_LIST ; do
+		umount $pack 2>>${DEBUG_LOG} || true
+	done
+	if [ "$mesg" != "" ] ; then
+		echo
+		error_msg "$@"
+		exit 1
+	fi
+}
+
+clean_path()
+{
+	local base_path=$1
+	local work_path=$2
+	# exit if base_path is null or does not exists or system root
+	[ ! -d "$base_path" -o "$base_path" =  "/" ] &&
+		clean_exit "Invalid path '$base_path'! Aborting!"
+	debug_info "Removing '${base_path}${work_path}'!\n"
+	rm -rf ${base_path}${work_path}
+}
+
+trap 'echo "*** $0 FAILED at line $LINENO ***";clean_exit;exit 1' ERR INT TERM
+
+remove_docs()
+{
+	# as done in liveslak - will review this later?
+	local path=$1
+	info_msg "Trimming $path.\n"
+	# exit if base_path is null or does not exists or system root
+	[ ! -d "$path" -o "$path" =  "/" ] &&
+		clean_exit "Invalid path '$path'! Aborting!"
+	# remove stuffs?
+	mv ${path}/usr/doc/cups-* ${path}/usr/ 2>/dev/null
+	find ${path}/usr/doc -type d -mindepth 2 -maxdepth 2 -exec rm -rf {} \;
+	rm -rf ${path}/usr/share/gtk-doc
+	rm -rf ${path}/usr/share/help
+	find ${path}/usr/share/ -type d -name doc |xargs rm -rf
+	rm -rf ${path}/usr/doc/*/html
+	rm -f ${path}/usr/doc/*/*.{html,css,xml,pdf,db,gz,bz2,xz,txt,TXT}
+	find ${path}/usr/doc/ -type f -size +50k |xargs rm -f
+	rm -rf ${path}/usr/info
+	# needed for cups web interface
+	mv ${path}/usr/cups-* ${path}/usr/doc/ 2>/dev/null
+	rm -rf ${path}/usr/man
+	# more junk
+	rm -f ${path}/usr/bin/mysql*embedded*
+	rm -f ${path}/usr/bin/smbtorture
+	rm -f ${path}/usr/lib64/*.a
+	rm -f ${path}/usr/lib/*.a
+	rm -f ${path}/usr/libexec/gcc/*/*/cc1objplus
+	rm -rf ${path}/usr/share/icons/HighContrast
+	rm -rf ${path}/lib/firmware/{bnx*,cxgb4,libertas}
+	rm -rf ${path}/lib/firmware/{liquidio,mellanox,netronome,qed}
+	rm -rf ${path}/lib/modules/*/kernel/drivers/infiniband
+	rm -rf ${path}/lib/modules/*/kernel/drivers/net/ethernet/broadcom/bnx*
+	rm -rf ${path}/lib/modules/*/kernel/drivers/net/ethernet/{chelsio,mellanox}
+	rm -rf ${path}/lib/modules/*/kernel/drivers/net/ethernet/{netronome,qlogic}
+	rm -rf ${path}/lib/firmware/mrvl
+	rm -rf ${path}/lib/modules/*/kernel/drivers/net/wireless/marvell
+	rm -rf ${path}/lib/firmware/vpu*.bin
+	rm -rf ${path}/boot/System.map*
+	rm -f ${path}/usr/bin/wpa_gui ${path}/usr/share/applications/wpa_gui.desktop
+	if [ -e ${path}/usr/share/gimp/2.0/images/gimp-splash.png -a \
+			! -L ${path}/usr/share/gimp/2.0/images/gimp-splash.png ]; then
+		rm -rf ${path}/usr/share/gimp/2.0/images/gimp-splash.png
+		ln -sf wilber.png ${path}/usr/share/gimp/2.0/images/gimp-splash.png
+	fi
+	if [ -e ${path}/usr/share/icons/Adwaita/cursors/watch -a \
+			! -L ${path}/usr/share/icons/Adwaita/cursors/watch ]; then
+		rm -rf ${path}/usr/share/icons/Adwaita/cursors/{watch,left_ptr_watch}
+		ln -sf left_ptr ${path}/usr/share/icons/Adwaita/cursors/watch
+		ln -sf left_ptr ${path}/usr/share/icons/Adwaita/cursors/left_ptr_watch
+	fi
+	rm -rf ${path}/usr/share/gimp/2.0/brushes/Fun
+	rm -rf ${path}/usr/share/ghostscript/*/doc/
+	find ${path}/usr/ -type d -iname test |xargs rm -rf
+	find ${path}/usr/ -type d -iname "example*" |xargs rm -rf
+	local keep_this="xmatrix"
+	if [ -d ${path}/usr/libexec/xscreensaver ]; then
+		cd ${path}/usr/libexec/xscreensaver
+		mkdir .keep
+		mv ${keep_this} .keep/ 2>/dev/null
+		rm -rf [A-Za-z]*
+		mv .keep/* . 2>/dev/null
+		rm -rf .keep
+		cd - 1>/dev/null
+	fi
+	local list_path="/usr/lib/locale /usr/lib64/locale"
+	list_path="$list_path /usr/share/i18n/locales /usr/share/locale"
+	for list_that in $list_path ; do
+		if [ -d ${path}/${list_that} ]; then
+			cd ${path}/${list_that}
+			mkdir .keep
+			mv C.utf8 .keep/ 2>/dev/null
+			mv en_US.utf8 .keep/ 2>/dev/null
+			mv en_US .keep/ 2>/dev/null
+			rm -rf [A-Za-z]*
+			mv .keep/* . 2>/dev/null
+			rm -rf .keep
+			cd - 1>/dev/null
+		fi
+	done
+}
+
+# $@ => <module name> <target path>
+install_list()
+{
+	local name=$1
+	local path=$2
+	[ ! -d "$path" ] && clean_exit "Invalid path '$path'?"
+	[ ! -f "$path/${LIVE_MARK}" ] && clean_exit "Marker not found in $path."
+	local PKGNAME=`echo $name | tr [A-Z] [a-z]`
+	local PKGFILE=${LIST_PATH}/${PKGNAME}.list
+	[ ! -f ${PKGFILE} ] &&
+		clean_exit "Package list not found!"
+	info_msg "Loading package list '$PKGFILE'.\n"
+	for chk_entry in `cat $PKGFILE |grep -v -E '^ *#|^$'` ; do
+		# lines starting with '#' are ignored... obviously :)
+		local pkg_soft=`echo $chk_entry | cut -d! -f1`
+		local pkg_name=`echo $chk_entry | cut -d! -f2`
+		local pkg_path=`echo $chk_entry | cut -d! -f3`
+		local pkg_base pkg_file pkg_full pkg_temp
+		# check if this is NOT in slackware tree
+		if [ "$pkg_soft" = "z" ] ; then
+			[ ! -d "$pkg_path" ] &&
+				clean_exit "Custom Path '$pkg_path' not found!\n"
+			pkg_file=`get_packpath $pkg_path $pkg_name`
+			[ ! -f "$pkg_file" ] &&
+				clean_exit "Custom Package '$pkg_name' not in '$pkg_path'!\n"
+			pkg_base=`echo $pkg_file | sed 's/\.t[xg]z//'`
+			pkg_full=$pkg_path/$pkg_file
+		else
+			local pkg_info=`find_package_latest $pkg_name $SLACKPACK`
+			debug_info "$pkg_info\n"
+			pkg_base=`echo $pkg_info | cut -d' ' -f1`
+			pkg_file=`echo $pkg_info | cut -d' ' -f2`
+			pkg_path=`echo $pkg_info | cut -d' ' -f3`
+			pkg_temp=`echo $pkg_info | cut -d' ' -f6`
+			pkg_full=$pkg_path/$pkg_file
+			[ ! -f "$pkg_full" ] &&
+				clean_exit "Package '$pkg_name' not found in '$SLACKPACK'!\n"
+			[ "$pkg_temp" == "PATCH" ] &&
+				info_msg "-- $pkg_name found in patches\n"
+		fi
+		# install package
+		installpkg --terse --root "$path" "$pkg_full"
+	done
+}
+
+make_modules()
+{
+	local full_list="$@"
+	must_be_root
+	make_path $MODS_PATH
+	make_path $LIVE_ROOT
+	make_path $FULL_ROOT
+	make_path $TEMP_ROOT
+	# a collection of base path for ro lower layer in overlayfs
+	BASE_PATH="${LIVE_ROOT}"
+	make_mark $LIVE_ROOT
+	# go through the list
+	for pkgs_list in $full_list ; do
+		for pack in ${pkgs_list} ; do
+			PACK_PATH=${PACK_TEMP}/${pack}
+			PACK_NAME=${LIVE_NAME}_${pack}-${LIVE_VERS}-${LIVE_ARCH}.sxz
+			PACK_FULL=${MODS_PATH}/${PACK_NAME}
+			make_path $PACK_PATH
+			# remove old package
+			[ -f ${PACK_FULL} ] && rm -rf ${PACK_FULL}
+			# now we start to build
+			make_mark ${PACK_PATH}
+			info_msg "-- Installing the '${pack}' pack.\n"
+			#umount ${FULL_ROOT} 2>>${DEBUG_LOG} || true
+			OVERLAYFS="-t overlay -o lowerdir=${BASE_PATH}"
+			OVERLAYFS="${OVERLAYFS},upperdir=${PACK_PATH}"
+			OVERLAYFS="${OVERLAYFS},workdir=${TEMP_ROOT}"
+			clean_path "$TEMP_ROOT" "/*"
+			mount ${OVERLAYFS} overlay ${FULL_ROOT} 2>>$DEBUG_LOG
+			[ $? -ne 0 ] && clean_exit "Mount overlay error!\n"
+			# install - basically to PACK_PATH?
+			install_list ${pack} ${FULL_ROOT}
+			remove_docs ${FULL_ROOT}
+			umount ${FULL_ROOT} 2>>${DEBUG_LOG} || true
+			clean_path "$TEMP_ROOT" "/*"
+			# make module
+			info_msg "Squashing module: $pack!\n"
+			mksquashfs ${PACK_PATH} ${PACK_FULL} ${MSFS_OPTS} >>$DEBUG_LOG 2>&1
+			# include into base overlay
+			BASE_PATH="${PACK_PATH}:${BASE_PATH}"
+			# mount everything? skip this?
+			mount -t squashfs -o loop ${PACK_FULL} ${PACK_PATH} 2>>$DEBUG_LOG
+			[ $? -ne 0 ] && clean_exit "Mount error!\n"
+			PACK_LIST="${PACK_PATH}${PACK_LIST} "
+		done
+	done
+	clean_exit
+}
+
+make_clean()
+{
+	info_msg "-- Removing root paths.\n"
+	rm -rf $LIVE_ROOT
+	rm -rf $FULL_ROOT
+	rm -rf $TEMP_ROOT
+	info_msg "-- Removing temp package path.\n"
+	rm -rf $PACK_TEMP
+	info_msg "-- Removing work path.\n"
+	rm -rf $WORK_PATH
+	info_msg "-- Removing log.\n"
+	rm -rf $DEBUG_LOG
+}
+
+make_clean_all()
+{
+	make_clean
+	info_msg "-- Removing modules path.\n"
+	rm -rf $MODS_PATH
+}
+
+process_command()
+{
+	local go_commands="make_modules make_clean make_clean_all"
+	local chk_command=$1
+	local do_command
+	shift
+	# check command
+	for tcommand in $go_commands; do
+		[ "$chk_command" == "$tcommand" ] &&
+			do_command=$chk_command && break
+	done
+	[ "$do_command" == "" ] && echo -e "HELP MESSAGE HERE!\n" && exit 0
+	make_setup
+	# execute command
+	case $do_command in
+		make_clean)
+			make_clean
+			;;
+		make_clean_all)
+			make_clean_all
+			;;
+		make_modules)
+			make_modules "00core"
+			;;
+		*) echo "WHAT???" && exit 1
+	esac
+}
+
+# BEGIN MAIN SCRIPT
+
+echo -e "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n"
+process_command "$@"
+echo ; exit 0
+
+# END MAIN SCRIPT
+
+# copy_exec unionfs $path_init/bin $path_root
+
+function copy_exec() # for reference
+{
+	local src_exec=$1
+	local tgt_path=$2
+	local chk_root=$3 # chroot option!
+	local chk_libs ifs_save this_lib chk_path chk_exec opt_root
+	[ -d "$chk_root" ] && chk_root=$(cd $chk_root;pwd) || chk_root=""
+	[ "$chk_root" != "" ] && [ ! -d "$chk_root/proc" ] &&
+		echo -e "'$chk_root' may not be a chroot target?\n" && exit 1
+	[ "$chk_root" != "" ] && opt_root="chroot $chk_root"
+	[ "$chk_root" != "" ] && mount --bind /proc $chk_root/proc
+	# find full path
+	src_exec=$($opt_root which $src_exec 2>/dev/null)
+	[ $? -ne 0 ] && echo -e "'$1' NOT found! Aborting!\n" && exit 1
+	chk_exec=${chk_root}${src_exec}
+	[ ! -e "$chk_exec" ] &&
+		echo -e "'$chk_exec' NOT a valid executable! Aborting!\n" && exit 1
+	# check target path
+	tgt_path=$(cd $tgt_path;pwd)
+	[ ! -d $tgt_path ] &&
+		echo -e "'$2' NOT a valid path?! Aborting!\n" && exit 1
+	# copy exec AND dependencies!
+	cp $chk_exec $tgt_path
+	ifs_save=$IFS
+	IFS=$'\n'
+	chk_libs=($($opt_root ldd $src_exec 2>/dev/null))
+	IFS=$ifs_save
+	for (( x=0;x<${#chk_libs[@]};x++ )); do
+		this_lib=${chk_libs[$x]%% (0x*}
+		this_lib=${this_lib##*=> }
+		[ "$this_lib" == "" ] && continue # linux-vdso.so.1!!
+		this_lib=${chk_root}$this_lib
+		[ ! -f $this_lib ] && error_exit "Cannot find lib '$this_lib'?"
+		cp $this_lib $tgt_path
+	done
+	[ "$chk_root" != "" ] && umount $chk_root/proc
+}
+
+# copy_file busybox $path_init/bin
+
+function copy_file() # for reference
+{
+	local src_file=$1
+	local tgt_path=$2
+	# check source file full name
+	src_file=$(cd $(dirname $src_file);pwd)/$(basename $src_file)
+	[ ! -e "$src_file" ] && error_exit "Cannot find '$src_file'!"
+	# check target path
+	tgt_path=$(cd $tgt_path;pwd)
+	must_have_path "$tgt_path" "'$tgt_path' NOT a valid path?!"
+	# copy file
+	cp $src_file $tgt_path
+}
+
+function mkpack_init() # for reference
+{
+	local path_init=$1
+	local path_live=$2
+	local path_boot=$path_live/boot
+	local path_curr=`pwd`
+	local init_name=$3
+	[ -z "$init_name" ] && init_name="initram"
+	local file_init=$path_boot/$init_name
+	cd $path_init
+	mkdir -p $path_boot
+	rm -f $file_init
+	find . | cpio -o -H newc 2>/dev/null | gzip -9c > $file_init
+	cd $path_curr
+}
+
+function unpack_init() # for reference
+{
+	local file_init=$1
+	local path_init=$2
+	local path_curr=`pwd`
+	mkdir -p $path_init
+	cd $path_init
+	zcat $file_init | cpio -i -d -H newc --no-absolute-filenames
+	cd $path_curr
+}
+
+function get_userngrp()
+{
+	local chk_this=$1
+	local chk_path
+	local chk_user chk_grpn
+	[ "$chk_this" == "." ] && chk_this=$(pwd)
+	[ "$chk_this" == ".." ] && chk_this=$(cd .. ;pwd)
+	[ ! -r "$chk_this" ] && echo -e "Cannot read '$chk_this'!" 1>&2 && return
+	chk_path=$(cd $(dirname $chk_this);pwd)
+	chk_this=$(basename $chk_this)
+	chk_user=$(ls -l "${chk_path}/" | grep -e "${chk_this}$")
+	set -- $chk_user
+	chk_user=$3
+	chk_grpn=$4
+	echo -n "$chk_user:$chk_grpn"
+}
