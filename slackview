@@ -13,7 +13,7 @@ MY1_TOOL_LIB="libmy1slack"
 # look for my1slack library
 [ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
 # get slackware tree info
-call_debug >/dev/null 2>&1
+call_setup
 # prepare help message
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
