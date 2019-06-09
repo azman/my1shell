@@ -180,6 +180,26 @@ must_be_root()
 	[ $UID -ne 0 ] && error_exit "Must run as root!"
 }
 
+get_path_owner()
+{
+	local chk_user chk_grpn
+	local chk_path
+	local chk_this=$1
+	[ "$chk_this" == "/" ] && echo -n "root:root" && return
+	[ "$chk_this" == "." ] && chk_this=`pwd`
+	[ "$chk_this" == ".." ] && chk_this=`cd .. ; pwd`
+	[ ! -r "$chk_this" ] && return
+	chk_path=`dirname $chk_this`
+	chk_path=`cd $chk_path ; pwd`
+	chk_this=`basename $chk_this`
+	[ ! -r "$chk_path" ] && return
+	chk_user=`ls -l "${chk_path}/" | grep -e "${chk_this}$"`
+	set -- $chk_user
+	chk_user=$3
+	chk_grpn=$4
+	echo -n "$chk_user:$chk_grpn"
+}
+
 # slack management functions
 
 get_pkg_info()
