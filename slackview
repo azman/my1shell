@@ -87,7 +87,7 @@ function file_pack_part()
 
 function file_insert_package()
 {
-	local pkg_temp pkg_test
+	local pkg_temp pkg_test pkg_pack pkg_what
 	local pkg_file=$1
 	local pkg_name=$2
 	local pkg_list=`cat $pkg_file | grep "$pkg_name"`
@@ -101,22 +101,17 @@ function file_insert_package()
 		pkg_test=`find_package $pkg_name $SLACKPACK`
 		[ "$pkg_test" == "" ] &&
 			echo "PACKAGE: [INSERT] => $pkg_name (FAILED!)" && return
-		# insert if no matching entry
+		# insert if package is valid
 		echo "$pkg_temp" >>$pkg_file
 		echo "PACKAGE: [INSERT] => $pkg_temp ($pkg_test)"
 	else
-		if [ "$pkg_test" == "$pkg_temp" ] ; then
-			pkg_test=`echo $pkg_temp | cut -d'!' -f1`
-			if [ "$pkg_test" != "z" ] ; then
-				pkg_test=`find_package $pkg_name $SLACKPACK`
-			else
-				pkg_test="EXTERNAL PACKAGE?"
-			fi
+		pkg_pack=`echo $pkg_test | cut -d'!' -f1`
+		pkg_what=`echo $pkg_temp | cut -d'!' -f1`
+		if [ "$pkg_what" != "$pkg_pack" ] ; then
+			sed -i -e "\|^$pkg_test\$|c\\$pkg_temp" $pkg_file
+			[ $? -ne 0 ] && pkg_test="$FAILED!"
+			echo "PACKAGE: [UPDATE] => $pkg_temp ($pkg_test)"
 		fi
-		# update if existing found
-		sed -i -e "\|^$pkg_test\$|c\\$pkg_temp" $pkg_file
-		[ $? -ne 0 ] && pkg_test="$FAILED!"
-		echo "PACKAGE: [UPDATE] => $pkg_temp ($pkg_test)"
 	fi
 }
 
@@ -170,18 +165,40 @@ function file_option_package()
 	fi
 }
 
-function file_update_packages()
+function file_dolist_packages()
 {
 	local pkg_temp pkg_name pkg_base
 	local pkg_file=$1
+	# browse packages on file
+	while read -r pkg_loop  ; do
+		pkg_temp=`echo $pkg_loop | grep -E '^ *#|^$'`
+		if [ "$pkg_temp" != "" ] ; then
+			echo "[COMMENT] '$pkg_loop'"
+		else
+			pkg_temp=`echo $pkg_loop | cut -d'!' -f1`
+			pkg_name=`echo $pkg_loop | cut -d'!' -f2`
+			pkg_base=`find_package $pkg_name $SLACKPACK`
+			if [ "$pkg_base" = "" ] ; then
+				echo "[NOT FOUND] '$pkg_loop'"
+			else
+				echo "[PACKAGE] $pkg_base ($pkg_temp:$pkg_name)"
+			fi
+		fi
+	done < $pkg_file
+}
+
+function file_update_packages()
+{
+	local pkg_temp pkg_name
+	local pkg_file=$1
 	local pkg_list=`cat $pkg_file`
 	# browse packages on file
-	for pkg_loop in $pkg_list ; do
-		pkg_temp=`echo $pkg_loop | cut -d'!' -f1`
+	while read -r pkg_loop  ; do
+		pkg_temp=`echo $pkg_loop | grep -E '^ *#|^$'`
+		[ "$pkg_temp" != "" ] && continue
 		pkg_name=`echo $pkg_loop | cut -d'!' -f2`
-		pkg_base=`find_package $pkg_name $SLACKPACK`
 		file_insert_package $pkg_file $pkg_name
-	done
+	done < $pkg_file
 }
 
 function view_file_package()
@@ -198,6 +215,9 @@ function view_file_package()
 				;;
 			--update)
 				do_select="UPD"
+				;;
+			--list)
+				do_select="LST"
 				;;
 			--sort)
 				do_select="SOT"
@@ -228,11 +248,16 @@ function view_file_package()
 	[ "$pkg_file" == "" ] && error_exit "No package list given!"
 	[ ! -f "$pkg_file" ] && touch "$pkg_file"
 	[ ! -r "$pkg_file" ] && error_exit "Cannot read '$pkg_file'!"
+	# check request to list packages
+	[ "$do_select" == "LST" ] &&
+		file_dolist_packages $pkg_file && return
 	# check request to update file
 	[ "$do_select" == "UPD" ] &&
 		file_update_packages $pkg_file && return
 	# check sort request
 	if [ "$do_select" == "SOT" ]; then
+		# make sure no whitespace?
+		sed 's|[[:space:]]|_|g' -i $pkg_file
 		echo -n "Sorting (with uniq) $pkg_file..."
 		cat $pkg_file | uniq | sort -o $pkg_file
 		echo " done!"
