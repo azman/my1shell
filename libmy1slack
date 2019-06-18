@@ -64,9 +64,10 @@ tag_msg()
 		case $1 in
 			--log) shift ; elog="$1" ;;
 			--tag) shift ; mtag="$1" ;;
+			--color) shift ; ctag="$1" ;;
 			--no-tag) mtag="" ;;
 			--stdout) eout="no" ;;
-			--color) shift ; ctag="$1" ;;
+			--stderr) eout="yes" ;;
 			*) break ;;
 		esac
 		shift
