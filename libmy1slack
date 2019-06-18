@@ -172,7 +172,7 @@ must_have_file()
 	local chk_file=$1 ; shift
 	local msg_fail=$@
 	[ "$msg_fail" == "" ] && msg_fail="File '$chk_file' not found!"
-	[ ! -f "$chk_path"  ] && error_exit "$msg_fail"
+	[ ! -f "$chk_file"  ] && error_exit "$msg_fail"
 }
 
 must_be_root()
