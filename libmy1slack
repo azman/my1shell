@@ -55,58 +55,72 @@ find_slacktree()
 
 tag_msg()
 {
-	local msg_tag=$1 ; shift
-	local col_tag=$1 ; shift
-	local out_err="yes"
-	[ "$1" == "--stdout" ] && out_err="" && shift
-	[ "$1" == "--no-tag" ] && msg_tag="" && shift
-	if [ "$out_err" == "yes" ]; then
-		echo -ne "\033[1;${col_tag}m${msg_tag}\033[0;${col_tag}m $1\033[0m" 1>&2
+	local mtag=""
+	local ctag="39" # default color
+	local elog="" # log filename
+	local eout="yes" # warnings/errors should go to stderr!
+	[ "$LOG_THIS" = "YES" ] && elog="yes"
+	while [ "$1" != "" ]; do
+		case $1 in
+			--log) shift ; elog="$1" ;;
+			--tag) shift ; mtag="$1" ;;
+			--no-tag) mtag="" ;;
+			--stdout) eout="no" ;;
+			--color) shift ; ctag="$1" ;;
+			*) break ;;
+		esac
+		shift
+	done
+	if [ "$eout" = "yes" ] ; then
+		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m " 1>&2
+		echo -ne "\033[1;${ctag}m$1\033[0m" 1>&2
 	else
-		echo -ne "\033[1;${col_tag}m${msg_tag}\033[0;${col_tag}m $1\033[0m"
+		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m "
+		echo -ne "\033[1;${ctag}m$1\033[0m"
 	fi
+	[ "$elog" != "" ] && echo -ne "$mtag $@" >>$elog
 }
 
 error_msg()
 {
-	local error_tag="[ERROR]"
-	local color_tag="31"
-	tag_msg "$error_tag" "$color_tag" "$@"
+	local color_tag="31" # red
+	tag_msg --tag "[ERROR]" --color "$color_tag" "$@"
 }
 
 error_exit()
 {
-	error_msg "--no-tag" "\n"
-	error_msg "$@ Aborting!\n\n"
+	echo ; error_msg "$@ Aborting!\n\n"
 	exit 1
 }
 
 debug_msg()
 {
-	local debug_tag="[DEBUG]"
-	local color_tag="33"
-	tag_msg "$debug_tag" "$color_tag" "$@"
+	local color_tag="36" # cyan
+	tag_msg --tag "[DEBUG]" --color "$color_tag" "$@"
 }
 
 check_msg()
 {
-	local check_tag="[CHECK]"
 	local color_tag="34"
-	tag_msg "$check_tag" "$color_tag" "$@"
+	tag_msg --tag "[CHECK]" --color "$color_tag" --stdout "$@"
 }
 
 warn_msg()
 {
-	local warn0_tag="[WARN]"
-	local color_tag="33"
-	tag_msg "$warn0_tag" "$color_tag" "$@"
+	local color_tag="33" # yellow
+	tag_msg --tag "[WARN]" --color "$color_tag" "$@"
+}
+
+head_msg()
+{
+	local color_tag="34" #blue
+	tag_msg --color "$color_tag" --stdout "$@"
 }
 
 info_msg()
 {
-	local info0_tag="[INFO]"
-	local color_tag="32"
-	tag_msg "$info0_tag" "$color_tag" "--stdout" "$@"
+	local color_tag="32" # green
+	tag_msg --tag "[INFO]" --color "$color_tag" --stdout "$@"
 }
 
 # find current system info
