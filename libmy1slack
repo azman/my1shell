@@ -128,9 +128,10 @@ info_msg()
 
 call_setup()
 {
-	local pkg_home=$1
-	SLACKNAME=`find_slackname`
-	SLACKVERS=`find_slackvers`
+	local sys_root=$1
+	local pkg_home=$2
+	[ -z "$SLACKNAME" ] && SLACKNAME=`find_slackname $sys_root`
+	[ -z "$SLACKVERS" ] && SLACKVERS=`find_slackvers $sys_root`
 	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
 	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
 	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
@@ -585,6 +586,68 @@ list_package_path()
 			chk_stat="nlist"
 		fi
 		echo -n "$chk_name:$chk_stat:$chk_file:$chk_vers;"
+	done
+}
+
+list_patches()
+{
+	local chk_root sys_name sys_vers sys_tree
+	local chk_path="/home/share"
+	local chk_skip chk_more chk_temp
+	while [ "$1" != "" ]; do
+		case $1 in
+			--tree)
+				shift
+				[ -d "$1" ] && sys_tree=`cd $1;pwd`
+				;;
+			--name)
+				shift
+				sys_name=$1
+				;;
+			--vers)
+				shift
+				sys_vers=$1
+				;;
+			--root)
+				shift
+				[ -d "$1" ] && chk_root=`cd $1;pwd`
+				;;
+			--path)
+				shift
+				[ -d "$1" ] && chk_path=`cd $1;pwd`
+				;;
+			--more)
+				shift
+				[ -d "$1" ] && chk_temp=`cd $1;pwd` &&
+					chk_more="${chk_more}${chk_temp} "
+				;;
+			*)
+				chk_skip="${chk_skip}$1 "
+				;;
+		esac
+		shift
+	done
+	# check if we have identified slacktree
+	if [ ! -d "$sys_tree" ] ; then
+		# make sure these are established
+		[ -z "$sys_name" ] && sys_name=`find_slackname $chk_root`
+		[ -z "$sys_vers" ] && sys_vers=`find_slackvers $chk_root`
+		sys_tree=`find_slacktree $sys_name-$sys_vers $chk_path`
+		[ ! -d "$sys_tree" ] && return
+	fi
+	local sys_logs="$chk_root/var/log/packages"
+	# start looking...
+	local patchdir="$sys_tree/patches/packages"
+	[ ! -d $patchdir ] && return
+	list_package_path $patchdir $sys_logs $chk_skip
+	# look for paths for kernel patches
+	local lnx_path=`find $patchdir -name "linux-*" -type d -maxdepth 1`
+	for path in $lnx_path ; do
+		list_package_path $path $sys_logs $chk_skip
+	done
+	# process extra paths?
+	for path in $chk_more ; do
+		list_package_path $path $sys_logs $chk_skip
 	done
 }
 

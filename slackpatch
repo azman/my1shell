@@ -2,36 +2,31 @@
 
 # slackpatch
 # - written by azman@my1matrix.net
-# - slackware patch manager
-# - using upgradepkg from pkgtools
+# - slackware patch manager, using upgradepkg from pkgtools
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Patch Tool"
-MY1_TOOLVERS="2019.06.00"
+MY1_TOOLVERS="2019.06.01"
 MY1_TOOLBASE=`basename $0 .sh`
 MY1_TOOLPATH=`dirname $0`
-MY1_TOOL_LIB="libmy1slack"
+MY1_TOOLPATH=`cd $MY1_TOOLPATH;pwd`
+MY1_TLIBNAME="libmy1slack"
+MY1_TLIBFULL="$MY1_TOOLPATH/$MY1_TLIBNAME"
 # look for my1slack library
-[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
-# get slackware tree info
+[ -r "$MY1_TLIBFULL" ] && . $MY1_TLIBFULL
 call_setup
 # look for config file
 for config in `pwd` $HOME; do
 	config=$config/.$MY1_TOOLBASE
 	[ -r $config ] && . $config && break
 done
+MY1_TLOGFULL=${MY1_TLOGFULL:="/tmp/${MY1_TOOLBASE}.log"}
 
-# my1slack tool specific
-MY1_TOOL_LOG=${MY1_TOOL_LOG:="/tmp/${MY1_TOOLBASE}.log"}
-MY1_SLACKDIR=${MY1_SLACKDIR:="${SLACKTREE}"}
-MY1_PATCHDIR=${MY1_PATCHDIR:="${SLACKTREE}/patches/packages"}
-MY1_SPACKDIR=${MY1_SPACKDIR:="${SLACKNAME//ware/pack}-$SLACKVERS"}
-MY1_PATCHEXT=${MY1_PATCHEXT:="${SLACKROOT}/$MY1_SPACKDIR"}
 # global options & settings
 OPT_VERBOSE="NO"
-OPT_LOGFILE="/dev/null"
 OPT_UPGRADE=""
-OPT_NOTHIRD="NO"
+OPT_LOGFILE=${OPT_LOGFILE:="/dev/null"}
+OPT_NOTHIRD=${OPT_NOTHIRD:="NO"}
 PKG_IGNORED=${PKG_IGNORED:=""} # std package to ignore
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
@@ -43,76 +38,15 @@ Commands:
   patch : Apply updates/patches
 Options:
   --verbose : Verbose mode (will also prompt patching!)
-  --log     : Write process & results to log file '$MY1_TOOL_LOG'
+  --log     : Write process & results to log file '$MY1_TLOGFULL'
   --pkg <package_name>  : Check/update specific package
   --path <path_name>    : Specify additional patch path
   --skip <package_name> : Specify packages to skip
 Mirror Source:
-  $MY1_SLACKDIR
+  $SLACKTREE
 SETHELPMSG`
 
-function check_patches()
-{
-	local pat_path pat_list pat_temp lnx_path
-	[ ! -d $MY1_PATCHDIR ] &&
-		error_exit "Path '$MY1_PATCHDIR' not found!\n\n"
-	MY1_PATCHDIR=`cd $MY1_PATCHDIR ; pwd`
-	pat_list=`list_package_path $MY1_PATCHDIR $SLACKLOGS $PKG_IGNORED`
-	# look for paths for kernel patches
-	lnx_path=`find $MY1_PATCHDIR -name "linux-*" -type d -maxdepth 1`
-	for path in $lnx_path ; do
-		pat_temp=`list_package_path $path $SLACKLOGS $PKG_IGNORED`
-		pat_list="${pat_list}${pat_temp}"
-	done
-	if [ "$OPT_NOTHIRD" != "YES" ] ; then
-		# look for extra custom package path
-		if [ -d "$MY1_PATCHEXT" ] ; then
-			pat_path=$MY1_PATCHEXT
-			pat_temp=`list_package_path $pat_path $SLACKLOGS $PKG_IGNORED`
-			pat_list="${pat_list}${pat_temp}"
-		fi
-		# process extra paths
-		while [ "$1" != "" ] ; do
-			pat_path=`cd $1 ; pwd`
-			[ ! -d $pat_path ] && error_exit "Path '$pat_path' is invalid!\n\n"
-			pat_temp=`list_package_path $pat_path $SLACKLOGS $PKG_IGNORED`
-			pat_list="${pat_list}${pat_temp}"
-			shift
-		done
-	fi
-	echo -n "$pat_list"
-}
-
-function apply_patch()
-{
-	local pat_temp pat_name pat_stat pat_file do_update
-	pat_temp="$@"
-	pat_name=`echo $pat_temp | cut -d':' -f1`
-	pat_stat=`echo $pat_temp | cut -d':' -f2`
-	pat_file=`echo $pat_temp | cut -d':' -f3`
-	# check if can be applied
-	[ "$pat_stat" != "check" ] && return # patch not needed
-	[ ! -r "$pat_file" ] &&
-		error_exit "File '$pat_file' not found!\n\n"
-	# apply the patch!
-	if [ "$OPT_VERBOSE" == "YES" ]; then
-		read -n 1 -p "Update '$pat_name'? [y]/[*]/[q] : " do_update ; echo
-		if [ "$do_update" == "y" ]; then
-			echo -n "Updating '$pat_name'... "
-			/sbin/upgradepkg $OPT_UPGRADE ${pat_file} >>$OPT_LOGFILE
-			echo "done."
-		elif [ "$do_update" == "q" ]; then
-			warn_msg "Aborting on '$pat_name'!"
-			exit 0
-		fi
-	elif [ "$OPT_VERBOSE" == "NO" ]; then
-		echo -n "Auto-updating '$pat_name'... "
-		/sbin/upgradepkg $OPT_UPGRADE ${pat_file} >>$OPT_LOGFILE
-		echo "done."
-	fi
-}
-
-function display_patches()
+display_patches()
 {
 	local pat_temp pat_name pat_stat pat_vers
 	local pat_opts pat_list chk_null
@@ -141,7 +75,36 @@ function display_patches()
 	fi
 }
 
-function execute_patches()
+apply_patch()
+{
+	local pat_temp pat_name pat_stat pat_file do_update
+	pat_temp="$@"
+	pat_name=`echo $pat_temp | cut -d':' -f1`
+	pat_stat=`echo $pat_temp | cut -d':' -f2`
+	pat_file=`echo $pat_temp | cut -d':' -f3`
+	# check if can be applied
+	[ "$pat_stat" != "check" ] && return # patch not needed
+	[ ! -r "$pat_file" ] &&
+		error_exit "File '$pat_file' not found!\n\n"
+	# apply the patch!
+	if [ "$OPT_VERBOSE" == "YES" ]; then
+		read -n 1 -p "Update '$pat_name'? [y]/[*]/[q] : " do_update ; echo
+		if [ "$do_update" == "y" ]; then
+			echo -n "Updating '$pat_name'... "
+			/sbin/upgradepkg $OPT_UPGRADE ${pat_file} >>$OPT_LOGFILE
+			echo "done."
+		elif [ "$do_update" == "q" ]; then
+			warn_msg "Aborting on '$pat_name'!"
+			exit 0
+		fi
+	elif [ "$OPT_VERBOSE" == "NO" ]; then
+		echo -n "Auto-updating '$pat_name'... "
+		/sbin/upgradepkg $OPT_UPGRADE ${pat_file} >>$OPT_LOGFILE
+		echo "done."
+	fi
+}
+
+execute_patches()
 {
 	local pat_temp pat_name pat_stat pat_file pat_vers
 	local pat_opts pat_list pkg_list chk_list log_init
@@ -181,13 +144,12 @@ function execute_patches()
 	fi
 }
 
-function process_command()
+process_command()
 {
 	local go_commands="check pdone nlist patch"
 	local do_command
-	local pkg_list pkg_temp pat_list
-	# default?
-	local pkg_path="$PKG_EXT_PATH"
+	local pkg_list pkg_temp pkg_path pat_list
+	local pkg_path="--more ${SLACKROOT}/${SLACKFULL//ware/pack}"
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
@@ -195,7 +157,7 @@ function process_command()
 				OPT_VERBOSE="YES"
 				;;
 			--log)
-				OPT_LOGFILE="$MY1_TOOL_LOG"
+				OPT_LOGFILE="$MY1_TLOGFULL"
 				;;
 			--override)
 				OPT_UPGRADE="--reinstall --install-new"
@@ -207,7 +169,7 @@ function process_command()
 				shift
 				# check additional path
 				[ ! -d "$1" ] && error_exit "Cannot find path '$1'!\n\n"
-				pkg_path="${pkg_path} "`cd $1 ; pwd`
+				pkg_path="${pkg_path} --more "`cd $1 ; pwd`
 				;;
 			--pkg)
 				shift
@@ -236,7 +198,7 @@ function process_command()
 	[ "$do_command" == "" ] && do_command="check"
 	# find patches
 	echo -n "Looking for patches... "
-	pat_list=`check_patches $pkg_path`
+	pat_list=`list_patches --tree $SLACKTREE $pkg_path $PKG_IGNORED`
 	echo -e "done!\n"
 	# display packages
 	[ "$do_command" != "patch" ] &&

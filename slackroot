@@ -7,15 +7,18 @@
 # standard tool info
 MY1_TOOLNAME="my1 Slackware chroot32 Tool"
 MY1_TOOLVERS="2019.06.00"
-MY1_TOOLBASE=$(basename $0 .sh)
-MY1_TOOLPATH=$(cd $(dirname $0);pwd)
-MY1_TOOL_LIB="libmy1slack"
+MY1_TOOLBASE=`basename $0 .sh`
+MY1_TOOLPATH=`dirname $0`
+MY1_TOOLPATH=`cd $MY1_TOOLPATH;pwd`
+MY1_TLIBNAME="libmy1slack"
+MY1_TLIBFULL="$MY1_TOOLPATH/$MY1_TLIBNAME"
 # look for my1slack library
-[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
-# get slackware tree info
+[ -r "$MY1_TLIBFULL" ] && . $MY1_TLIBFULL
+# get slackware tree info - make sure 32-bit?
+SLACKNAME="slackware"
 call_setup
 # look for config file
-for config in $(pwd) $HOME; do
+for config in `pwd` $HOME; do
 	config=$config/.$MY1_TOOLBASE
 	[ -r $config ] && . $config && break
 done
@@ -372,7 +375,8 @@ function rootfs_update()
 	local chk_root="$MY1_ROOT_DEF"
 	local chk_exec=""
 	local chk_syyy=""
-	local pkg_list pkg_temp pkg_name pkg_base tmp_list chk_temp
+	local pkg_list pkg_temp pkg_name pkg_base
+	local chk_list chk_stat chk_temp
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
@@ -401,7 +405,6 @@ function rootfs_update()
 		[ "${chk_root:0:2}" == "./" ] && chk_root=${chk_root:2}
 		chk_root="$(pwd)/${chk_root}"
 	fi
-	pkg_path="$(cd ${pkg_path}/../patches;pwd)"
 	# check paths
 	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!\n\n"
 	[ ! -d "$chk_root" ] && error_exit "Cannot find root path '$chk_root'!\n\n"
@@ -410,17 +413,11 @@ function rootfs_update()
 	# start main info msg
 	info_msg "Updating root filesystem... "
 	# find patches
-	pkg_list=$(list_package_path $pkg_path ${chk_root}/var/log/packages)
-	local ifs_save=$IFS
-	IFS=$'\n'
-	tmp_list=($(echo "$pkg_list"))
-	IFS=$ifs_save
-	#echo "Patch Count: ${#tmp_list[@]}"
-	pkg_list=""
-	# extract packages list
-	for (( a=0;a<${#tmp_list[@]};a++ )); do
-		chk_temp=($(echo ${tmp_list[$a]}))
-		[ "${chk_temp[1]}" == "check" ] && pkg_list="${pkg_list}${chk_temp[2]} "
+	chk_list=`list_patches --root $chk_root | tr ';' ' '`
+	for pkg_that in $chk_list ; do
+		chk_stat=`echo $pkg_that | cut -d':' -f2`
+		chk_temp=`echo $pkg_that | cut -d':' -f3`
+		[ "$chk_stat" == "check" ] && pkg_list="${pkg_list}${chk_temp} "
 	done
 	if [ "$pkg_list" == "" ] ; then
 		info_msg --no-tag "Nothing to update.\n"
@@ -434,7 +431,7 @@ function rootfs_update()
 
 function process_command()
 {
-	local go_commands="create config chroot squash livefs update"
+	local go_commands="create config chroot update"
 	local chk_command=$1
 	local do_command
 	shift
