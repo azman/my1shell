@@ -55,7 +55,7 @@ function check_patches()
 {
 	local pat_path pat_list pat_temp lnx_path
 	[ ! -d $MY1_PATCHDIR ] &&
-		error_exit "Path '$MY1_PATCHDIR' not found!"
+		error_exit "Path '$MY1_PATCHDIR' not found!\n\n"
 	MY1_PATCHDIR=`cd $MY1_PATCHDIR ; pwd`
 	pat_list=`list_package_path $MY1_PATCHDIR $SLACKLOGS $PKG_IGNORED`
 	# look for paths for kernel patches
@@ -74,7 +74,7 @@ function check_patches()
 		# process extra paths
 		while [ "$1" != "" ] ; do
 			pat_path=`cd $1 ; pwd`
-			[ ! -d $pat_path ] && error_exit "Path '$pat_path' is invalid!"
+			[ ! -d $pat_path ] && error_exit "Path '$pat_path' is invalid!\n\n"
 			pat_temp=`list_package_path $pat_path $SLACKLOGS $PKG_IGNORED`
 			pat_list="${pat_list}${pat_temp}"
 			shift
@@ -93,7 +93,7 @@ function apply_patch()
 	# check if can be applied
 	[ "$pat_stat" != "check" ] && return # patch not needed
 	[ ! -r "$pat_file" ] &&
-		error_exit "File '$pat_file' not found!"
+		error_exit "File '$pat_file' not found!\n\n"
 	# apply the patch!
 	if [ "$OPT_VERBOSE" == "YES" ]; then
 		read -n 1 -p "Update '$pat_name'? [y]/[*]/[q] : " do_update ; echo
@@ -206,28 +206,28 @@ function process_command()
 			--path)
 				shift
 				# check additional path
-				[ ! -d "$1" ] && error_exit "Cannot find path '$1'!"
+				[ ! -d "$1" ] && error_exit "Cannot find path '$1'!\n\n"
 				pkg_path="${pkg_path} "`cd $1 ; pwd`
 				;;
 			--pkg)
 				shift
 				# check discrete package name
 				pkg_temp=`find_install $1 $SLACKPACK`
-				[ "$pkg_temp" == "" ] && error_exit "Unknown package '$1'!"
+				[ "$pkg_temp" == "" ] && error_exit "Unknown package '$1'!\n\n"
 				pkg_temp=`get_pkg_info $pkg_temp | cut -d' ' -f1`
 				pkg_list="${pkg_list} ${pkg_temp}"
 				;;
 			-*)
-				error_exit "Unknown option '$1'!"
+				error_exit "Unknown option '$1'\n\n!"
 				;;
 			*)
 				[ "$do_command" != "" ] &&
-					error_exit "Multiple commands '$1' & '$do_command'"
+					error_exit "Multiple commands '$1' & '$do_command'\n\n"
 				for tcommand in $go_commands; do
 					[ "$1" == "$tcommand" ] && do_command=$1 && break
 				done
 				[ "$do_command" == "" ] && echo -e "$MSG_THISHELP" &&
-					error_exit "Unknown command '$1'!"
+					error_exit "Unknown command '$1'!\n\n"
 				;;
 		esac
 		shift

@@ -245,9 +245,9 @@ function view_file_package()
 		shift
 	done
 	# check package file - create if needed
-	[ "$pkg_file" == "" ] && error_exit "No package list given!"
+	[ "$pkg_file" == "" ] && error_exit "No package list given!\n\n"
 	[ ! -f "$pkg_file" ] && touch "$pkg_file"
-	[ ! -r "$pkg_file" ] && error_exit "Cannot read '$pkg_file'!"
+	[ ! -r "$pkg_file" ] && error_exit "Cannot read '$pkg_file'!\n\n"
 	# check request to list packages
 	[ "$do_select" == "LST" ] &&
 		file_dolist_packages $pkg_file && return
@@ -265,7 +265,7 @@ function view_file_package()
 	fi
 	# check if list is empty
 	[ "$pkg_list" == "" ] &&
-		error_exit "No package selected? Nothing to do!"
+		error_exit "No package selected? Nothing to do!\n\n"
 	# process the given package list
 	for pkg in $pkg_list; do
 		case $do_select in
@@ -282,9 +282,9 @@ function process_command()
 	local pkgs_txt=$SLACKTREE/PACKAGES.TXT
 	local log_path="/var/log/packages"
 	[ ! -f $pkgs_txt ] &&
-		error_exit "File '$pkgs_txt' not found! Aborting!"
+		error_exit "File '$pkgs_txt' not found! Aborting!\n\n"
 	[ ! -d $log_path ] &&
-		error_exit "'$log_path' not found! Aborting!"
+		error_exit "'$log_path' not found! Aborting!\n\n"
 	tool_cmd=$1; shift
 	case "$tool_cmd" in
 		find)

@@ -90,7 +90,7 @@ error_msg()
 
 error_exit()
 {
-	echo ; error_msg "$@ Aborting!\n\n"
+	echo ; error_msg "$@"
 	exit 1
 }
 
@@ -168,8 +168,9 @@ must_have_exec()
 {
 	local chk_exec=$1 ; shift
 	local msg_fail=$@
+	local chk_full=`find_binary $chk_exec`
 	[ "$msg_fail" == "" ] && msg_fail="Executable '$chk_exec' not found!"
-	[ ! -x "$chk_exec"  ] && error_exit "$msg_fail"
+	[ ! -x "$chk_full"  ] && error_exit "$msg_fail\n\n"
 }
 
 must_have_path()
@@ -177,7 +178,7 @@ must_have_path()
 	local chk_path=$1 ; shift
 	local msg_fail=$@
 	[ "$msg_fail" == "" ] && msg_fail="Path '$chk_path' not found!"
-	[ ! -d "$chk_path"  ] && error_exit "$msg_fail"
+	[ ! -d "$chk_path"  ] && error_exit "$msg_fail\n\n"
 }
 
 must_have_file()
@@ -185,12 +186,12 @@ must_have_file()
 	local chk_file=$1 ; shift
 	local msg_fail=$@
 	[ "$msg_fail" == "" ] && msg_fail="File '$chk_file' not found!"
-	[ ! -f "$chk_file"  ] && error_exit "$msg_fail"
+	[ ! -f "$chk_file"  ] && error_exit "$msg_fail\n\n"
 }
 
 must_be_root()
 {
-	[ $UID -ne 0 ] && error_exit "Must run as root!"
+	[ $UID -ne 0 ] && error_exit "Must run as root!\n\n"
 }
 
 get_path_owner()

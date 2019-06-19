@@ -147,7 +147,7 @@ function do_pack_list()
 		CORE) pkg_opts="$pkg_core" ;;
 		CONS) pkg_opts="$pkg_core $pkg_apps" ;;
 		DESK) pkg_opts="$pkg_core $pkg_apps $pkg_xgui" ;;
-		*) error_exit "Unknown package option!" ;;
+		*) error_exit "Unknown package option!\n\n" ;;
 	esac
 	# check valid pkg path
 	must_have_path "$pkg_path" "Package(s) path '$pkg_path' not found!"
@@ -219,8 +219,8 @@ function rootfs_create()
 		fi
 	fi
 	# check paths
-	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!"
-	[ -d "$chk_root" ] && error_exit "Existing root path '$chk_root'!"
+	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!\n\n"
+	[ -d "$chk_root" ] && error_exit "Existing root path '$chk_root'!\n\n"
 	info_msg "Source path: '$pkg_path'\n"
 	info_msg "Target path: '$chk_root'\n"
 	info_msg "Pack option: '$pkg_opts'\n"
@@ -403,8 +403,8 @@ function rootfs_update()
 	fi
 	pkg_path="$(cd ${pkg_path}/../patches;pwd)"
 	# check paths
-	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!"
-	[ ! -d "$chk_root" ] && error_exit "Cannot find root path '$chk_root'!"
+	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!\n\n"
+	[ ! -d "$chk_root" ] && error_exit "Cannot find root path '$chk_root'!\n\n"
 	info_msg "Source path: '$pkg_path'\n"
 	info_msg "Target path: '$chk_root'\n"
 	# start main info msg
