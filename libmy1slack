@@ -164,14 +164,12 @@ find_binary()
 	echo -n $set_exec
 }
 
-must_have_binary()
+must_have_exec()
 {
 	local chk_exec=$1 ; shift
 	local msg_fail=$@
-	[ "$msg_fail" == "" ] && msg_fail="Binary '$chk_exec' not found!"
-	local set_exec=`find_binary $chk_exec`
-	[ "$set_exec" == "" ] && error_exit "$msg_fail"
-	echo -n $set_exec
+	[ "$msg_fail" == "" ] && msg_fail="Executable '$chk_exec' not found!"
+	[ ! -x "$chk_exec"  ] && error_exit "$msg_fail"
 }
 
 must_have_path()
