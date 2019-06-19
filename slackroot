@@ -422,8 +422,10 @@ function rootfs_update()
 		chk_temp=($(echo ${tmp_list[$a]}))
 		[ "${chk_temp[1]}" == "check" ] && pkg_list="${pkg_list}${chk_temp[2]} "
 	done
-	[ "$pkg_list" == "" ] &&
-		info_msg --no-tag "Nothing to update.\n" && return
+	if [ "$pkg_list" == "" ] ; then
+		info_msg --no-tag "Nothing to update.\n"
+		return
+	fi
 	# install the packages
 	do_root_update $chk_root $pkg_list $chk_syyy $chk_exec
 	# end main info msg
