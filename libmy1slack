@@ -10,13 +10,13 @@ MY1_LIBCALL=`basename $0 .sh`
 
 find_slackname()
 {
-	local path=$1 # in case looking in a chroot installation?
+	local path=$1
 	local file="/bin/bash"
 	# make sure path is valid
 	[ "$path" == "/" ] && path=""
-	[ "$path" != "" -a ! -d "$path" ] && echo -n "" && return
+	[ "$path" != "" -a ! -d "$path" ] && return
 	# make sure file is valid
-	[ ! -f "${path}${file}" ] && echo -n "" && return
+	[ ! -f "${path}${file}" ] && return
 	# get slackware arch... NOT machine arch!
 	local arch=`file ${path}${file} | sed -e "s/^.*: \([^,]*\),.*$/\1/"`
 	arch=`echo $arch | cut -d' ' -f2`
@@ -27,7 +27,7 @@ find_slackname()
 
 find_slackvers()
 {
-	local path=$1 # in case looking in a chroot installation?
+	local path=$1
 	local file="/etc/slackware-version"
 	# make sure path is valid
 	[ "$path" == "/" ] && path=""
@@ -48,7 +48,7 @@ find_slacktree()
 	[ ! -d "$path" ] && return
 	local opts="-maxdepth 3 -name $name -type d"
 	local tree=`find $path $opts 2>/dev/null`
-	echo -n "$tree"
+	echo -n $tree
 }
 
 # output functions
@@ -102,7 +102,7 @@ debug_msg()
 
 check_msg()
 {
-	local color_tag="34"
+	local color_tag="34" #blue
 	tag_msg --tag "[CHECK]" --color "$color_tag" --stdout "$@"
 }
 

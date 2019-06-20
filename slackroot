@@ -2,11 +2,11 @@
 
 # slackroot
 # - written by azman@my1matrix.net
-# - slackware 32-bit chroot (through ssh) installation
+# - slackware 32-bit chroot install and update
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware chroot32 Tool"
-MY1_TOOLVERS="2019.06.00"
+MY1_TOOLVERS="2019.06.01"
 MY1_TOOLBASE=`basename $0 .sh`
 MY1_TOOLPATH=`dirname $0`
 MY1_TOOLPATH=`cd $MY1_TOOLPATH;pwd`
@@ -17,43 +17,31 @@ MY1_TLIBFULL="$MY1_TOOLPATH/$MY1_TLIBNAME"
 # get slackware tree info - make sure 32-bit?
 SLACKNAME="slackware"
 call_setup
-# look for config file
-for config in `pwd` $HOME; do
-	config=$config/.$MY1_TOOLBASE
-	[ -r $config ] && . $config && break
-done
-
-# my1slack tool specific
+# tool specific
 MY1_TOOL_LOG=${MY1_TOOL_LOG:="/tmp/${MY1_TOOLBASE}.log"}
 MY1_ROOT_DEF=${MY1_ROOT_DEF:="/opt/chroot32"}
-MY1_LIVE_DEF=${MY1_LIVE_DEF:="$(pwd)/live"}
-MY1_USER_DEF=${MY1_USER_DEF:="user"}
-MY1_PACK_DEF=${MY1_PACK_DEF:="00-core"}
 # global options & settings
 MSG_THISHELP=$(cat <<SETHELPMSG
 Usage:
   $MY1_TOOLBASE <command> [options]
 Commands:
-  create : Create a custom root installation
-  config : Configure for chroot32 installation
-  chroot : Do create & config in one command
-  update : Updates chroot installation
+  create : Creates a custom root installation
+  update : Updates a custom root installation
 Options:
-  --verbose : More info
-  --exec    : Execute (else just dry run!)
-  --root <path> : Specify root path (default: $MY1_ROOT_DEF)
-Options (create):
-  --path <path> : Specify path for packages
-  --file <file> : Specify file containing package list
-  --core    : Select basic system tool packages
-  --console : Select console application packages
-  --desktop : Select desktop application packages
+  -v | --verbose : More info
+  -x | --execute : Execute (else just dry run!)
+  -r | --root <path> : Specify root path (default: $MY1_ROOT_DEF)
+  -p | --path <path> : Specify path for packages
+  -f | --file <file> : Specify file containing package list
+       --core    : Select basic system tool packages
+       --console : Select console application packages
+       --desktop : Select desktop application packages
 Log File:
   $MY1_TOOL_LOG
 SETHELPMSG
 )
 
-function do_root_update()
+do_root_update()
 {
 	local chk_root=$1
 	local chk_exec="NO"
@@ -85,17 +73,16 @@ function do_root_update()
 		echo "ExecTime: $(date +%Y%m%d%H%M)" >>$MY1_TOOL_LOG
 	fi
 	for pkg_file in $pkg_list; do
-		[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
-		[ "$chk_syyy" != "YES" ] &&
+		[ "$chk_syyy" != "YES" ] && echo &&
 			info_msg "Updating $(basename $pkg_file) in $chk_root ..."
 		[ "$chk_exec" == "YES" ] &&
 			ROOT=$chk_root upgradepkg $pkg_opts $pkg_file >>$MY1_TOOL_LOG
 		[ "$chk_syyy" != "YES" ] && info_msg --no-tag " done!"
 	done
-	[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
+	[ "$chk_syyy" != "YES" ] && echo
 }
 
-function do_root_install()
+do_root_install()
 {
 	local chk_root=$1
 	local chk_exec="NO"
@@ -127,17 +114,16 @@ function do_root_install()
 		echo "ExecTime: $(date +%Y%m%d%H%M)" >>$MY1_TOOL_LOG
 	fi
 	for pkg_file in $pkg_list; do
-		[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
-		[ "$chk_syyy" != "YES" ] &&
+		[ "$chk_syyy" != "YES" ] && echo &&
 			info_msg "Installing $(basename $pkg_file) to $chk_root ..."
 		[ "$chk_exec" == "YES" ] &&
 			installpkg --root $chk_root $pkg_file >>$MY1_TOOL_LOG
 		[ "$chk_syyy" != "YES" ] && info_msg --no-tag " done!"
 	done
-	[ "$chk_syyy" != "YES" ] && info_msg --no-tag "\n"
+	[ "$chk_syyy" != "YES" ] && echo
 }
 
-function do_pack_list()
+do_pack_list()
 {
 	local pkg_core="a d k l n"
 	local pkg_apps="ap t tcl"
@@ -168,7 +154,7 @@ function do_pack_list()
 	echo -n "$pkg_list"
 }
 
-function rootfs_create()
+rootfs_create()
 {
 	local pkg_path="$SLACKPACK"
 	local pkg_opts="CORE" # default package set
@@ -208,7 +194,9 @@ function rootfs_create()
 			--exec)
 				chk_exec="--exec"
 				;;
-			# ignore the rest!
+			*)
+				error_exit "Unknown parameter '$1'!\n\n"
+				;;
 		esac
 		shift
 	done
@@ -261,115 +249,7 @@ function rootfs_create()
 	info_msg --no-tag "done.\n"
 }
 
-function chroot_config()
-{
-	local chk_root="$MY1_ROOT_DEF"
-	local chk_exec="NO"
-	local chk_syyy="YES"
-	local chk_file
-	# check parameters (just look for root and exec)_
-	while [ "$1" != "" ]; do
-		case "$1" in
-			--root)
-				shift
-				chk_root=$1
-				# ensure full pathname
-				if [ "${chk_root:0:1}" != "/" ] ; then
-					[ "${chk_root:0:2}" == "./" ] && chk_root=${chk_root:2}
-					chk_root="$(pwd)/${chk_root}"
-				fi
-				;;
-			--verbose|-v)
-				chk_syyy="NO"
-				;;
-			--exec)
-				chk_exec="YES"
-				;;
-			# ignore the rest!
-		esac
-		shift
-	done
-	# create entries for fstab and sshd (also rc.local_shutdown command)
-local FSTAB_ENTRY=$(cat <<FSTAB_LINES
-# for chroot
-proc            $chk_root/proc     proc    defaults        0 0
-sysfs           $chk_root/sys      sysfs   defaults        0 0
-/home           $chk_root/home     none    bind            0 0
-/tmp            $chk_root/tmp      none    bind            0 0
-/etc            $chk_root/etc      none    bind            0 0
-/dev            $chk_root/dev      none    rbind           0 0
-FSTAB_LINES
-)
-local SSHD_ENTRY=$(cat <<SSHD_LINES
-# local ssh means chroot?
-Match Address 127.0.0.1
-	ChrootDirectory $chk_root
-	X11Forwarding yes
-SSHD_LINES
-)
-local SHUTDOWN_ENTRY=$(cat <<SHUTDOWN_LINES
-# unbind $chk_root/dev 'recursively'
-chk_path=$chk_root/dev
-[ "\$(cat /proc/mounts|grep \$chk_path)" != "" ] &&
-	umount -n \$(cat /proc/mounts|awk '{print \$2}'|grep "^\$chk_path"|sort -r)
-# unmount chroot mounts manually
-for a in etc tmp home sys proc; do
-	chk_path=$chk_root/\$a
-	[ "\$(cat /proc/mounts|grep \$chk_path)" != "" ] && umount \$chk_path
-done
-SHUTDOWN_LINES
-)
-	# start main info msg
-	info_msg "Configuring chroot environment..."
-	# must be root to exec!
-	[ "$chk_exec" == "YES" ] && must_be_root
-	# check valid root path - only if executing
-	[ "$chk_exec" == "YES" ] &&
-		must_have_path "$chk_root" "Root path '$chk_root' not found!"
-	local do_echo="no"
-	# check fstab
-	if [ "$(cat /etc/fstab | grep $chk_root)" == "" ]; then
-		if [ "$chk_syyy" == "NO" ] ; then
-			check_msg --no-tag "\n"
-			check_msg "Adding text to /etc/fstab:"
-			echo -ne "\n$FSTAB_ENTRY"
-			do_echo="yes"
-		fi
-		[ "$chk_exec" == "YES" ] &&
-			echo -e "\n$FSTAB_ENTRY" >> /etc/fstab
-	fi
-	# check sshd_config
-	if [ "$(cat /etc/ssh/sshd_config | grep $chk_root)" == "" ]; then
-		if [ "$chk_syyy" == "NO" ] ; then
-			check_msg --no-tag "\n"
-			check_msg "Adding text to /etc/ssh/sshd_config:"
-			echo -ne "\n$SSHD_ENTRY"
-			do_echo="yes"
-		fi
-		[ "$chk_exec" == "YES" ] &&
-			echo -e "\n$SSHD_ENTRY" >> /etc/ssh/sshd_config
-	fi
-	# check shutdown
-	chk_file="/etc/rc.d/rc.local_shutdown"
-	[ "$chk_exec" == "YES" ] && [ ! -f "$chk_file" ] && touch $chk_file
-	local chk_out=""
-	[ -r "$chk_file" ] && chk_out="$(cat $chk_file | grep $chk_root/dev)"
-	if [ ! -f "$chk_file" ] || [ "$chk_out" == "" ]; then
-		if [ "$chk_syyy" == "NO" ] ; then
-			check_msg --no-tag "\n"
-			check_msg "Adding text to $chk_file:"
-			echo -ne "\n$SHUTDOWN_ENTRY"
-			do_echo="yes"
-		fi
-		[ "$chk_exec" == "YES" ] &&
-			echo -e "\n$SHUTDOWN_ENTRY" >> $chk_file
-	fi
-	[ "$do_echo" == "yes" ] && check_msg --no-tag "\n"
-	# end main info msg
-	info_msg --no-tag "done.\n"
-}
-
-function rootfs_update()
+rootfs_update()
 {
 	local pkg_path="$SLACKPACK"
 	local chk_root="$MY1_ROOT_DEF"
@@ -394,7 +274,9 @@ function rootfs_update()
 			--exec)
 				chk_exec="--exec"
 				;;
-			# ignore the rest!
+			*)
+				error_exit "Unknown parameter '$1'!\n\n"
+				;;
 		esac
 		shift
 	done
@@ -431,21 +313,12 @@ function rootfs_update()
 
 function process_command()
 {
-	local go_commands="create config chroot update"
-	local chk_command=$1
-	local do_command
-	shift
-	# check command
-	for tcommand in $go_commands; do
-		[ "$chk_command" == "$tcommand" ] && do_command=$chk_command && break
-	done
-	[ "$do_command" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
-	# execute command
-	case $do_command in
+	local chk_task=$1 ; shift
+	[ -z "$chk_task" ] && echo -e "$MSG_THISHELP\n" && exit 0
+	case $chk_task in
 		create) rootfs_create $@ ;;
-		config) chroot_config $@ ;;
-		chroot) rootfs_create $@ ; chroot_config $@  ;;
 		update) rootfs_update $@ ;;
+		*) echo -e "Unknown command '$chk_task'\n" && exit 1 ;;
 	esac
 }
 
