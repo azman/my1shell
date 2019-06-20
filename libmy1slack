@@ -237,8 +237,9 @@ get_pathpack()
 	local pkg_path=$1
 	local pkg_list=""
 	if [ -d "$pkg_path" ]; then
-		cd $1
+		cd $pkg_path
 		for pkg_file in *.t[gx]z; do
+			[ ! -f $pkg_file ] && continue
 			pkg_temp=`echo $pkg_file | sed 's/\.t[xg]z//'`
 			pkg_list="${pkg_list}${pkg_temp} "
 		done

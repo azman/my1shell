@@ -18,7 +18,7 @@ done
 [ -z "$SLACKARCH" ] && SLACKARCH=`uname -m`
 SLACKSUFX="" # reset... just in case!
 [ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
-[ -z "$SLACKFULL" ] && SLACKFULL="slackware$SLACKSUFX"
+[ -z "$SLACKNAME" ] && SLACKNAME="slackware$SLACKSUFX"
 [ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 [ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
 if [ "$SLACKVERS" == "" ]; then
@@ -31,8 +31,8 @@ if [ "$SLACKVERS" == "" ]; then
 		SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
 	fi
 fi
-SLACKFULL=$SLACKFULL-$SLACKVERS
-SLACKPATH=$SLACKROOT/$SLACKFULL
+SLACKFULL=$SLACKNAME-$SLACKVERS
+SLACKTREE=$SLACKROOT/$SLACKFULL
 
 # capture error in sub-shells
 set -e # activates errexit
@@ -51,15 +51,15 @@ RSYNC=`which rsync 2>/dev/null`
 [ -r "$INCLUDEFILE" ] && INCLUDES="--include-from=$INCLUDEFILE"
 
 # start actual mirroring process - reduced version of alien_bob's script
-echo -e "#\n# Checking and changing to $SLACKPATH ...\n#"
-[ ! -d $SLACKPATH ] && mkdir -pv $SLACKPATH
-cd $SLACKPATH
+echo -e "#\n# Checking and changing to $SLACKTREE ...\n#"
+[ ! -d $SLACKTREE ] && mkdir -pv $SLACKTREE
+cd $SLACKTREE
 umask 022
 
 echo "*** Using $RSYNCURL ***"
-$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKPATH
+$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKTREE
 echo "*** Using $RSYNCURL - (2nd Run) ***"
-$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKPATH
+$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKTREE
 echo `date`" [$$]: Done mirroring $SLACKFULL (exit code $?)."
 
 exit 0
