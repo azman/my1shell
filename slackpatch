@@ -196,6 +196,7 @@ process_command()
 	done
 	# if no command given, do a check
 	[ "$do_command" == "" ] && do_command="check"
+	echo "[$SLACKFULL]"
 	# find patches
 	echo -n "Looking for patches... "
 	pat_list=`list_patches --tree $SLACKTREE $pkg_path $PKG_IGNORED`
