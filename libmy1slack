@@ -80,6 +80,7 @@ tag_msg()
 		echo -ne "\033[1;${ctag}m$1\033[0m"
 	fi
 	[ "$elog" != "" ] && echo -ne "$mtag $@" >>$elog
+	return 0
 }
 
 error_msg()
