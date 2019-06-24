@@ -135,6 +135,25 @@ function file_remove_package()
 	fi
 }
 
+function file_remove_dups()
+{
+	local pkg_temp pkg_test
+	local pkg_file=$1
+	local dup_file=$2
+	# browse all packages in pkg_file
+	for pkg_loop in `cat $pkg_file` ; do
+		pkg_temp=`cat $dup_file | grep -e "^$pkg_loop\$"`
+		if [ "$pkg_temp" != "" ] ; then
+			echo -n "DUPLICATE: '$pkg_temp'! Removing... "
+			sed -i -e "\|^$pkg_temp\$|d" $pkg_file
+			[ $? -ne 0 ] && echo "failed!"
+			echo "done."
+			pkg_test=$pkg_temp
+		fi
+	done
+	[ -z "$pkg_test" ] && echo "No duplicates in $pkg_file & $dup_file!"
+}
+
 function file_option_package()
 {
 	local pkg_temp pkg_test do_select
@@ -203,7 +222,7 @@ function file_update_packages()
 
 function view_file_package()
 {
-	local pkg_list pkg_file pkg_temp pkg_name
+	local pkg_list pkg_file pkg_temp pkg_name dup_file
 	local do_select
 	while [ "$1" != "" ]; do
 		case "$1" in
@@ -222,6 +241,11 @@ function view_file_package()
 			--sort)
 				do_select="SOT"
 				;;
+			--dups)
+				shift
+				dup_file="$1"
+				do_select="DUP"
+				;;
 			--name)
 				shift
 				pkg_file="$1"
@@ -235,11 +259,16 @@ function view_file_package()
 				done
 				;;
 			-*)
-				echo -e "Unknown option '$1'! Aborting!\n"
-				exit 1
+				error_exit "Unknown option '$1'! Aborting!\n\n"
 				;;
 			*)
-				pkg_list="$pkg_list $1"
+				pkg_temp=`find_package $1 $SLACKPACK`
+				if [ "$pkg_temp" = "" ] ; then
+					warn_msg "Unknown package '$1'!\n"
+				else
+					info_msg "Package '$1' included\n"
+					pkg_list="$pkg_list $1"
+				fi
 				;;
 		esac
 		shift
@@ -254,6 +283,13 @@ function view_file_package()
 	# check request to update file
 	[ "$do_select" == "UPD" ] &&
 		file_update_packages $pkg_file && return
+	# check request to remove duplicates in file
+	if [ "$do_select" == "DUP" ] ; then
+		[ ! -r "$dup_file" ] &&
+			error_exit "Cannot read '$dup_file'!\n\n"
+		file_remove_dups $pkg_file $dup_file
+		return
+	fi
 	# check sort request
 	if [ "$do_select" == "SOT" ]; then
 		# make sure no whitespace?
@@ -280,7 +316,7 @@ function process_command()
 {
 	local tool_cmd
 	local pkgs_txt=$SLACKTREE/PACKAGES.TXT
-	local log_path="/var/log/packages"
+	local log_path=$SLACKLOGS
 	[ ! -f $pkgs_txt ] &&
 		error_exit "File '$pkgs_txt' not found! Aborting!\n\n"
 	[ ! -d $log_path ] &&

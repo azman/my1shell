@@ -265,7 +265,7 @@ get_pathsoft()
 	# make a package list from official software set (e.g. a,d,l...)
 	local pkg_pack=$1 # slackpack
 	local pkg_soft=$2
-	echo -n `get_pathpack $pkg_path/$pkg_soft`
+	echo -n `get_pathpack $pkg_pack/$pkg_soft`
 }
 
 get_packsoft()
