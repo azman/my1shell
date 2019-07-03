@@ -28,6 +28,7 @@ Commands:
          > --update   : Update packages on list
          > --sort     : Sort packages on list
          > --name     : Specify filename
+         > --dups     : Remove dulplicates from filename
          > --pack     : Select official software set
   help   : Show this help message
 Mirror Source:
@@ -232,6 +233,7 @@ file_update_packages()
 	done < $pkg_file
 	# sort if list updated!
 	[ $new_flag -ne 0 ] && file_sort_packages
+	return 0
 }
 
 view_file_package()
