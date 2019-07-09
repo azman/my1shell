@@ -128,7 +128,8 @@ if [ "$DOBUNDLE" == "YES" ]; then
 	CHK_NAME=${MAINNAME}-${CHK_DATE}
 	CHK_FILE=${BALLPATH}/${CHK_NAME}${BALLSUFX}.git
 	# check older archive?
-	for temp in ${BALLPATH}/${MAINNAME}-* ; do
+	CHK_LIST=`find ${BALLPATH} -type f -name "${MAINNAME}-[0-9]*"`
+	for temp in ${CHK_LIST} ; do
 		# ignore if not a file (nothing found?)
 		[ ! -f "${temp}" ] && continue;
 		# leave the current ones
