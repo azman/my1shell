@@ -7,6 +7,7 @@
 MY1_LIBNAME="libmy1slack"
 MY1_LIBVERS="2019.06.00"
 MY1_LIBCALL=`basename $0 .sh`
+MY1_DODEBUG=${MY1_DODEBUG:="NO"}
 
 find_slackname()
 {
@@ -59,12 +60,13 @@ tag_msg()
 	local ctag="39" # default color
 	local elog="" # log filename
 	local eout="yes" # warnings/errors should go to stderr!
-	[ "$LOG_THIS" = "YES" ] && elog="yes"
+	local dbug="no"
 	while [ "$1" != "" ]; do
 		case $1 in
 			--log) shift ; elog="$1" ;;
 			--tag) shift ; mtag="$1" ;;
 			--color) shift ; ctag="$1" ;;
+			--debug) dbug="yes" ;;
 			--no-tag) mtag="" ;;
 			--stdout) eout="no" ;;
 			--stderr) eout="yes" ;;
@@ -72,6 +74,8 @@ tag_msg()
 		esac
 		shift
 	done
+	[ "$elog" != "" ] && echo -ne "$mtag $@" >>$elog
+	[ "$dbug" = "yes" -a "$MY1_DODEBUG" = "NO" ] && return 0
 	if [ "$eout" = "yes" ] ; then
 		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m " 1>&2
 		echo -ne "\033[1;${ctag}m$1\033[0m" 1>&2
@@ -79,7 +83,6 @@ tag_msg()
 		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m "
 		echo -ne "\033[1;${ctag}m$1\033[0m"
 	fi
-	[ "$elog" != "" ] && echo -ne "$mtag $@" >>$elog
 	return 0
 }
 
@@ -98,7 +101,12 @@ error_exit()
 debug_msg()
 {
 	local color_tag="36" # cyan
-	tag_msg --tag "[DEBUG]" --color "$color_tag" "$@"
+	tag_msg --tag "[DEBUG]" --color "$color_tag" --debug "$@"
+}
+
+debug_chk()
+{
+	[ "$1" = "yes" ] && MY1_DODEBUG="YES" || MY1_DODEBUG="NO"
 }
 
 check_msg()
