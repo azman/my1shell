@@ -1,0 +1,10 @@
+#!/bin/sh
+
+FIND_TEXT=$1
+
+for file in * ; do
+	temp=`cat $file | grep $FIND_TEXT`
+	[ "$temp" = "" ] && continue
+	echo "==> $file"
+	echo -ne "\n$temp\n\n"
+done
