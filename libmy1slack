@@ -268,6 +268,18 @@ get_packpath()
 	echo -n "$pkg_test"
 }
 
+get_packfind()
+{
+	# find package file (full path) from a path tree
+	local path=$1
+	local name=$2
+	[ ! -d "$path" ] && return
+	path=`cd $path;pwd` # just in case
+	local temp="/${name}-[^-]*-[^-]*-[^-]*\.t[gx]z$"
+	local test=`find $path -type f -name "*.t[gx]z" | grep -e "$temp"`
+	echo -n "$test"
+}
+
 get_pathsoft()
 {
 	# make a package list from official software set (e.g. a,d,l...)
