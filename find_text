@@ -1,8 +1,9 @@
 #!/bin/sh
 
 FIND_TEXT=$1
+FIND_PATH=`pwd`
 
-for file in * ; do
+for file in `find $FIND_PATH -type f` ; do
 	temp=`cat $file | grep $FIND_TEXT`
 	[ "$temp" = "" ] && continue
 	echo "==> $file"

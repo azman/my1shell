@@ -497,12 +497,14 @@ show_info()
 	# get package info
 	local pkg_name=$1
 	local pkg_pack=$2 # slackpack
-	local pkg_flag pkg_find pkg_stat
+	local pkg_flag pkg_find pkg_stat pkg_soft
 	local pkg_info=`find_install $pkg_name --full $pkg_pack`
 	local pkg_test=`find_package $pkg_name --full $pkg_pack`
 	[ "$pkg_info" == "" ] && pkg_flag="NOT " && pkg_info=$pkg_test
 	[ "$pkg_info" == "" ] && return 1
-	[ "$pkg_test" == "" ] && pkg_stat=" (ALIEN!)"
+	[ "$pkg_test" == "" ] && pkg_stat=" (ALIEN!)" || \
+		pkg_soft=`echo $pkg_test | cut -d' ' -f3`
+	[ "$pkg_soft" != "" ] && pkg_soft="("`basename $pkg_soft`")"
 	# info structure?
 	local pkg_base pkg_file pkg_path pkg_size pkg_full
 	pkg_base=`echo $pkg_info | cut -d' ' -f1`
@@ -523,7 +525,7 @@ show_info()
 	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
 	echo "$title"
 	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
-	echo "FILE               : ${pkg_file}${pkg_stat}"
+	echo "FILE               : ${pkg_file}${pkg_stat} $pkg_soft"
 	echo "LOCATION           : $pkg_path"
 	echo "VERSION            : $pkg_vers"
 	echo "ARCHITECTURE       : $pkg_arch"
