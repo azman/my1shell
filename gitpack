@@ -53,6 +53,15 @@ while [ "$1" != "" ]; do
 		--sweep)
 			DO_SWEEP="YES"
 			;;
+		--update)
+			[ ! -d "$ARCHPATH" ] &&
+				echo "Archive path '$ARCHPATH' not found!" && exit 1
+			BALLPATH=$ARCHPATH
+			# not archiving patches!
+			CHKPATCH="NO"
+			PATCHGIT="NO"
+			DO_SWEEP="YES"
+			;;
 		--master)
 			DOMASTER="YES"
 			;;
