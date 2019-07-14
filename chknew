@@ -5,18 +5,31 @@
 # - check new configuration file
 # - make the 'update' if requested
 
-MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(dirname $0)"
-CURPATH="$(pwd)"
+MY1TOOL=`basename $0`
+MY1PATH=`dirname $0`
+CURPATH=`pwd`
 NEWPATH=${NEWPATH:="/etc"}
 
 [ $UID -ne 0 ] && echo "Must run as root!" && exit 1
 
-[ "$1" != "" ] && [ "$1" != "--switch" -a "$1" != "--list" ] &&
-	echo "Invalid param '$1'!" && exit 1
+case "$1" in
+	--switch | --list)
+		CHKLIST=$1
+		;;
+	--help|-h)
+		echo "Usage: $MY1TOOL [options]"
+		echo "Options:"
+		echo "  -h | --help   : Show this help"
+		echo "       --list   : Just list all *.new files"
+		echo "       --switch : Decide either to switch or remove"
+		exit 0
+		;;
+	*)
+		[ "$1" != "" ] && echo "Invalid param '$1'!" && exit 1
+		;;
+esac
 
-CHKLIST=$1
-NEWLIST=$(find $NEWPATH -name "*.new")
+NEWLIST=`find $NEWPATH -name "*.new"`
 if [ "$NEWLIST" == "" ]; then
 	echo "No NEW configuration files found!"
 else
@@ -27,7 +40,7 @@ else
 			[ "$CHKLIST" == "--switch" ] && mv $a $b
 			continue;
 		fi
-		c="$(diff $b $a 2>&1)"
+		c=`diff $b $a 2>&1`
 		echo "==> File: $b"
 		[ "$CHKLIST" == "--list" ] && continue
 		if [ "$c" == "" ] ; then
