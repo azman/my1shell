@@ -6,9 +6,6 @@ DOCOLOR="gray"
 CONVPDF=""
 FINDDEV=""
 PNM2PDF=""
-# a4 should be 210mm x 297mm @ 8.27in x 11.7in
-SCAN_OPTS="-p --resolution=300 --mode=$DOCOLOR -x 210.0 -y 296.926"
-TOPS_OPTS="-imageheight 11.7 -imagewidth 8.3"
 
 while [ "$1" != "" ]; do
 	case $1 in
@@ -54,6 +51,10 @@ while [ "$1" != "" ]; do
 	esac
 	shift
 done
+
+# a4 should be 210mm x 297mm @ 8.27in x 11.7in
+SCAN_OPTS="-p --resolution=300 --mode=$DOCOLOR -x 210.0 -y 296.926"
+TOPS_OPTS="-imageheight 11.7 -imagewidth 8.3 2>/dev/null"
 
 DOSCAN=`which $SCANBIN 2>/dev/null`
 [ "$DOSCAN" == "" ] && echo "Cannot find $SCANBIN! Aborting!" && exit 1
