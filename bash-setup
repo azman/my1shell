@@ -18,7 +18,7 @@ export PATH=$MY1PATH:\$PATH:/usr/sbin:/sbin:\$HOME/slackware/slackbin
 [ "\$(echo \$SSH_CLIENT | grep '127.0.0.1')" != "" ] && export DISPLAY=:0.0
 SETVAR1
 )
-MY1_FILE_BASH_PROFILE="$HOME/.bash_profile"
+MY1_FILE_BASH_PROFILE=".bash_profile"
 
 MY1_BASHRC=$(cat <<SETVAR2
 # ~/.bashrc: non-login shells
@@ -35,23 +35,29 @@ alias ls='ls \$LS_OPTIONS'
 #[ "\$SSH_CONNECTION" ] && [ -z "\$STY" ] && exec screen -d -R -S ssh
 SETVAR2
 )
-MY1_FILE_BASHRC="$HOME/.bashrc"
+MY1_FILE_BASHRC=".bashrc"
 
 MY1_BASH_LOGOUT=$(cat <<SETVAR3
 # ~/.bash_logout - logout script
 clear
 SETVAR3
 )
-MY1_FILE_BASH_LOGOUT="$HOME/.bash_logout"
+MY1_FILE_BASH_LOGOUT=".bash_logout"
 
+CHK_PATH="$HOME"
 GO_WRITE=""
 while [ "$1" != "" ]; do
 	case $1 in
 		--write)
 			GO_WRITE=$1;
 			;;
+		--path)
+			shift
+			[ ! -d $1 ] && echo "Unknown path '$1'!" && exit 1
+			CHK_PATH=`cd $1 ; pwd`;
+			;;
 		*)
-			echo "Unknown PARAMETER ($1)!" && exit 1
+			echo "Unknown parameter '$1'!" && exit 1
 			;;
 	esac
 	shift
@@ -59,34 +65,34 @@ done
 
 echo
 if [ "$GO_WRITE" == "--write" ]; then
-	echo -n "Writing to $MY1_FILE_BASH_PROFILE..."
-	echo "$MY1_BASH_PROFILE" >$MY1_FILE_BASH_PROFILE
+	echo -n "Writing to $CHK_PATH/$MY1_FILE_BASH_PROFILE..."
+	echo "$MY1_BASH_PROFILE" >$CHK_PATH/$MY1_FILE_BASH_PROFILE
 	echo "done."
 else
 	echo "-------------"
-	echo "BASH_PROFILE:"
+	echo "BASH_PROFILE: ($CHK_PATH/$MY1_FILE_BASH_PROFILE)"
 	echo "-------------"
 	echo "$MY1_BASH_PROFILE"
 fi
 echo
 if [ "$GO_WRITE" == "--write" ]; then
-	echo -n "Writing to $MY1_FILE_BASHRC..."
-	echo "$MY1_BASHRC" >$MY1_FILE_BASHRC
+	echo -n "Writing to $CHK_PATH/$MY1_FILE_BASHRC..."
+	echo "$MY1_BASHRC" >$CHK_PATH/$MY1_FILE_BASHRC
 	echo "done."
 else
 	echo "-------"
-	echo "BASHRC:"
+	echo "BASHRC: ($CHK_PATH/$MY1_FILE_BASHRC)"
 	echo "-------"
 	echo "$MY1_BASHRC"
 fi
 echo
 if [ "$GO_WRITE" == "--write" ]; then
-	echo -n "Writing to $MY1_FILE_BASH_LOGOUT..."
-	echo "$MY1_BASH_LOGOUT" >$MY1_FILE_BASH_LOGOUT
+	echo -n "Writing to $CHK_PATH/$MY1_FILE_BASH_LOGOUT..."
+	echo "$MY1_BASH_LOGOUT" >$CHK_PATH/$MY1_FILE_BASH_LOGOUT
 	echo "done."
 else
 	echo "------------"
-	echo "BASH_LOGOUT:"
+	echo "BASH_LOGOUT: ($CHK_PATH/$MY1_FILE_BASH_LOGOUT)"
 	echo "------------"
 	echo "$MY1_BASH_LOGOUT"
 fi

@@ -212,6 +212,7 @@ get_path_owner()
 	[ "$chk_this" == "/" ] && echo -n "root:root" && return
 	[ "$chk_this" == "." ] && chk_this=`pwd`
 	[ "$chk_this" == ".." ] && chk_this=`cd .. ; pwd`
+	[ -L "$chk_this" ] && chk_this=`readlink -e $chk_this`
 	[ ! -r "$chk_this" ] && return
 	chk_path=`dirname $chk_this`
 	chk_path=`cd $chk_path ; pwd`
