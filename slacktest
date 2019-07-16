@@ -14,7 +14,7 @@ MY1_TOOL_LIB="libmy1slack"
 [ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
 
 echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
-call_debug
+debug_chk yes ; call_debug ; debug_chk no
 if [ ! -z "$1" ] ; then
 	echo -e "[SLACKTEST] Executing '$@'...\n"
 	test_value="\"$1\" "

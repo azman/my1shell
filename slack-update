@@ -6,12 +6,27 @@
 # - requires getslack, getslackpack, getslackbuild scripts
 
 # standard tool info
-MY1_TOOLNAME="my1 Slackware Update Tool"
-MY1_TOOLVERS="2018.09.00"
-MY1_TOOLBASE=`basename $0 .sh`
-MY1_TOOLPATH=`dirname $0`
+TOOL_NAME="my1 Slackware Update Tool"
+TOOL_VERS="2019.07.00"
+TOOL_BASE=`basename $0`
+TOOL_PATH=`dirname $0`
+CURR_PATH=`pwd`
 
-echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+echo -e "\n$TOOL_BASE - $TOOL_NAME ($TOOL_VERS)\n"
+
+# find libmy1slack
+TLIB_NAME="libmy1slack"
+TLIB_FULL=$TOOL_PATH/$TLIB_NAME
+[ ! -f "$TLIB_FULL" ] &&
+	echo "Cannot find '$TLIB_FULL'! Aborting!" && exit 1
+. $TLIB_FULL
+
+# make sure we are in correct path
+call_setup
+[ ! -d "$SLACKTREE" ] &&
+	echo "Cannot find tree path '$SLACKTREE'! Aborting!" && exit 1
+NEXT_PATH=`dirname $SLACKTREE`
+cd $NEXT_PATH
 
 getslack ; getslackpack --sweep --exec ; getslackbuild -a
 
@@ -19,4 +34,5 @@ if [ -d /opt/chroot32 ] ; then
 	ARCH=x86 getslack ; ARCH=x86 getslackpack --sweep --exec
 fi
 
+cd $CURR_PATH
 echo ; exit 0
