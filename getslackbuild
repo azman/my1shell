@@ -4,43 +4,37 @@
 # - written by azman@my1matrix.net
 # - get/execute slackbuild scripts from SlackBuilds.org (supports dependencies)
 
-MY1TOOL=`basename $0 .sh`
-MY1PATH=`dirname $0`
+TOOL_NAME=`basename $0 .sh`
+TOOL_PATH=`dirname $0`
 # look for config file
 for config in `pwd` $HOME; do
-	config=$config/.$MY1TOOL
+	config=$config/.$TOOL_NAME
 	[ -r $config ] && source $config && break
 done
-
+# find libmy1slack
+TLIB_FULL=$TOOL_PATH/libmy1slack
+[ ! -f "$TLIB_FULL" ] &&
+	echo "Cannot find $TLIB_FULL! Aborting!" && exit 1
+. $TLIB_FULL
 # temporary path
-MY1USER=`whoami`
-MY1TEMP="/tmp/$MY1USER/$MY1TOOL"
+TOOL_USER=`whoami`
+TOOL_TEMP="/tmp/$TOOL_USER/$TOOL_NAME"
 
 # my1slack tool specific
-MY1_TOOLNAME="my1 SlackBuilds.org Executor"
-MY1_TOOLVERS="2017.03.04"
-MY1_TOOLPDIR=`dirname $MY1PATH`
-MY1_BUILDDIR=${MY1_BUILDDIR:="${MY1_TOOLPDIR}/slackbuilds"}
-MY1_THISPATH=`pwd -P`
-MY1_PACKPATH=""
-MY1_LISTFILE=""
-MY1_THISPACK=""
-[ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
-SLACKVERS=${SLACKVERS:=""}
-if [ "$SLACKVERS" == "" ]; then
-	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
-	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
-	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
-	# just in case?
-	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
-fi
-[ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
-SLACKARCH=${SLACKARCH:=""}
-if [ "$SLACKARCH" == "" ]; then
-	SLACKARCH=`find / -maxdepth 1 -name 'lib64' -type d 2>/dev/null`
-	if [ "$SLACKARCH" == "/lib64" ] ; then SLACKARCH="x86_64"
-	else SLACKARCH="" ; fi
-fi
+TOOL_DESC="my1 SlackBuilds.org Executor"
+TOOL_VERS="2017.03.04"
+TOOL_PDIR=`dirname $TOOL_PATH`
+WORK_PATH=${WORK_PATH:="${TOOL_PDIR}/slackbuilds"}
+CURR_PATH=`pwd -P`
+PACK_PATH=""
+FILE_LIST=""
+CURR_PACK=""
+
+# setup env variables
+[ -z "$SLACKNAME" ] && [ -n "$ARCH" ] && [ "$ARCH" = "x86_64" ] &&
+	SLACKNAME="slackware64" || SLACKNAME="slackware"
+[ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS || SLACKVERSE="current"
+call_setup
 
 # global options & settings
 OPT_INSTALL=""
@@ -54,7 +48,7 @@ OPT_BUILDUP="NO"
 OPT_VERBOSE="NO"
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
-  $MY1TOOL [options] <pkg_name>
+  $TOOL_NAME [options] <pkg_name>
 Options:
   --path|-p </path/to/slackbuilds>
   --pack|-f </sub/path/to/package/group>
@@ -68,7 +62,7 @@ Options:
   --check-installed|-c : Compare installed version against build script
 SETHELPMSG`
 
-function do_download()
+do_download()
 {
 	local fname="$1"
 	local label="$2"
@@ -86,7 +80,7 @@ function do_download()
 	echo -e "\b\b\b\b DONE!\n"
 }
 
-function do_loadball()
+do_loadball()
 {
 	local pkg_path=$1
 	local pkg_file=$2
@@ -109,7 +103,7 @@ function do_loadball()
 	return 0
 }
 
-function get_userngrp()
+get_userngrp()
 {
 	local chk_this=$1
 	local chk_path=`pwd -P`
@@ -127,7 +121,7 @@ function get_userngrp()
 	echo -n "$chk_user:$chk_grpn"
 }
 
-function get_buildinfo()
+get_buildinfo()
 {
 	local pkg_name=$1
 	local pkg_path=$2
@@ -150,9 +144,9 @@ function get_buildinfo()
 	return
 }
 
-function do_list_update()
+do_list_update()
 {
-	local pkg_temp="$MY1TEMP"
+	local pkg_temp="$TOOL_TEMP"
 	local pkg_vers=${SLACKVERS}
 	local pkg_root="http://slackbuilds.org/slackbuilds/$pkg_vers"
 	local pkg_list="SLACKBUILDS.TXT"
@@ -181,10 +175,10 @@ function do_list_update()
 	local tmp_list="${pkg_temp}/$pkg_list"
 	[ ! -r "$tmp_list" ] &&
 		echo -e "[ERROR] File '$tmp_list' not found!\n" >&2 && exit 1
-	MY1_LISTFILE="$pkg_root;$pkg_temp;$tmp_list"
+	FILE_LIST="$pkg_root;$pkg_temp;$tmp_list"
 }
 
-function do_list_search()
+do_list_search()
 {
 	local pkg_list=$1
 	local pkg_name=$2
@@ -210,10 +204,10 @@ function do_list_search()
 	pkg_fil2=`echo "$pkg_fil2" | sed 's/.*: \(.*\)$/\1/'`
 	local pkg_deps=`echo "$pkg_text" | grep 'SLACKBUILD REQUIRES'`
 	pkg_deps=`echo "$pkg_deps" | sed 's/.*: \(.*\)$/\1/'`
-	MY1_THISPACK="$pkg_load;$pkg_vers;$pkg_file;$pkg_fil2;$pkg_deps"
+	CURR_PACK="$pkg_load;$pkg_vers;$pkg_file;$pkg_fil2;$pkg_deps"
 }
 
-function do_fetch()
+do_fetch()
 {
 	local pkg_list=$1
 	local pkg_name=$2
@@ -223,7 +217,7 @@ function do_fetch()
 	local chk_skip=0
 	# look for package in list
 	do_list_search $pkg_list $pkg_name $pkg_root
-	local pkg_info="$MY1_THISPACK"
+	local pkg_info="$CURR_PACK"
 	local pkg_vers=`echo "$pkg_info" | cut -d';' -f2`
 	# check if local version is available
 	local tmp_vers=""
@@ -232,7 +226,7 @@ function do_fetch()
 		tmp_vers=`echo "$tmp_info" | cut -d';' -f2`
 	else
 		# look within tree?
-		local top_path=${MY1_BUILDDIR}
+		local top_path=${WORK_PATH}
 		local pkg_test=`find $top_path -name "$pkg_name" -type d`
 		if [ -d "$pkg_test" ] ; then
 			local tmp_path=`dirname $pkg_test`
@@ -311,10 +305,10 @@ function do_fetch()
 	local pkg_deps=`echo "$pkg_info" | cut -d';' -f5`
 	[ "$pkg_deps" == "%README%" ] && pkg_deps=""
 	# some external function need these info
-	MY1_THISPACK="$pkg_path;$pkg_vers;$tmp_vers;$pkg_deps"
+	CURR_PACK="$pkg_path;$pkg_vers;$tmp_vers;$pkg_deps"
 }
 
-function do_build()
+do_build()
 {
 	local pkg_name=$1
 	local pkg_vers=$2
@@ -375,26 +369,26 @@ function do_build()
 	fi
 }
 
-function do_build_this()
+do_build_this()
 {
 	local pkg_name=$1
 	local pkg_path=$2
 	local opt_inst=$3
-	local chk_path=${MY1_THISPATH}
+	local chk_path=${CURR_PATH}
 	local sav_path=${pkg_path}
 	# update list
 	do_list_update
 	# get parameters
-	local pkg_root=`echo "$MY1_LISTFILE" | cut -d';' -f1`
-	local pkg_temp=`echo "$MY1_LISTFILE" | cut -d';' -f2`
-	local pkg_list=`echo "$MY1_LISTFILE" | cut -d';' -f3`
+	local pkg_root=`echo "$FILE_LIST" | cut -d';' -f1`
+	local pkg_temp=`echo "$FILE_LIST" | cut -d';' -f2`
+	local pkg_list=`echo "$FILE_LIST" | cut -d';' -f3`
 	# fetch build
 	do_fetch $pkg_list $pkg_name $pkg_root $pkg_path $pkg_temp
 	# update path (in case in different path?)
-	pkg_path=`echo "$MY1_THISPACK" | cut -d';' -f1`
-	local pkg_vers=`echo "$MY1_THISPACK" | cut -d';' -f2`
-	local tmp_vers=`echo "$MY1_THISPACK" | cut -d';' -f3`
-	local pkg_deps=`echo "$MY1_THISPACK" | cut -d';' -f4`
+	pkg_path=`echo "$CURR_PACK" | cut -d';' -f1`
+	local pkg_vers=`echo "$CURR_PACK" | cut -d';' -f2`
+	local tmp_vers=`echo "$CURR_PACK" | cut -d';' -f3`
+	local pkg_deps=`echo "$CURR_PACK" | cut -d';' -f4`
 	# show this before dependencies if not really building
 	if [ "$OPT_EXECUTE" != "YES" ]; then
 		echo -n "Package: $pkg_name ($pkg_vers)"
@@ -413,7 +407,7 @@ function do_build_this()
 		do_build $pkg_name $pkg_vers $pkg_path $pkg_temp $opt_inst
 }
 
-function do_update_all()
+do_update_all()
 {
 	local chk_path=$1
 	local chk_list=`find $pkg_path -name "*.SlackBuild"`
@@ -428,15 +422,15 @@ function do_update_all()
 		# update list
 		do_list_update
 		# get parameters
-		local pkg_root=`echo "$MY1_LISTFILE" | cut -d';' -f1`
-		local pkg_temp=`echo "$MY1_LISTFILE" | cut -d';' -f2`
-		local pkg_list=`echo "$MY1_LISTFILE" | cut -d';' -f3`
+		local pkg_root=`echo "$FILE_LIST" | cut -d';' -f1`
+		local pkg_temp=`echo "$FILE_LIST" | cut -d';' -f2`
+		local pkg_list=`echo "$FILE_LIST" | cut -d';' -f3`
 		# fetch build
 		do_fetch $pkg_list $pkg_name $pkg_root $pkg_path $pkg_temp
 		# update path (in case in different path?)
-		pkg_path=`echo "$MY1_THISPACK" | cut -d';' -f1`
-		local pkg_vers=`echo "$MY1_THISPACK" | cut -d';' -f2`
-		local tmp_vers=`echo "$MY1_THISPACK" | cut -d';' -f3`
+		pkg_path=`echo "$CURR_PACK" | cut -d';' -f1`
+		local pkg_vers=`echo "$CURR_PACK" | cut -d';' -f2`
+		local tmp_vers=`echo "$CURR_PACK" | cut -d';' -f3`
 		# show this before dependencies if not really building
 		echo -n "Package: $pkg_name ($pkg_vers)"
 		[ "$tmp_vers" != "" -a "$tmp_vers" != "$pkg_vers" ] &&
@@ -446,7 +440,7 @@ function do_update_all()
 	done ; echo
 }
 
-function do_check_installed()
+do_check_installed()
 {
 	local chk_path=$1
 	local chk_list=`find $pkg_path -name "*.SlackBuild"`
@@ -475,7 +469,7 @@ function do_check_installed()
 	done ; echo
 }
 
-function process_command()
+process_command()
 {
 	local pkg_name pkg_path
 	# check parameters
@@ -511,11 +505,11 @@ function process_command()
 				shift
 				[ ! -d "$1" ] &&
 					echo -e "[ERROR] Invalid path!? [$1]\n" && exit 1
-				MY1_BUILDDIR=`cd $1;pwd`
+				WORK_PATH=`cd $1;pwd`
 				;;
 			--pack|-f)
 				shift
-				MY1_PACKPATH="$1"
+				PACK_PATH="$1"
 				;;
 			-*)
 				echo -e "$MSG_THISHELP\n"
@@ -530,7 +524,7 @@ function process_command()
 		shift
 	done
 	# check if path is valid?
-	pkg_path=${MY1_BUILDDIR}
+	pkg_path=${WORK_PATH}
 	[ ! -d "$pkg_path" ] &&
 		echo -e "Path '$pkg_path' not found! Aborting!\n" && exit 1
 	# check option to check installed build script(s)
@@ -540,14 +534,14 @@ function process_command()
 	# check if name supplied
 	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
 	# check if package path supplied
-	[ "$MY1_PACKPATH" != "" ] && pkg_path=${pkg_path}/${MY1_PACKPATH}
+	[ "$PACK_PATH" != "" ] && pkg_path=${pkg_path}/${PACK_PATH}
 	# do your thing!
 	do_build_this ${pkg_name} ${pkg_path} ${OPT_INSTALL}
 }
 
 # BEGIN MAIN SCRIPT
 
-echo -e "\n$MY1TOOL - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+echo -e "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n"
 process_command "$@"
 echo ; exit 0
 
