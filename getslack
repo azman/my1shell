@@ -4,62 +4,41 @@
 # - written by azman@my1matrix.net
 # - a 'reduced' version of alien_bob's mirror_slackware_current.sh
 
-MY1TOOL=`basename $0 .sh`
-MY1PATH=`dirname $0`
+TOOL_NAME=`basename $0 .sh`
+TOOL_PATH=`dirname $0`
 # look for config file
-for config in `pwd` $HOME; do
-	config=$config/.$MY1TOOL
-	[ -r $config ] && source $config && break
+for conf in `pwd`/.$TOOL_NAME $HOME/.$TOOL_NAME ; do
+	[ -r $conf ] && source $conf && break
 done
-
 # setup path to slackware tree
 [ -z "$SLACKROOT" ] && SLACKROOT=`pwd`
 [ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
 [ -z "$SLACKARCH" ] && SLACKARCH=`uname -m`
-SLACKSUFX="" # reset... just in case!
-[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
+[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64" || SLACKSUFX=
 [ -z "$SLACKNAME" ] && SLACKNAME="slackware$SLACKSUFX"
-[ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
 [ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
-if [ "$SLACKVERS" == "" ]; then
-	if [ ! -f /etc/slackware-version ]; then # running other than slack?
-		SLACKVERS="current"
-	else
-		SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
-		SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
-		SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
-		SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
-	fi
-fi
+[ -z "$SLACKVERS" ] && [ ! -f /etc/slackware-version ] && SLACKVERS="current" ||
+	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
 SLACKFULL=$SLACKNAME-$SLACKVERS
 SLACKTREE=$SLACKROOT/$SLACKFULL
-
 # capture error in sub-shells
 set -e # activates errexit
-# setup rsync parameters
+# setup rsync stuffs (e.g. default rsync url)
 [ -z "$RSYNCURLROOT" ] && RSYNCURLROOT="slackware.mirrors.tds.net::slackware/"
-RSYNCURL="$RSYNCURLROOT$SLACKFULL/"
-RSYNCOPT="--delete --delete-excluded --partial -rlptD --progress"
+RSYNC_URL="$RSYNCURLROOT$SLACKFULL/"
+RSYNC_OPT="--delete --delete-excluded --partial -rlptD --progress"
 # check if rsync binary is available
-RSYNC=`which rsync 2>/dev/null`
-[ "$RSYNC" == "" ] && echo "Cannot find rsync! Aborting!" && exit 1
-
+RSYNC_BIN=`which rsync 2>/dev/null`
+[ "$RSYNC_BIN" == "" ] && echo "Cannot find rsync! Aborting!" && exit 1
 # customized default sync list
 [ -z "$EXCLUDES" ] && EXCLUDES="--exclude=source/"
-[ -z "$INCLUDES" ] && INCLUDES="" # not needed really!
-[ -r "$EXCLUDEFILE" ] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
-[ -r "$INCLUDEFILE" ] && INCLUDES="--include-from=$INCLUDEFILE"
-
 # start actual mirroring process - reduced version of alien_bob's script
 echo -e "#\n# Checking and changing to $SLACKTREE ...\n#"
 [ ! -d $SLACKTREE ] && mkdir -pv $SLACKTREE
 cd $SLACKTREE
-umask 022
-
-echo "*** Using $RSYNCURL ***"
-$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKTREE
-echo "*** Using $RSYNCURL - (2nd Run) ***"
-$RSYNC $RSYNCOPT $INCLUDES $EXCLUDES $RSYNCURL $SLACKTREE
+echo "*** Using $RSYNC_URL ***"
+$RSYNC_BIN $RSYNC_OPT $INCLUDES $EXCLUDES $RSYNC_URL $SLACKTREE
+echo "*** Using $RSYNC_URL - (2nd Run) ***"
+$RSYNC_BIN $RSYNC_OPT $INCLUDES $EXCLUDES $RSYNC_URL $SLACKTREE
 echo `date`" [$$]: Done mirroring $SLACKFULL (exit code $?)."
-
 exit 0
