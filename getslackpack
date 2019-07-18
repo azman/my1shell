@@ -4,40 +4,26 @@
 # - written by azman@my1matrix.net
 # - standalone slackware package retriever
 
-MY1TOOL=`basename $0 .sh`
-MY1PATH=`dirname $0`
+TOOL_NAME=`basename $0 .sh`
+TOOL_PATH=`dirname $0`
 # look for config file
-for config in `pwd` $HOME; do
-	config=$config/.$MY1TOOL
-	[ -r $config ] && source $config && break
+for conf in `pwd`/.$TOOL_NAME $HOME/.$TOOL_NAME ; do
+	[ -r $conf ] && source $conf && break
 done
-
 # setup path to slackware tree
 [ -z "$SLACKROOT" ] && SLACKROOT=`pwd`
 [ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
 [ -z "$SLACKARCH" ] && SLACKARCH=`uname -m`
-SLACKSUFX="" # reset... just in case!
-[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64"
-[ -z "$SLACKFULL" ] && SLACKFULL="slackware$SLACKSUFX"
-[ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
+[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64" || SLACKSUFX=
+[ -z "$SLACKNAME" ] && SLACKNAME="slackware$SLACKSUFX"
 [ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
-if [ "$SLACKVERS" == "" ]; then
-	if [ ! -f /etc/slackware-version ]; then # running other than slack?
-		SLACKVERS="current"
-	else
-		SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
-		SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
-		SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
-		SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
-	fi
-fi
-SLACKFULL=$SLACKFULL-$SLACKVERS
+[ -z "$SLACKVERS" ] && [ ! -f /etc/slackware-version ] && SLACKVERS="current" ||
+	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+SLACKFULL=$SLACKNAME-$SLACKVERS
 SLACKPATH=$SLACKROOT/slackpack$SLACKSUFX-$SLACKVERS
-
 # temporary path
-MY1USER=`whoami`
-MY1TEMP="/tmp/$MY1USER/$MY1TOOL"
-
+TOOL_USER=`whoami`
+TOOL_TEMP="/tmp/$TOOL_USER/$TOOL_NAME"
 # x86 packages usually target specific arch - used in salix/rwork repos!
 [ -z "$ARCH_X86" ] && ARCH_X86="i486"
 case $SLACKARCH in
@@ -48,11 +34,7 @@ esac
 BOB_ROOT="http://bear.alienbase.nl"
 DEF_ROOT="${BOB_ROOT}/mirrors/people/alien/slackbuilds"
 DEF_REPO="alien"
-DEF_PACK="libreoffice libreoffice-dict-en openjdk icedtea-web rhino"
-MTL_REPO="multilib"
-MTL_PACK="compat32-tools"
-MTL_PACK="$MTL_PACK glibc glibc-i18n glibc-profile glibc-solibs glibc-zoneinfo"
-MTL_PACK="$MTL_PACK gcc gcc-g++ gcc-gfortran gcc-gnat gcc-go gcc-java gcc-objc"
+DEF_PACK="libreoffice libreoffice-dict-en openjdk"
 
 # tool options - allow config file to set these...
 OPT_CHECK=${OPT_CHECK:="YES"}
@@ -60,7 +42,7 @@ OPT_CLEAN=${OPT_CLEAN:="NO"}
 OPT_SWEEP=${OPT_SWEEP:="NO"}
 THIS_CONF=${THIS_CONF:=""}
 
-function do_download()
+do_download()
 {
 	local fname="$1"
 	local label="$2"
@@ -78,7 +60,7 @@ function do_download()
 	echo -ne "\b\b\b\b DONE!\n"
 }
 
-function go_loadsums()
+go_loadsums()
 {
 	local pkg_root=$1
 	local pkg_repo=$2
@@ -87,11 +69,11 @@ function go_loadsums()
 		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 	esac
-	local pkg_temp="$MY1TEMP/$pkg_repo"
+	local pkg_temp="$TOOL_TEMP/$pkg_repo"
 	local pkg_sums="CHECKSUMS.md5"
 	# check clean option
 	if [ "$OPT_CLEAN" == "YES" ] ; then
-		rm -rf $MY1TEMP
+		rm -rf $TOOL_TEMP
 		[ $? -eq 0 ] && OPT_CLEAN="NO"
 	fi
 	# prepare temp
@@ -113,7 +95,7 @@ function go_loadsums()
 	cd - >/dev/null
 }
 
-function go_loadinfo()
+go_loadinfo()
 {
 	local pkg_root=$1
 	local pkg_repo=$2
@@ -122,7 +104,7 @@ function go_loadinfo()
 		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 	esac
-	local pkg_temp="$MY1TEMP/$pkg_repo"
+	local pkg_temp="$TOOL_TEMP/$pkg_repo"
 	local pkg_sums="CHECKSUMS.md5"
 	local pkg_file="PACKAGES.TXT"
 	# obtain checksum
@@ -155,7 +137,7 @@ function go_loadinfo()
 	cd - >/dev/null
 }
 
-function go_findpack()
+go_findpack()
 {
 	local pkg_repo=$1
 	local pkg_name=$2
@@ -167,7 +149,7 @@ function go_findpack()
 		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 	esac
-	local pkgs_txt="$MY1TEMP/$pkg_repo/PACKAGES.TXT"
+	local pkgs_txt="$TOOL_TEMP/$pkg_repo/PACKAGES.TXT"
 	# info structure?
 	local pkg_file pkg_path
 	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*.t[gx]z$"
@@ -198,15 +180,13 @@ function go_findpack()
 			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
 		[ "$pkg_repo" == "aliensec" ] &&
 			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
-		[ "$pkg_repo" == "multilib" ] &&
-			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
 		# first found - send and exit
 		echo "$pkg_file $pkg_path"
 		break;
 	done
 }
 
-function go_loadpack()
+go_loadpack()
 {
 	local pkg_root=$1
 	local pkg_rsrc=$2
@@ -218,7 +198,7 @@ function go_loadpack()
 		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 	esac
-	local pkg_temp="$MY1TEMP/$pkg_repo"
+	local pkg_temp="$TOOL_TEMP/$pkg_repo"
 	local pkg_sums="CHECKSUMS.md5"
 	local pkg_md5f="$pkg_path/$pkg_file.md5"
 	# obtain checksum
@@ -285,7 +265,7 @@ function go_loadpack()
 	cd - >/dev/null
 }
 
-function do_readconf()
+do_readconf()
 {
 	# default repo
 	local pkg_root="$DEF_ROOT"
@@ -325,12 +305,6 @@ function do_readconf()
 				pkg_repo="rwork"
 				pkg_rawp=",go_raw"
 				;;
-			--multilib)
-				pkg_root="${BOB_ROOT}"
-				pkg_root="${pkg_root}/mirrors/people/alien/multilib"
-				pkg_repo="multilib"
-				pkg_rawp=""
-				;;
 			-*)
 				echo "Unknown repo '$1'!" >&2 && exit 1
 				;;
@@ -342,7 +316,7 @@ function do_readconf()
 	done
 }
 
-function go_loadrawl()
+go_loadrawl()
 {
 	local pkg_root=$1
 	local pkg_repo=$2
@@ -352,11 +326,11 @@ function go_loadrawl()
 		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 	esac
-	local pkg_temp="$MY1TEMP/$pkg_repo"
+	local pkg_temp="$TOOL_TEMP/$pkg_repo"
 	local pkg_list="index.html"
 	# check clean option
 	if [ "$OPT_CLEAN" == "YES" ] ; then
-		rm -rf $MY1TEMP
+		rm -rf $TOOL_TEMP
 		[ $? -eq 0 ] && OPT_CLEAN="NO"
 	fi
 	# prepare temp
@@ -375,7 +349,7 @@ function go_loadrawl()
 	cd - >/dev/null
 }
 
-function go_findrawl()
+go_findrawl()
 {
 	local pkg_repo=$1
 	local pkg_name=$2
@@ -386,7 +360,7 @@ function go_findrawl()
 		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
 	esac
-	local pkgs_txt="$MY1TEMP/$pkg_repo/index.html"
+	local pkgs_txt="$TOOL_TEMP/$pkg_repo/index.html"
 	# info structure?
 	local pkg_temp="${pkg_name}-[^-]*-${pkg_arch}-[^-]*.t[gx]z "
 	local pkg_text="$(cat $pkgs_txt | sed -e :a -e 's/<[^>]*>//g;/</N;//ba')"
@@ -403,7 +377,7 @@ function go_findrawl()
 	echo "${pkg_file}${pkg_md5s}"
 }
 
-function go_packrawl()
+go_packrawl()
 {
 	local pkg_root=$1
 	local pkg_repo=$2
@@ -471,7 +445,7 @@ function go_packrawl()
 	cd - >/dev/null
 }
 
-function do_execthis()
+do_execthis()
 {
 	local pkg_root pkg_repo pkg_name pkg_this pkg_rawp
 	local pkg_file pkg_rsrc pkg_path=$SLACKPATH
@@ -525,7 +499,7 @@ function do_execthis()
 	done
 }
 
-function chk_param()
+chk_param()
 {
 	local chk_valid="--$DEF_REPO"
 	# check parameters
@@ -555,9 +529,6 @@ function chk_param()
 			--default)
 				THIS_CONF="${THIS_CONF} --$DEF_REPO $DEF_PACK"
 				;;
-			--multilib)
-				THIS_CONF="${THIS_CONF} --$MTL_REPO $MTL_PACK"
-				;;
 			--xfburn)
 				THIS_CONF="${THIS_CONF} --rwork xfburn libburn libisofs"
 				;;
@@ -572,8 +543,7 @@ function chk_param()
 				;;
 			--path)
 				shift
-				[ ! -d "$1" ] &&
-					echo "[ERROR] Invalid path '$1'!" && exit 1
+				[ ! -d "$1" ] && echo "[ERROR] Invalid path '$1'!" && exit 1
 				SLACKPATH=`cd $1; pwd`
 				;;
 			-*)
