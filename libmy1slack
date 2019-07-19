@@ -201,7 +201,9 @@ must_have_file()
 
 must_be_root()
 {
-	[ $UID -ne 0 ] && error_exit "Must run as root!\n\n"
+	local msg_fail=$@
+	[ -z "$msg_fail" ] && msg_fail="Must run as root!"
+	[ $UID -ne 0 ] && error_exit "$msg_fail\n\n"
 }
 
 get_path_owner()
