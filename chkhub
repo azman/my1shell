@@ -1,18 +1,17 @@
 #!/bin/bash
 
-# chkgithub
+# chkhub
 # - written by azman@my1matrix.net
 # - look up all repo on github belonging to a user account
 # - clone if not already locally available
 
-MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(dirname $0)"
-CURPATH="$(pwd)"
+TOOL_NAME=`basename $0`
+TOOL_PATH=`dirname $0`
+CURR_PATH=`pwd`
 
 # look for config file
-for conffile in "$CURPATH/.$MY1TOOL" "$HOME/.$MY1TOOL" ; do
-	[[ ! -f $conffile ]] && continue
-	source $conffile ; break
+for conf in "$CURR_PATH/.$TOOL_NAME" "$HOME/.$TOOL_NAME" ; do
+	[ -f $conf ] &&  . $conf && break
 done
 
 USERNAME=${USERNAME:=""}
@@ -21,6 +20,8 @@ LISTNAME=${LISTNAME:="/tmp/list.txt"}
 DO_CLONE=""
 DO_LOCAL=""
 DO_COUNT="50"
+DO_QUIET="YES"
+DO_CHECK=0
 
 while [ "$1" != "" ] ; do
 	case $1 in
@@ -50,6 +51,9 @@ while [ "$1" != "" ] ; do
 			shift
 			ORGSNAME="$1"
 			;;
+		--verbose )
+			DO_QUIET="NO"
+			;;
 		* )
 			echo "Unknown parameter ($1)!" && exit 1
 			;;
@@ -67,24 +71,29 @@ if [ "$DO_LOCAL" != "YES" ] ; then
 		USRS_URL="${USRS_URL}?per_page=$DO_COUNT"
 		ORGS_URL="${ORGS_URL}?per_page=$DO_COUNT"
 	fi
-	CHK_LIST="$(curl -i $USRS_URL 2>/dev/null|grep full_name)"
-	echo "$CHK_LIST"|sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
+	CHK_LIST=`curl -i $USRS_URL 2>/dev/null|grep full_name`
+	echo "$CHK_LIST" | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
 	if [ "$ORGSNAME" != "" ] ; then
-		CHK_LIST="$(curl -i $ORGS_URL 2>/dev/null|grep full_name)"
-		echo "$CHK_LIST"|sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
+		CHK_LIST=`curl -i $ORGS_URL 2>/dev/null|grep full_name`
+		echo "$CHK_LIST" | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
 	fi
 	echo "Repository list saved in '$LISTNAME'."
 else
 	echo "Using repository list in '$LISTNAME'."
 fi
 
-for a in $(cat $LISTNAME); do
+for a in `cat $LISTNAME` ; do
 	b=${a#*/}
-	echo -n "Checking '$b'... "
-	[ -d "$b" ] && echo "found." && continue
-	[ "$DO_CLONE" != "YES" ] && echo "no local copy." && continue
-	echo "cloning this... "
+	if [ -d "$b" ] ; then
+		[ "$DO_QUIET" = "NO" ] && echo "Repo '$b' => found."
+		continue
+	fi
+	[ "$DO_CLONE" != "YES" ] &&
+		echo "Repo '$b' => no local copy." && DO_CHECK=1 && continue
+	echo "Cloning '$b'... "
 	git clone git@github.com:${a}.git
 done
+
+[ $DO_CHECK -eq 0 ] && echo "Found local copies for ALL repo."
 
 exit 0
