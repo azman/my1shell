@@ -2,10 +2,18 @@
 
 FIND_TEXT=$1
 FIND_PATH=`pwd`
+TOOL_PATH=`dirname $0`
 
-for file in `find $FIND_PATH -type f` ; do
+# find libmy1slack
+TLIB_FULL=$TOOL_PATH/libmy1slack
+[ ! -f "$TLIB_FULL" ] &&
+	echo "Cannot find $TLIB_FULL! Aborting!" && exit 1
+. $TLIB_FULL
+
+for file in `find $FIND_PATH -not -path '*/\.*' -type f` ; do
 	temp=`cat $file | grep $FIND_TEXT`
 	[ "$temp" = "" ] && continue
-	echo "==> $file"
-	echo -ne "\n$temp\n\n"
+	head_msg "\n==> $file\n"
+	info_msg --no-tag "\n$temp\n"
 done
+echo
