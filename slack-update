@@ -10,6 +10,7 @@ TOOL_NAME="my1 Slackware Update Tool"
 TOOL_VERS="2019.07.00"
 TOOL_BASE=`basename $0`
 TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH ; pwd`
 CURR_PATH=`pwd`
 
 echo -e "\n$TOOL_BASE - $TOOL_NAME ($TOOL_VERS)\n"
@@ -28,10 +29,13 @@ call_setup
 NEXT_PATH=`dirname $SLACKTREE`
 cd $NEXT_PATH
 
-getslack ; getslackpack --sweep --exec ; getslackbuild -a
+$TOOL_PATH/getslack
+$TOOL_PATH/getslackpack --sweep --exec
+$TOOL_PATH/getslackbuild -a
 
 if [ -d /opt/chroot32 ] ; then
-	ARCH=x86 getslack ; ARCH=x86 getslackpack --sweep --exec
+	ARCH=x86 $TOOL_PATH/getslack
+	ARCH=x86 $TOOL_PATH/getslackpack --sweep --exec
 fi
 
 cd $CURR_PATH
