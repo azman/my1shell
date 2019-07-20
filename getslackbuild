@@ -117,7 +117,7 @@ list_build()
 	echo -n "$chk_list"
 }
 
-search_list() #cleaned0
+search_list()
 {
 	local pkg_name=$1
 	local pkg_list=$BUILDFULL
@@ -185,7 +185,7 @@ do_list_local()
 	done ; echo
 }
 
-update_list() #cleaned0
+update_list()
 {
 	local pkg_temp="$TOOL_TEMP"
 	local pkg_root="$BUILD_URL"
@@ -220,7 +220,7 @@ update_list() #cleaned0
 	[ ! -r "$tmp_list" ] && error_exit "File '$tmp_list' not found!\n\n"
 }
 
-go_fetch_ware() #cleaned0
+go_fetch_ware()
 {
 	local pkg_info=$1
 	local pkg_load=`echo "$pkg_info" | cut -d';' -f1`
@@ -249,7 +249,7 @@ go_fetch_ware() #cleaned0
 	fi
 }
 
-go_fetch_ball() #cleaned0
+go_fetch_ball()
 {
 	local pkg_info=$1
 	local pkg_load=`echo "$pkg_info" | cut -d';' -f1`
@@ -278,8 +278,9 @@ go_fetch_ball() #cleaned0
 	cd $cur_path
 }
 
-go_fetch() #cleaned0
+go_fetch()
 {
+	local fun_name="go_fetch()"
 	local pkg_name=$1 # package name
 	local pkg_path=$2 # storage path
 	local top_path=$WORK_PATH
@@ -349,7 +350,7 @@ do_update_all()
 	done ; echo
 }
 
-go_build() #cleaned0
+go_build()
 {
 	local pkg_file=$1
 	must_have_file $pkg_file "Build script '$pkg_file' not found!"
@@ -411,7 +412,7 @@ go_build() #cleaned0
 	fi
 }
 
-do_run_build() #cleaned0
+do_run_build()
 {
 	local fun_name="do_run_build()"
 	local pkg_name=$1
@@ -449,33 +450,33 @@ do_run_build() #cleaned0
 		go_build $pkg_file $pkg_vers $opt_inst
 }
 
-do_check_installed() #cleaned
+do_check_installed()
 {
-	local chk_path=$1
-	local chk_list=`list_build`
-	for full in $chk_list ; do
-		local pkg_file=`echo "$full" | cut -d';' -f1`
-		local tmp_path=`dirname $pkg_file`
-		local pkg_path=`dirname $tmp_path`
-		local pkg_name=`basename $tmp_path`
-		local tmp_name=`echo "$full" | cut -d';' -f2`
-		[ "$tmp_name" != "$pkg_name" ] &&
-			error_exit "Invalid package name! {$tmp_name/$pkg_name}\n\n"
-		local pkg_vers=`echo "$full" | cut -d';' -f3`
-		# look for installed only!
-		local pkg_temp="^${pkg_name}-[^-]*-[^-]*-[^-]*$"
-		local pkg_root=`ls /var/log/packages | grep -e "$pkg_temp"`
-		[ "$pkg_root" == "" ] && continue;
+	local fun_name="do_check_installed()"
+	local chk_full=`list_build`
+	[ -z "$chk_full" ] &&
+		info_msg --no-tag "No scripts found in '$WORK_PATH'!\n\n" && return
+	for that in $chk_full ; do
+		# setup trap for info_build
+		trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
+		local chk_info=`info_build $that`
+		trap - ERR
+		local chk_name=`echo "$chk_info" | cut -d';' -f1`
+		local chk_vers=`echo "$chk_info" | cut -d';' -f2`
+		local chk_pack=`echo "$chk_info" | cut -d';' -f3`
+		chk_pack=`echo $chk_pack | sed "s|$WORK_PATH||"`
+		# look for installed
+		local pkg_base=`find_install $chk_name`
+		[ "$pkg_base" == "" ] && continue;
+		local pkg_info=`get_pkg_info $pkg_base`
+		local pkg_vers=`echo "$pkg_info" | cut -d' ' -f2`
 		# check version
-		pkg_temp=`echo $pkg_root | sed 's/\(.*\)-\(.*\)/\1/'`
-		pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\1/'`
-		pkg_temp=`echo $pkg_temp | sed 's/\(.*\)-\(.*\)/\2/'`
-		[ "$pkg_temp" == "$pkg_vers" -a "$OPT_VERBOSE" != "YES" ] && continue;
+		[ "$pkg_vers" == "$chk_vers" -a "$OPT_VERBOSE" != "YES" ] && continue;
 		# show if not the same version
-		echo -n "Installed: {$pkg_root}, "
-		echo -n "Build: $pkg_name ($pkg_vers)"
-		pkg_path=`echo $pkg_path | sed "s|$chk_path||"`
-		echo " [Path: $pkg_path]"
+		head_msg "Installed: {$pkg_base}, "
+		head_msg "Build: $chk_name ($chk_vers)"
+		[ "$chk_pack" != "" ] && info_msg --no-tag " [Pack: $chk_pack]"
+		echo
 	done ; echo
 }
 
@@ -557,12 +558,12 @@ process_command()
 	[ "$OPT_LISTALL" == "YES" ] && do_list_local && exit 0
 	# check option to update ALL build scripts found
 	[ "$OPT_ALL_NEW" == "YES" ] && do_update_all && exit 0
-	# check if package path supplied
-	[ "$PACK_PATH" != "" ] && pkg_path=$pkg_path/$PACK_PATH
 	# check option to check installed build script(s)
-	[ "$OPT_CHK_SYS" == "YES" ] && do_check_installed $pkg_path && exit 0
+	[ "$OPT_CHK_SYS" == "YES" ] && do_check_installed && exit 0
 	# check if name supplied
 	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
+	# check if package path supplied
+	[ "$PACK_PATH" != "" ] && pkg_path=$pkg_path/$PACK_PATH
 	# check option to check dependents
 	[ "$OPT_REVDEPS" == "YES" ] &&
 		do_check_reversedeps $pkg_name $pkg_path && exit 0
