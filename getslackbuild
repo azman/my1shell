@@ -349,7 +349,7 @@ do_update_all()
 	done ; echo
 }
 
-do_build() #cleaned0
+go_build() #cleaned0
 {
 	local pkg_file=$1
 	must_have_file $pkg_file "Build script '$pkg_file' not found!"
@@ -393,21 +393,27 @@ do_build() #cleaned0
 	else
 		# copy built package & build log to cur_path
 		info_msg "Copying '$pkg_ball' to '$cur_path'... "
-		local chk_perm=`get_path_owner $cur_path`
 		mv $pkg_ball $cur_path
 		pkg_ball=$cur_path/`basename $pkg_ball`
 		mv $log_file $cur_path
 		log_file=$cur_path/`basename $log_file`
-		if [ "$chk_perm" != "" ] ; then
-			chown $chk_perm $pkg_file $log_file
-		fi
 		info_msg --no-tag "done!\n"
+		# fix permission of built package & build log
+		local ref_perm=`get_path_owner $cur_path`
+		local chk_perm=`get_path_owner $pkg_ball`
+		if [ "$chk_perm" != "" -a "$ref_perm" != "" ] ; then
+			if [ "$chk_perm" != "$ref_perm" ] ; then
+				info_msg "Fixing file permissions ... "
+				chown $chk_perm $pkg_ball $log_file
+				info_msg --no-tag "done!\n"
+			fi
+		fi
 	fi
 }
 
-do_build_this() #cleaned0
+do_run_build() #cleaned0
 {
-	local fun_name="do_build_this()"
+	local fun_name="do_run_build()"
 	local pkg_name=$1
 	local pkg_path=$2
 	local opt_inst=$3
@@ -435,12 +441,12 @@ do_build_this() #cleaned0
 		[ "$pkg_deps" == "%README%" ] && pkg_deps=""
 		pkg_deps=`echo $pkg_deps | tr ',' ' '`
 		for pkg in $pkg_deps ; do
-			do_build_this $pkg $sav_path --install
+			do_run_build $pkg $sav_path --install
 		done
 	fi
 	# build only if explicitly requested
 	[ "$OPT_EXECUTE" == "YES" ] &&
-		do_build $pkg_file $pkg_vers $opt_inst
+		go_build $pkg_file $pkg_vers $opt_inst
 }
 
 do_check_installed() #cleaned
@@ -562,7 +568,7 @@ process_command()
 		do_check_reversedeps $pkg_name $pkg_path && exit 0
 	# do your thing!
 	update_list
-	do_build_this $pkg_name $pkg_path $OPT_INSTALL
+	do_run_build $pkg_name $pkg_path $OPT_INSTALL
 }
 
 # BEGIN MAIN SCRIPT
