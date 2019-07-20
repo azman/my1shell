@@ -77,8 +77,8 @@ tag_msg()
 	[ "$elog" != "" ] && echo -ne "$mtag $@" >>$elog
 	[ "$dbug" = "yes" -a "$MY1_DODEBUG" = "NO" ] && return 0
 	if [ "$eout" = "yes" ] ; then
-		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m " 1>&2
-		echo -ne "\033[1;${ctag}m$1\033[0m" 1>&2
+		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m " >&2
+		echo -ne "\033[1;${ctag}m$1\033[0m" >&2
 	else
 		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m "
 		echo -ne "\033[1;${ctag}m$1\033[0m"
