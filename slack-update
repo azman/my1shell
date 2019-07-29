@@ -24,7 +24,7 @@ echo -ne "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n\n"
 call_setup
 [ ! -d "$SLACKTREE" ] &&
 	echo "Cannot find slack @'$SLACKTREE'!" && exit 1
-cd `dirname $SLACKTREE` ; echo "Log file $LOGS_FULL"
+cd `dirname $SLACKTREE`
 
 $TOOL_PATH/getslack
 $TOOL_PATH/getslackpack --sweep --exec
