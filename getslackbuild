@@ -145,6 +145,7 @@ search_list()
 	pkg_fil2=`echo "$pkg_fil2" | sed 's/.*: \(.*\)$/\1/'`
 	local pkg_deps=`echo "$pkg_text" | grep 'SLACKBUILD REQUIRES'`
 	pkg_deps=`echo "$pkg_deps" | sed 's/.*: \(.*\)$/\1/'`
+	pkg_deps=`echo $pkg_deps | tr ' ' ','`
 	echo -n "$pkg_load;$pkg_vers;$pkg_file;$pkg_fil2;$pkg_deps"
 }
 
