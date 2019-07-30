@@ -16,10 +16,14 @@ AOPTS="-c:a libmp3lame -ar 48000 -ab 128k"
 #AOPTS="-c:a libmp3lame -qscale:a 4"
 # video options
 VOPTS="-c:v mpeg4 -vtag xvid -vf scale=704:304 -aspect 16:9 -vb 700k -r 25"
+#CONSIDER THIS!! maybe slightly higher qscale? 0 is too big?
+#VOPTS="-c:v mpeg4 -vtag xvid -vf scale=704:304 -r 25 -qscale:v 0"
 # simpler?
 #VOPTS="-c:v mpeg4 -vtag xvid -qscale:v 3 -b:v 700k"
 # if using external xvidcore?
 #VOPTS="-c:v libxvid -vf scale=704:304 -aspect 16:9 -vb 700k -r 25"
+# -qscale:v 0 is for mpegX stuffs
+# opt -crf 18 is for libx264!
 INIT1="-y"
 INIT2=""
 PASS1="-pass 1 ${GOPTS} ${AOPTS} ${VOPTS} -an -f avi /dev/null"
