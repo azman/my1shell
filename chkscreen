@@ -7,6 +7,32 @@
 # example using xrandr tool
 # xrandr --output LVDS1 --auto --output VGA1 --mode 1024x768 --right-of LVDS1
 
+if echo "$@" | grep -q -e "--fix" ; then
+	# set it up
+	SHOW1=${SHOW1:="DP1"}
+	MODE1=${MODE1:="--auto"}
+	SHOW2=${SHOW2:="DP2"}
+	MODE2=${MODE2:="1280x1024"}
+	SHOW3=${SHOW3:="VGA1"}
+	MODE3=${MODE3:="1280x1024"}
+	# check which one needed
+	[ "$MODE1" != "--auto" ] &&
+		xrandr --addmode $SHOW1 $MODE1 && MODE1="--mode $MODE1"
+	[ "$MODE2" != "--auto" ] &&
+		xrandr --addmode $SHOW2 $MODE2 && MODE2="--mode $MODE2"
+	[ "$MODE3" != "--auto" ] &&
+		xrandr --addmode $SHOW3 $MODE3 && MODE3="--mode $MODE3"
+	# config placement
+	DISP1="--output $SHOW1 $MODE1"
+	[ "$SHOW2" != "" ] && DISP2="--output $SHOW2 $MODE2 --right-of $SHOW1"
+	[ "$SHOW3" != "" ] && DISP3="--output $SHOW3 $MODE3 --right-of $SHOW2"
+	# bring it on!
+	echo -ne "Screen fix:\n## xrandr $DISP1\n##   $DISP2\n##   $DISP3\n## "
+	xrandr $DISP1 $DISP2 $DISP3
+	echo "Done!"
+	exit 0
+fi
+
 ifs_save=$IFS
 IFS=$'\n'
 DISP_STATS=($(xrandr -q | grep " connected"))
@@ -76,7 +102,7 @@ elif [ "$1" == "hres" ] ; then
 		xrandr --addmode ${DISP_NAME[0]} ${MODE}
 	fi
 	if [ "$(xrandr | grep "connected ${MODE}")" == "" ] ; then
-		xrandr --output ${DISP_NAME[0]} --mode ${MODE} 
+		xrandr --output ${DISP_NAME[0]} --mode ${MODE}
 	fi
 fi
 
