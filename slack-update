@@ -11,29 +11,35 @@ TOOL_PATH=`dirname $0`
 TOOL_PATH=`cd $TOOL_PATH ; pwd`
 CURR_PATH=`pwd`
 TOOL_DESC="my1 Slackware Update Tool"
-TOOL_VERS="2019.07.00"
+TOOL_VERS="2019.08.00"
+DO_NOTIFY="$HOME/temp/$TOOL_NAME-PATCH"
 
 echo -ne "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n\n"
 
 # find libmy1slack
-[ ! -f $TOOL_PATH/libmy1slack ] &&
-	echo "Cannot find libmy1slack!" && exit 1
+[ ! -f $TOOL_PATH/libmy1slack ] && echo "Cannot find libmy1slack!" && exit 1
 . $TOOL_PATH/libmy1slack
 
 # make sure we are in correct path
 call_setup
-[ ! -d "$SLACKTREE" ] &&
-	echo "Cannot find slack @'$SLACKTREE'!" && exit 1
+[ ! -d "$SLACKTREE" ] && echo "Cannot find slack @'$SLACKTREE'!" && exit 1
 cd `dirname $SLACKTREE`
 
+# find/get the updates
 $TOOL_PATH/getslack
 $TOOL_PATH/getslackpack --sweep --exec
 $TOOL_PATH/getslackbuild -a
 
+# in case we have 32-bit chroot
 if [ -d /opt/chroot32 ] ; then
 	ARCH=x86 $TOOL_PATH/getslack
 	ARCH=x86 $TOOL_PATH/getslackpack --sweep --exec
 fi
+
+# do we need to patch?
+$TOOL_PATH/slackpatch quiet
+[ $? -ne 0 ] && echo -ne  "\nWE NEED TO PATCH!\n" &&
+	mkdir -p `dirname $DO_NOTIFY` && touch $DO_NOTIFY
 
 cd $CURR_PATH
 echo ; exit 0

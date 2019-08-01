@@ -6,7 +6,7 @@
 
 # standard tool info
 MY1_TOOLNAME="my1 Slackware Patch Tool"
-MY1_TOOLVERS="2019.06.01"
+MY1_TOOLVERS="2019.08.00"
 MY1_TOOLBASE=`basename $0 .sh`
 MY1_TOOLPATH=`dirname $0`
 MY1_TOOLPATH=`cd $MY1_TOOLPATH;pwd`
@@ -36,6 +36,7 @@ Commands:
   pdone : List patches that has been applied
   nlist : List patches NOT in update list (not used)
   patch : Apply updates/patches
+  quiet : Like 'check', but for use in another script!
 Options:
   --verbose : Verbose mode (will also prompt patching!)
   --log     : Write process & results to log file '$MY1_TLOGFULL'
@@ -144,9 +145,21 @@ execute_patches()
 	fi
 }
 
+check_patch()
+{
+	local pat_stat chk_null
+	local pat_list=`echo "$@" | sed 's/;/ /g'`
+	[ "$pat_opts" == "check" ] && echo "Packages need updating:"
+	for pat_loop in $pat_list ; do
+		pat_stat=`echo $pat_loop | cut -d':' -f2`
+		[ "$pat_stat" == "check" ] && chk_null="NO" && return 1
+	done
+	return 0
+}
+
 process_command()
 {
-	local go_commands="check pdone nlist patch"
+	local go_commands="check pdone nlist patch quiet"
 	local do_command
 	local pkg_list pkg_temp pkg_path pat_list
 	local pkg_path="--more ${SLACKROOT}/${SLACKFULL//ware/pack}"
@@ -196,23 +209,30 @@ process_command()
 	done
 	# if no command given, do a check
 	[ "$do_command" == "" ] && do_command="check"
-	echo "[$SLACKFULL]"
+	if [ "$do_command" != "quiet" ] ; then
+		echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+		echo "[$SLACKFULL]"
+		echo -n "Looking for patches... "
+	fi
 	# find patches
-	echo -n "Looking for patches... "
 	pat_list=`list_patches --tree $SLACKTREE $pkg_path $PKG_IGNORED`
-	echo -e "done!\n"
+	if [ "$do_command" != "quiet" ] ; then
+		echo -e "done!\n"
+	else
+		check_patch "$pat_list"
+		exit $?
+	fi
 	# display packages
 	[ "$do_command" != "patch" ] &&
 		display_patches $do_command "$pat_list"
 	# patch packages
 	[ "$do_command" == "patch" ] &&
 		execute_patches $pkg_list --patches "$pat_list"
+	echo ; exit 0
 }
 
 # BEGIN MAIN SCRIPT
 
-echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
 process_command "$@"
-echo ; exit 0
 
 # END MAIN SCRIPT
