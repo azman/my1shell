@@ -38,7 +38,8 @@ fi
 
 # do we need to patch?
 $TOOL_PATH/slackpatch quiet
-[ $? -ne 0 ] && echo -ne  "\nWE NEED TO PATCH!\n" &&
+[ $? -ne 0 ] && echo -ne  "\n-----------------" &&
+	echo -ne  "\nWE NEED TO PATCH!" && echo -ne  "\n-----------------\n" &&
 	mkdir -p `dirname $DO_NOTIFY` && touch $DO_NOTIFY
 
 cd $CURR_PATH
