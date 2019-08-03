@@ -8,28 +8,31 @@
 # xrandr --output LVDS1 --auto --output VGA1 --mode 1024x768 --right-of LVDS1
 
 if echo "$@" | grep -q -e "--fix" ; then
+	# this is a hack... for now...
+	PATH2="/sys/class/drm/card0-DP-2"
+	STAT2="$PATH2/status"
+	# only root can do this! :(
+	WHAT2=`cat $STAT2 | grep disconnected`
+	if [ "$WHAT2" != "" ] ; then
+		[ $UID -ne 0 ] && echo "Must be root to write to $STAT2!" && exit 1
+		echo 'on-digital' > $STAT2
+	fi
 	# set it up
 	SHOW1=${SHOW1:="DP1"}
 	MODE1=${MODE1:="--auto"}
 	SHOW2=${SHOW2:="DP2"}
 	MODE2=${MODE2:="1280x1024"}
 	SHOW3=${SHOW3:="VGA1"}
-	MODE3=${MODE3:="1280x1024"}
+	MODE3=${MODE3:="--auto"}
 	# check which one needed
-	[ "$MODE1" != "--auto" ] &&
+	[ "$MODE1" != "--auto" ] && echo "Add mode $MODE1 for $SHOW1" &&
 		xrandr --addmode $SHOW1 $MODE1 && MODE1="--mode $MODE1"
-	[ "$MODE2" != "--auto" ] &&
+	[ "$MODE2" != "--auto" ] && echo "Add mode $MODE2 for $SHOW2" &&
 		xrandr --addmode $SHOW2 $MODE2 && MODE2="--mode $MODE2"
-	[ "$MODE3" != "--auto" ] &&
+	[ "$MODE3" != "--auto" ] && echo "Add mode $MODE3 for $SHOW3" &&
 		xrandr --addmode $SHOW3 $MODE3 && MODE3="--mode $MODE3"
-	# config placement
-	DISP1="--output $SHOW1 $MODE1"
-	[ "$SHOW2" != "" ] && DISP2="--output $SHOW2 $MODE2 --right-of $SHOW1"
-	[ "$SHOW3" != "" ] && DISP3="--output $SHOW3 $MODE3 --right-of $SHOW2"
-	# bring it on!
-	echo -ne "Screen fix:\n## xrandr $DISP1\n##   $DISP2\n##   $DISP3\n## "
-	xrandr $DISP1 $DISP2 $DISP3
-	echo "Done!"
+	# stop and ask to re-run without --fix
+	echo "Done. Re-run this script without '--fix'!"
 	exit 0
 fi
 
