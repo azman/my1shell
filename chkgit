@@ -28,7 +28,7 @@ PROJ_COPY=${PROJ_COPY:=""}
 B_VERBOSE="NO"
 
 do_command=""
-ok_command="create check origin update remote archive cleanup"
+ok_command="create check origin update remote archive cleanup bundle"
 
 # check parameters for command
 while  [ "$1" != "" ]; do
@@ -295,6 +295,25 @@ elif [ "$do_command" == "create" ]; then
 	$GIT_BIN remote rm origin >/dev/null 2>&1
 	echo "done."
 	cd $CURPATH
+elif [ "$do_command" == "bundle" ]; then
+	[ ! -d "$PATH2BUND" ] &&
+		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
+	[ ! -d .git ] &&
+		echo "Not in a git path '$CURPATH'!" && exit 1
+	PROJ_NAME=`basename $CURPATH`
+	FULL_FIND=`find ${PATH2BUND} -name "${PROJ_NAME}-*.git" | sort`
+	for FULL_TEST in $FULL_FIND ; do
+		TEMP_TEST=`echo $FULL_TEST | sed 's/\(.*\)-[0-9]\{12,14\}.*$/\1/'`
+		TEMP_TEST=`basename $TEMP_TEST`
+		[ "$TEMP_TEST" != "$PROJ_NAME" ] && continue;
+		FULL_PATH=$FULL_TEST
+	done # will get latest???
+	if [ ! -f "$FULL_PATH" ] ; then
+		echo "Bundle '$FULL_PATH' not found!" && exit 1
+	fi
+	echo "Bundle: $FULL_PATH"
+	echo -n "Updating $PROJ_NAME from master branch... "
+	$GIT_BIN pull $FULL_PATH master 2>/dev/null
 elif [ "$do_command" == "archive" ]; then
 	[ ! -d "$PATH2BUND" ] &&
 		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
