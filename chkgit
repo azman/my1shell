@@ -21,11 +21,13 @@ AHEAD_MSG="is ahead of"
 # tool & env setup
 GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
 [ "$GIT_BIN" = "" ] && echo "git binary NOT found! Aborting!" && exit 1
+PATH2GHUB=${PATH2GHUB:="$HOME/archive/github"}
 PATH2BUND=${PATH2BUND:="$HOME/archive/project"}
 PATH2PROJ=${PATH2PROJ:="$CURPATH"}
 PROJ_NAME=${PROJ_NAME:=""}
 PROJ_COPY=${PROJ_COPY:=""}
 B_VERBOSE="NO"
+SWEEP_OLD="NO"
 
 do_command=""
 ok_command="create check origin update remote archive cleanup bundle"
@@ -51,8 +53,14 @@ while  [ "$1" != "" ]; do
 			[ ! -d "$1" ] && echo "Invalid path '$1'!" && exit 1
 			PATH2BUND=`cd $1;pwd`
 			;;
+		--github|-g)
+			PATH2BUND=$PATH2GHUB
+			;;
 		--verbose|-v)
 			B_VERBOSE="YES"
+			;;
+		--sweep)
+			SWEEP_OLD="YES"
 			;;
 		-*)
 			echo "Unknown parameter '$1'"
@@ -75,7 +83,7 @@ done
 
 # command functions
 
-function chkgit_isclean()
+chkgit_isclean()
 {
 	local chk_value=0
 	local chk_quiet="NO"
@@ -107,7 +115,7 @@ function chkgit_isclean()
 	return $chk_value
 }
 
-function chkgit_origin()
+chkgit_origin()
 {
 	local chk_origin chk_source chk_sedpat
 	local chk_value=0
@@ -133,7 +141,7 @@ function chkgit_origin()
 	return $chk_value
 }
 
-function chkgit_remote()
+chkgit_remote()
 {
 	local chk_remote chk_sedpat chk_srcpat
 	local chk_path=`pwd`
@@ -154,7 +162,7 @@ function chkgit_remote()
 	fi
 }
 
-function chkgit_update()
+chkgit_update()
 {
 	local chk_path=`pwd`
 	local chk_base=`basename $chk_path`
@@ -172,7 +180,7 @@ function chkgit_update()
 	$GIT_BIN pull
 }
 
-function chkgit_cleanup()
+chkgit_cleanup()
 {
 	local chk_path=`pwd`
 	local chk_base=`basename $chk_path`
@@ -191,7 +199,7 @@ function chkgit_cleanup()
 	else echo "done!" ; fi
 }
 
-function chkgit_archive()
+chkgit_archive()
 {
 	local chk_path=`pwd`
 	local chk_base=`basename $chk_path`
@@ -200,15 +208,18 @@ function chkgit_archive()
 		chk_date=`$GIT_BIN log -1 --format=%cd --date=format:'%Y%m%d%H%M%S'`
 		chk_name=${chk_base}-${chk_date}.git
 		chk_full=${PATH2BUND}/${chk_name}
-		local that_find=`find ${PATH2BUND} -name ${chk_base}-*.git`
+		local that_find=`find ${PATH2BUND} -name ${chk_base}-[0-9]*.git`
 		for this_find in $that_find ; do
 			if [ -f "$this_find" -a "$this_find" != "$chk_full" ] ; then
-				echo "Old archive '$this_find' found?"
+				echo -n "Found old archive '$this_find'"
+				[ "$SWEEP_OLD" != "YES" ] && echo && continue
+				rm -rf ${this_find}
+				echo ": REMOVED."
 			fi
 		done
 		if [ -f "$chk_full" ] ; then
 			[ "$B_VERBOSE" == "YES"  ] &&
-				echo "File '$PATH2BUND/$chk_name' found! Archive is up to date!"
+				echo "File '$chk_name' found! Archive is up to date!"
 			return
 		fi
 		echo -n "Creating new archive '$chk_name' in $PATH2BUND... "

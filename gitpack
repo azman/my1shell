@@ -92,7 +92,7 @@ GIT_BIN=`which git 2>/dev/null`
 [ ! -d "$CURRPATH/.git" ] &&
 	echo "Not a git repo! Abort!" && exit 1
 
-function get_branch()
+get_branch()
 {
 	local chk_branch=`git branch | grep "* "`
 	chk_branch=`echo "$chk_branch" | sed "s/^.*\* \(.*\)$/\1/"`
@@ -100,13 +100,13 @@ function get_branch()
 }
 
 #trap trap_break INT
-#function trap_break()
+#trap_break()
 #{
 #	# user break!
 #}
 
 trap trap_error ERR
-function trap_error()
+trap_error()
 {
 	local cur_branch=`get_branch`
 	[ "$cur_branch" == "master" -a "$CHK_BRANCH" != "master" ] &&
