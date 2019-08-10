@@ -1,0 +1,3 @@
+#!/bin/bash
+
+lsblk --list --output NAME,SIZE,RO,TYPE,FSTYPE,LABEL,PARTLABEL,PARTUUID

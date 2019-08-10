@@ -8,6 +8,9 @@ INFO_PATH="/sys/class/power_supply"
 BATT_MISS="YES"
 BATT_PATH=""
 BATT_NAME=""
+VOLT_CURR=""
+VOLT_DMIN=""
+VOLT_TEMP=""
 
 if [ -d ${INFO_PATH} ] ; then
 	BATT_PATH=`find ${INFO_PATH} -name "BAT*" -maxdepth 1`
@@ -26,6 +29,11 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	((FULL_BATT=`cat ${BATT_PATH}/charge_full_design`/1000))
 	((PREV_BATT=`cat ${BATT_PATH}/charge_full`/1000))
 	((CURR_BATT=`cat ${BATT_PATH}/charge_now`/1000))
+	((VOLT_CURR=`cat ${BATT_PATH}/voltage_now`/1000))
+	((VOLT_DMIN=`cat ${BATT_PATH}/voltage_min_design`/1000))
+	((VOLT_TEMP=${VOLT_CURR}-${VOLT_DMIN}))
+	((VOLT_TEMP=${VOLT_TEMP}*100/${VOLT_DMIN}))
+	((VOLT_TEMP=${VOLT_TEMP}+100))
 	CURR_PCTG=`cat ${BATT_PATH}/capacity`
 	_CHARGING=`cat ${BATT_PATH}/status`
 	RATE_TEST=`cat ${BATT_PATH}/current_now 2>/dev/null`
@@ -73,6 +81,7 @@ fi
 [ "$1" == "--state" ] && echo "$CHK_STATE" && exit 0
 
 echo "$CURR_PCTG% <$_CHARGING> CURR=$CURR_BATT RATE=$RATE_BATT" \
-	"FULL=$FULL_BATT PREV=$PREV_BATT [${BATT_NAME}]"
+	"FULL=$FULL_BATT PREV=$PREV_BATT Vcur=${VOLT_CURR}mV" \
+	"Vpct=${VOLT_TEMP}% [${BATT_NAME}]"
 
 exit 0
