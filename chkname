@@ -11,15 +11,17 @@ DO_HERE=""
 DO_LOWER=""
 DO_EXEC=""
 DO_DOTS=""
+DO_PAREN=""
 
 [ "$(echo $@|grep -- '--here')" != "" ] && DO_HERE="YES"
 [ "$(echo $@|grep -- '--lowercase')" != "" ] && DO_LOWER="YES"
 [ "$(echo $@|grep -- '--exec')" != "" ] && DO_EXEC="YES"
 [ "$(echo $@|grep -- '--dots')" != "" ] && DO_DOTS="YES"
+[ "$(echo $@|grep -- '--brackets')" != "" ] && DO_PAREN="YES"
 
 function chk_name()
 {
-	# check whitespace
+	# check whitespace (default)
 	local tconv="$(echo "$1"|tr ' ' '_')"
 	# get part before extension
 	local textd="${tconv##*.}"
@@ -27,9 +29,16 @@ function chk_name()
 	# remove dots except extension... IF requested
 	[ "$DO_DOTS" == "YES" ] &&
 		tconv="$(echo "$ttemp"|tr '.' '_').${textd}"
+	# remove brackets... IF requested
+	[ "$DO_PAREN" == "YES" ] &&
+		tconv="$(echo "$tconv"|tr '(' '_'|tr ')' '_')"
 	# change lowercase... IF requested
 	[ "$DO_LOWER" == "YES" ] &&
 		tconv="$(echo "$tconv"|tr '[A-Z]' '[a-z]')"
+	# remove double underscore OR underscore-dash pair
+	#tconv="$(echo "$tconv"|sed 's|__|_|g'|sed 's|_-|-|g')"
+	# remove underscore at end of name
+	#tconv="$(echo "$tconv"|sed 's|^\(.*\)_$|\1|g')"
 	# spit it out
 	echo "$tconv"
 }
