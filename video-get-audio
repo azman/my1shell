@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# check input
+IFILE="$1"
+[ -z "$IFILE" ] && exit 0
+OFILE="${IFILE%.*}.mp3"
+
+# must have ffmpeg
+DPROG="ffmpeg"
+DEXEC=`which $DPROG 2>/dev/null`
+[ ! -x "$DEXEC" ] && echo "Cannot exec $DPROG! Aborting!" && exit 1
+
+# audio options
+AOPTS="-c:a libmp3lame -ar 48000 -ab 128k"
+
+# show input/output filenames
+echo "Input : $IFILE"
+echo "Output: $OFILE"
+[ ! -f "$IFILE" ] && exit 0
+[ -f "$OFILE" ] && echo -ne "\n[ABORT] Output file exists!\n\n" && exit 0
+
+# do that thing you do...
+echo -n "Extracting... "
+${DEXEC} -i ${IFILE} -vn ${AOPTS} ${OFILE} 2>/dev/null
+echo "done."

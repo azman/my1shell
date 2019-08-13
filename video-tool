@@ -4,40 +4,64 @@ XFILE=`basename $0 .sh`
 IFILE="$1"
 OFILE="${IFILE%.*}.avi"
 TWICE=""
+DOLOG=/dev/null
 
-[ "$1" = "" ] && exit 0
-[ "$2" = "--dual" ] && TWICE="YES"
+[ "$IFILE" = "" ] && exit 0
 [ "$IFILE" = "$OFILE" ] && OFILE="${IFILE%.*}-conv.avi"
+
+# default settings
+V_RES=${V_RES:="704:304"}
+V_ASP=${V_ASP:="16:9"}
+V_BIT=${V_BIT:="700k"}
+
+shift
+while [ "$1" != "" ]; do
+	case $1 in
+		--log) DOLOG="${XFILE}.log" ;;
+		--2pass) TWICE="YES" ;;
+		--vbit) shift ; V_BIT="$1" ;;
+		--tv)
+			V_RES="512:384" #mod16 resolution
+			V_ASP="4:3"
+			;;
+	esac
+	shift
+done
+TOPTS="-vf scale=${V_RES} -aspect ${V_ASP} -vb ${V_BIT} -r 25"
+
+# simpler?
+#AOPTS="-c:a libmp3lame -qscale:a 4"
+#VOPTS="-c:v mpeg4 -vtag xvid -qscale:v 3 -b:v 700k"
 
 GOPTS="-sn" # disable subtitle
 # audio options
 AOPTS="-c:a libmp3lame -ar 48000 -ab 128k"
-# simpler?
-#AOPTS="-c:a libmp3lame -qscale:a 4"
 # video options
-VOPTS="-c:v mpeg4 -vtag xvid -vf scale=704:304 -aspect 16:9 -vb 700k -r 25"
+VOPTS="-c:v mpeg4 -vtag xvid ${TOPTS}"
 #CONSIDER THIS!! maybe slightly higher qscale? 0 is too big?
 #VOPTS="-c:v mpeg4 -vtag xvid -vf scale=704:304 -r 25 -qscale:v 0"
-# simpler?
-#VOPTS="-c:v mpeg4 -vtag xvid -qscale:v 3 -b:v 700k"
-# if using external xvidcore?
-#VOPTS="-c:v libxvid -vf scale=704:304 -aspect 16:9 -vb 700k -r 25"
-# -qscale:v 0 is for mpegX stuffs
-# opt -crf 18 is for libx264!
-INIT1="-y"
-INIT2=""
-PASS1="-pass 1 ${GOPTS} ${AOPTS} ${VOPTS} -an -f avi /dev/null"
-PASS2="-pass 2 ${GOPTS} ${AOPTS} ${VOPTS} ${OFILE}"
+# -qscale:v 0 is for mpegX stuffs!
+# -crf 18 is for libx264!
 
 echo "Input : $IFILE"
 echo "Output: $OFILE"
+echo "Settings: Scale=${V_RES} AspRatio=${V_ASP} BitRate=${V_BIT}"
 [ ! -f "$IFILE" ] && exit 0
 [ -f "$OFILE" ] && echo -ne "\n[ABORT] Output file exists!\n\n" && exit 0
 
-echo -n "" >${XFILE}.log
+echo -n "" >${DOLOG}
 if [ "$TWICE" != "YES" ]; then
-	ffmpeg -i ${IFILE} ${GOPTS} ${AOPTS} ${VOPTS} ${OFILE} 2>>${XFILE}.log
+	echo -n "Processing... "
+	ffmpeg -i ${IFILE} ${GOPTS} ${AOPTS} ${VOPTS} ${OFILE} 2>>${DOLOG}
+	echo "done."
 else
-	ffmpeg ${INIT1} -i ${IFILE} ${PASS1} 2>>${XFILE}.log
-	ffmpeg ${INIT2} -i ${IFILE} ${PASS2} 2>>${XFILE}.log
+	INIT1="-y"
+	INIT2=""
+	PASS1="-pass 1 ${GOPTS} ${AOPTS} ${VOPTS} -an -f avi /dev/null"
+	PASS2="-pass 2 ${GOPTS} ${AOPTS} ${VOPTS} ${OFILE}"
+	echo -n "Processing (PASS1)... "
+	ffmpeg ${INIT1} -i ${IFILE} ${PASS1} 2>>${DOLOG}
+	echo -ne "done.\nProcessing (PASS2)... "
+	ffmpeg ${INIT2} -i ${IFILE} ${PASS2} 2>>${DOLOG}
+	echo "done."
 fi

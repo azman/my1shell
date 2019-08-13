@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# check input
+IFILE="$1"
+[ -z "$IFILE" ] && exit 0
+[ ! -f "$IFILE" ] && exit 0
+OFILE="${IFILE%.*}.mp3"
+[ "$IFILE" = "$OFILE" ] && OFILE="${IFILE%.*}-conv.mp3"
+PNEXT=0
+GAIN_="5dB"
+
+# must have ffmpeg
+DPROG="ffmpeg"
+DEXEC=`which $DPROG 2>/dev/null`
+[ ! -x "$DEXEC" ] && echo "Cannot exec $DPROG! Aborting!" && exit 1
+
+shift
+while [ "$1" != "" ]; do
+	case $1 in
+		--modify) PNEXT=1 ;;
+		--gain) shift ; GAIN_=$1 ;;
+		default)
+
+			;;
+	esac
+	shift
+done
+
+# audio options
+AOPTS="-filter:a volumedetect"
+
+# check volume
+echo "Current volume for ${IFILE}:"
+${DEXEC} -i ${IFILE} ${AOPTS} -f null /dev/null 2>&1 | grep volumedetect
+
+[ $PNEXT -eq 0 ] && exit 0
+
+# audio options
+AOPTS="-filter:a volume=${GAIN_}"
+
+# show input/output filenames
+echo "Input : $IFILE"
+echo "Output: $OFILE"
+[ -f "$OFILE" ] && echo -ne "\n[ABORT] Output file exists!\n\n" && exit 0
+
+# do that thing you do...
+echo -n "Mixing volume (Gain:${GAIN_})... "
+${DEXEC} -i ${IFILE} ${AOPTS} ${OFILE} 2>/dev/null
+echo "done."
