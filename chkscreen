@@ -14,8 +14,8 @@ if echo "$@" | grep -q -e "--fix" ; then
 	# only root can do this! :(
 	WHAT2=`cat $STAT2 | grep disconnected`
 	if [ "$WHAT2" != "" ] ; then
-		[ $UID -ne 0 ] && echo "Must be root to write to $STAT2!" && exit 1
-		echo 'on-digital' > $STAT2
+		echo "Must be root to write to $STAT2!"
+		su - -c "echo 'on-digital' > $STAT2"
 	fi
 	# set it up
 	SHOW1=${SHOW1:="DP1"}
