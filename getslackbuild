@@ -372,8 +372,6 @@ go_build()
 			echo "Package $pkg_base installed."
 			[ "$OPT_BUILDUP" == "NO" ] && return
 		fi
-		# continue, but do not install?
-		opt_inst=""
 	fi
 	# only root can actually build!
 	must_be_root "Must run as root! ($pkg_name-$pkg_vers)"
@@ -389,11 +387,24 @@ go_build()
 	pkg_ball=`echo "$pkg_ball" | sed 's/^.*package \(.*\) created.*$/\1/'`
 	must_have_file $pkg_ball "Cannot find package '$pkg_ball'!"
 	if [ "$opt_inst" == "--install" ] ; then
-		# go install!
-		info_msg "Installing '$pkg_ball'... "
-		installpkg $pkg_ball >>$log_file 2>&1
-		[ $? -ne 0 ] && error_exit "Error installing '$pkg_ball'!\n\n"
-		info_msg --no-tag "done!\n"
+		if [ "$pkg_base" != "" ] ; then
+			local chk_opts=""
+			# upgrade existing?
+			local chk_info=`get_pkg_info $pkg_base`
+			local chk_vers=`echo "$chk_info" | cut -d' ' -f2`
+			[ "$chk_vers" == "$pkg_vers" ] && chk_opts="--reinstall"
+			# go upgrade!
+			info_msg "Upgrading '$pkg_ball' ($chk_vers -> $pkg_vers)... "
+			upgradepkg $chk_opts $pkg_ball >>$log_file 2>&1
+			[ $? -ne 0 ] && error_exit "Error upgrading '$pkg_ball'!\n\n"
+			info_msg --no-tag "done!\n"
+		else
+			# go install!
+			info_msg "Installing '$pkg_ball'... "
+			installpkg $pkg_ball >>$log_file 2>&1
+			[ $? -ne 0 ] && error_exit "Error installing '$pkg_ball'!\n\n"
+			info_msg --no-tag "done!\n"
+		fi
 	else
 		# copy built package & build log to cur_path
 		info_msg "Copying '$pkg_ball' to '$cur_path'... "
