@@ -408,7 +408,7 @@ go_build()
 		if [ "$chk_perm" != "" -a "$ref_perm" != "" ] ; then
 			if [ "$chk_perm" != "$ref_perm" ] ; then
 				info_msg "Fixing file permissions ... "
-				chown $chk_perm $pkg_ball $log_file
+				chown $ref_perm $pkg_ball $log_file
 				info_msg --no-tag "done!\n"
 			fi
 		fi
