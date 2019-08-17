@@ -75,6 +75,7 @@ while [ "$1" != "" ]; do
 			PATCHNUM="$1"
 			PATCHGIT="YES"
 			CHKPATCH="NO"
+			DOBUNDLE="NO"
 			;;
 		* )
 			echo "Unknown parameter ($1)!" && exit 1
