@@ -311,7 +311,8 @@ elif [ "$do_command" == "bundle" ]; then
 		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
 	[ ! -d .git ] &&
 		echo "Not in a git path '$CURPATH'!" && exit 1
-	PROJ_NAME=`basename $CURPATH`
+	PROJ_THIS=`basename $CURPATH`
+	[ -z "$PROJ_NAME" ] && PROJ_NAME=$PROJ_THIS
 	FULL_FIND=`find ${PATH2BUND} -name "${PROJ_NAME}-*.git" | sort`
 	for FULL_TEST in $FULL_FIND ; do
 		TEMP_TEST=`echo $FULL_TEST | sed 's/\(.*\)-[0-9]\{12,14\}.*$/\1/'`
@@ -320,11 +321,13 @@ elif [ "$do_command" == "bundle" ]; then
 		FULL_PATH=$FULL_TEST
 	done # will get latest???
 	if [ ! -f "$FULL_PATH" ] ; then
+		[ -z "$FULL_FIND" ] && FULL_PATH=$PROJ_NAME
 		echo "Bundle '$FULL_PATH' not found!" && exit 1
 	fi
 	echo "Bundle: $FULL_PATH"
-	echo -n "Updating $PROJ_NAME from master branch... "
+	echo -n "Updating $PROJ_THIS from $PROJ_NAME master branch... "
 	$GIT_BIN pull $FULL_PATH master 2>/dev/null
+	[ $? -ne 0 ] && echo "something went wrong!"
 elif [ "$do_command" == "archive" ]; then
 	[ ! -d "$PATH2BUND" ] &&
 		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
