@@ -1,0 +1,78 @@
+#!/bin/bash
+
+QEMU_BIN=${QEMU_BIN:="qemu-system-i386"}
+QEMU_MEM=${QEMU_MEM:="1536M"} # 1.5G RAM!
+
+QEMU_CHK=`which $QEMU_BIN 2>/dev/null`
+[ $? -ne 0 ] && echo "Cannot find '$QEMU_BIN'! Aborting!" && exit 1
+
+CHK_THIS=`basename $0 | sed 's|do-||'`
+CHK_PATH=`pwd`
+CHK_CONF="$CHK_PATH/.$CHK_THIS"
+[ -f "$CHK_CONF" ] && . $CHK_CONF
+
+ISO_PATH=${ISO_PATH:=""}
+ISO_LOAD=${ISO_LOAD:=""}
+HDD_PATH=${HDD_PATH:="$CHK_PATH"}
+HDD_FILE=${HDD_FILE:="$HDD_PATH/disk.qcow2"}
+
+QEMU_OPT="${QEMU_OPT} -enable-kvm"
+QEMU_OPT="${QEMU_OPT} -net nic -net user,hostfwd=tcp::2222-:22"
+QEMU_OPT="${QEMU_OPT} -rtc base=localtime"
+
+while [ "$1" != "" ] ; do
+	case $1 in
+		--path2iso)
+			shift
+			[ ! -d "$1" ] && echo "Invalid path '$1'! Aborting!" && exit 1
+			ISO_PATH="$1"
+			;;
+		--path2hdd|--path)
+			shift
+			[ ! -d "$1" ] && echo "Invalid path '$1'! Aborting!" && exit 1
+			HDD_PATH="$1"
+			;;
+		--memory | -m)
+			shift
+			QEMU_MEM=$1
+			;;
+		--config)
+			shift
+			[ ! -f "$1" ] && echo "Invalid config '$1'! Aborting!" && exit 1
+			. $1
+			;;
+		--vga)
+			QEMU_OPT="${QEMU_OPT} -vga cirrus"
+			;;
+		--sound)
+			QEMU_OPT="${QEMU_OPT} -soundhw ac97"
+			;;
+		--disk)
+			shift
+			HDD_FILE=$HDD_PATH/$1
+			[ ! -f $HDD_PATH ] &&
+				echo "Cannot find file '$HDD_PATH'! Aborting!" && exit 1
+			;;
+		--cdrom)
+			shift
+			ISO_LOAD=$ISO_PATH/$1
+			[ ! -f $ISO_LOAD ] &&
+				echo "Cannot find file '$ISO_LOAD'! Aborting!" && exit 1
+			;;
+		-* )
+			echo "Unknown option? ($1)"
+			exit 1
+			;;
+		* )
+			echo "Unknown parameter? ($1)"
+			exit 1
+			;;
+	esac
+	shift
+done
+
+QEMU_OPT="${QEMU_OPT} -boot order=c -hda $HDD_FILE"
+QEMU_OPT="${QEMU_OPT} -m ${QEMU_MEM}"
+[ -f "$ISO_LOAD" ] && QEMU_OPT="${QEMU_OPT} -cdrom ${ISO_LOAD}"
+
+$QEMU_BIN $QEMU_OPT
