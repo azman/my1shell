@@ -21,9 +21,7 @@ while [ "$1" != "" ]; do
 		--modify) PNEXT=1 ;;
 		--gain) shift ; GAIN_=$1 ;;
 		--norm) NORM_="YES" ;;
-		default)
-
-			;;
+		*) echo "Unknown option '$1'!" ;;
 	esac
 	shift
 done
@@ -41,7 +39,7 @@ ${DEXEC} -i ${IFILE} ${AOPTS} -f null /dev/null 2>&1 | grep volumedetect
 AOPTS="-filter:a volume=${GAIN_}"
 SHOW_="Gain:${GAIN_}"
 
-[ "$NORM_"=="YES" ] && AOPTS="-filter:a loudnorm" && SHOW_="LOUDNORM"
+[ "$NORM_" = "YES" ] && AOPTS="-filter:a loudnorm" && SHOW_="LOUDNORM"
 
 # show input/output filenames
 echo "Input : $IFILE"
