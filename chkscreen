@@ -110,4 +110,3 @@ elif [ "$1" == "hres" ] ; then
 fi
 
 exit 0
-
