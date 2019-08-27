@@ -14,6 +14,8 @@ DOVAR=""
 V_RES=${V_RES:="704:304"}
 V_ASP=${V_ASP:="16:9"}
 V_BIT=${V_BIT:="700k"}
+V_QSC=${V_QSC:="6"}
+A_QSC=${A_QSC:="4"}
 
 shift
 while [ "$1" != "" ]; do
@@ -22,6 +24,8 @@ while [ "$1" != "" ]; do
 		--log) DOLOG="${XFILE}.log" ;;
 		--2pass) TWICE="YES" ;;
 		--vbit) shift ; V_BIT="$1" ;;
+		--vqsc) shift ; V_QSC="$1" ;;
+		--aqsc) shift ; A_QSC="$1" ;;
 		--tv) V_RES="512:384" ; V_ASP="4:3" ;; #mod16 resolution
 	esac
 	shift
@@ -30,8 +34,8 @@ ACODE="-ar 48000 -ab 128k"
 VCODE="-vf scale=${V_RES} -aspect ${V_ASP} -vb ${V_BIT} -r 25"
 
 # opt for variable bitrate
-[ "$DOVAR" = "YES" ] && TWICE="" && ACODE="-qscale:a 4" &&
-	VCODE="-qscale:v 5 -vf scale=${V_RES} -aspect ${V_ASP} -r 25"
+[ "$DOVAR" = "YES" ] && TWICE="" && ACODE="-qscale:a ${A_QSC}" &&
+	VCODE="-qscale:v ${V_QSC} -vf scale=${V_RES} -aspect ${V_ASP} -r 25"
 # -qscale:v 4 is for mpegX stuffs!
 # -crf 18 is for libx264!
 
@@ -45,7 +49,7 @@ VOPTS="-c:v mpeg4 -vtag xvid $VCODE"
 echo "Input : $IFILE"
 echo "Output: $OFILE"
 echo "Settings: {A:$ACODE,V:$VCODE}"
-[ ! -f "$IFILE" ] && exit 0
+[ ! -f "$IFILE" ] && echo -ne "\n[ABORT] Input file missing!\n\n" && exit 0
 [ -f "$OFILE" ] && echo -ne "\n[ABORT] Output file exists!\n\n" && exit 0
 
 echo -n "" >${DOLOG}
