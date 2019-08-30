@@ -33,6 +33,14 @@ done
 ACODE="-ar 48000 -ab 128k"
 VCODE="-vf scale=${V_RES} -aspect ${V_ASP} -vb ${V_BIT} -r 25"
 
+# tinker with numbers
+#ffplay -vf eq=gamma=1.5:saturation=1.3 $IFILE
+#ffplay -vf eq=brightness=0.06:saturation=2 $IFILE
+
+# render
+#ffmpeg -i $IFILE -vf eq=gamma=1.5:saturation=1.3 -c:a copy $OFILE
+#ffmpeg -i $IFILE -vf eq=brightness=0.06:saturation=2 -c:a copy $OFILE
+
 # opt for variable bitrate
 [ "$DOVAR" = "YES" ] && TWICE="" && ACODE="-qscale:a ${A_QSC}" &&
 	VCODE="-qscale:v ${V_QSC} -vf scale=${V_RES} -aspect ${V_ASP} -r 25"
