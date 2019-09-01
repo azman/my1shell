@@ -309,11 +309,9 @@ go_fetch()
 		fi
 	fi
 	# do we need to fetch?
-	if [ "$pkg_vers" != "$chk_vers" -o "$OPT_CLEANUP" == "YES" ] ; then
-		# if no local OR we want a clean one
-		if [ "$pkg_vers" == "" -o "$OPT_CLEANUP" == "YES" ] ; then
-			go_fetch_ball $chk_info $pkg_path
-		fi
+	[ "$OPT_CLEANUP" == "YES" ] && pkg_vers=
+	if [ "$pkg_vers" == "" -o "$pkg_vers" != "$chk_vers" ] ; then
+		go_fetch_ball $chk_info $pkg_path
 	fi
 	# re-check script, setup trap for find_build
 	trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
@@ -554,7 +552,6 @@ process_command()
 				;;
 			-a)
 				OPT_ALL_NEW="YES"
-				OPT_CLEANUP="YES"
 				;;
 			-c)
 				OPT_CHK_SYS="YES"
