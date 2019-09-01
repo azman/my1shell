@@ -309,7 +309,7 @@ go_fetch()
 		fi
 	fi
 	# do we need to fetch?
-	if [ "$pkg_vers" != "$chk_vers" ] ; then
+	if [ "$pkg_vers" != "$chk_vers" -o "$OPT_CLEANUP" == "YES" ] ; then
 		# if no local OR we want a clean one
 		if [ "$pkg_vers" == "" -o "$OPT_CLEANUP" == "YES" ] ; then
 			go_fetch_ball $chk_info $pkg_path
