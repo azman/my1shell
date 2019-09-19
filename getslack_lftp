@@ -1,0 +1,12 @@
+#!/bin/bash
+
+SERVERURL_="http://mirrors.slackware.com"
+SERVERPATH="/slackware/slackware64-14.2/patches"
+LOCAL_MAIN="${HOME}/temp"
+LOCAL_PATH="${LOCAL_MAIN}${SERVERPATH}"
+
+[ ! -d "${LOCAL_PATH}" ] && mkdir -pv ${LOCAL_PATH}
+lftp -c "open $SERVERURL_;
+lcd $LOCAL_PATH;
+cd $SERVERPATH;
+mirror --continue --dereference --parallel=1 --delete --verbose --exclude-glob *.mirrorlist --delete-excluded"
