@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# VLIST is a text file containing list of mp4 files to be joined
+# - 1 file per line
+# - format: "file <filename>"
+
+VLIST=${VLIST:=""}
+VMAKE=${VMAKE:="output.mp4"}
+
+while [ "$1" != "" ] ; do
+	case $1 in
+		--output)
+			shift
+			VMAKE=$1
+			;;
+		* )
+			[ ! -z "$VLIST" ] &&
+				echo "Multiple list? ($VLIST<=>$1)!" && exit 1
+			VLIST=$1
+			;;
+	esac
+	shift
+done
+
+[ -z "$VLIST" ] && echo "No input list given?" && exit 1
+[ ! -f "$VLIST" ] && echo "Cannot find input list $VLIST!" && exit 1
+[ -f "$VMAKE" ] && echo "Output file $VMAKE exists!" && exit 1
+
+ffmpeg -f concat -i $VLIST -c copy $VMAKE

@@ -4,8 +4,8 @@
 IFILE="$1"
 [ -z "$IFILE" ] && exit 0
 [ ! -f "$IFILE" ] && exit 0
-OFILE="${IFILE%.*}.mp3"
-[ "$IFILE" = "$OFILE" ] && OFILE="${IFILE%.*}-conv.mp3"
+OFILE_EXT="${IFILE##*.}"
+OFILE="${IFILE%.*}-conv.${OFILE_EXT}"
 PNEXT=0
 GAIN_="5dB"
 NORM_="NO"
