@@ -80,8 +80,8 @@ fi
 
 [ "$1" == "--state" ] && echo "$CHK_STATE" && exit 0
 
-echo "$CURR_PCTG% <$_CHARGING> CURR=$CURR_BATT RATE=$RATE_BATT" \
-	"FULL=$FULL_BATT PREV=$PREV_BATT Vcur=${VOLT_CURR}mV" \
-	"Vpct=${VOLT_TEMP}% [${BATT_NAME}]"
+echo "$CURR_PCTG% <$_CHARGING> [${BATT_NAME}]"
+echo "-- Curr=$CURR_BATT Rate=$RATE_BATT Full=$FULL_BATT Prev=$PREV_BATT"
+echo "-- Vmin=${VOLT_DMIN}mV Vcur=${VOLT_CURR}mV Vpct=${VOLT_TEMP}%"
 
 exit 0
