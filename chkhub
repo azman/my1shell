@@ -77,10 +77,12 @@ if [ "$DO_LOCAL" != "YES" ] ; then
 		CHK_LIST=`curl -i $ORGS_URL 2>/dev/null|grep full_name`
 		echo "$CHK_LIST" | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
 	fi
-	echo "Repository list saved in '$LISTNAME'."
+	echo -n "Repository list saved "
 else
-	echo "Using repository list in '$LISTNAME'."
+	echo -n "Using repository list "
 fi
+REPO_CNT=`cat $LISTNAME | wc -l`
+echo "in '$LISTNAME' ($REPO_CNT)."
 
 for a in `cat $LISTNAME` ; do
 	b=${a#*/}
@@ -94,6 +96,6 @@ for a in `cat $LISTNAME` ; do
 	git clone git@github.com:${a}.git
 done
 
-[ $DO_CHECK -eq 0 ] && echo "Found local copies for ALL repo."
+[ $DO_CHECK -eq 0 ] && echo "Found local copies for ALL repo ($REPO_CNT)."
 
 exit 0
