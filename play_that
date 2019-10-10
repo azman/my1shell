@@ -5,6 +5,10 @@ PLAY_FILE=${PLAY_FILE:=""}
 PLAY_INIT=${PLAY_INIT:=""} # 00:00:00 (HH:MM:SS)
 PLAY_TIME=${PLAY_TIME:=""}
 PLAY_INFO=${PLAY_INFO:="play_that.info"}
+# example PLAY_INFO file
+#PLAY_FILE="file.mp4"
+#PLAY_INIT="00:01:00"
+#PLAY_TIME="20"
 
 while [ "$1" != "" ]; do
 	case $1 in
