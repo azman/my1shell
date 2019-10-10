@@ -1,0 +1,28 @@
+#!/bin/bash
+
+PLAY_EXEC=${PLAY_EXEC:="mplayer"}
+PLAY_FILE=${PLAY_FILE:=""}
+PLAY_INIT=${PLAY_INIT:=""} # 00:00:00 (HH:MM:SS)
+PLAY_TIME=${PLAY_TIME:=""}
+PLAY_INFO=${PLAY_INFO:="play_that.info"}
+
+while [ "$1" != "" ]; do
+	case $1 in
+		--init) shift ; PLAY_INIT=$1 ;;
+		--time) shift ; PLAY_TIME=$1 ;;
+		--info) shift ; PLAY_INFO=$1 ;;
+		*) [ -z "$PLAY_FILE" ] && PLAY_FILE=$1 || echo "Unknown param '$1'!" ;;
+	esac
+	shift
+done
+# since . $PLAY_INFO directly does NOT work :(
+[ -f "$PLAY_INFO" ] && PLAY_PATH=`dirname $PLAY_INFO` &&
+	PLAY_PATH=`cd $PLAY_PATH ; pwd` && PLAY_INFO=`basename $PLAY_INFO` &&
+	PLAY_INFO=$PLAY_PATH/$PLAY_INFO && . $PLAY_INFO
+[ -z "$PLAY_FILE" ] && echo "No file name given!" && exit 1
+
+PLAY_THAT=`which $PLAY_EXEC 2>/dev/null`
+[ $? -ne 0 ] && echo "Cannot execute $PLAY_EXEC!" && exit 1
+[ ! -r "$PLAY_FILE" ] && echo "Cannot open file $PLAY_FILE!" && exit 1
+
+${PLAY_THAT} -ss ${PLAY_INIT} -endpos ${PLAY_TIME} ${PLAY_FILE}
