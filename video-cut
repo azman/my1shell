@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# must have ffmpeg
+DPROG="ffmpeg"
+DEXEC=`which $DPROG 2>/dev/null`
+[ ! -x "$DEXEC" ] && echo "Cannot exec $DPROG! Aborting!" && exit 1
+
+# default time is 1 minute
+VTIME="1:00"
+
+# read params
+while [ "$1" != "" ] ; do
+	case $1 in
+		--time)
+			shift
+			VTIME=$1
+			;;
+		* )
+			[ ! -z "$IFILE" ] && echo "Multiple file? ($IFILE<=>$1)!" && exit 1
+			IFILE=$1
+			;;
+	esac
+	shift
+done
+
+# check input
+[ -z "$IFILE" ] && exit 0
+[ ! -f "$IFILE" ] && echo "Cannot find file '$IFILE'" && exit 1
+
+# show input/output filenames
+DOEXT="${IFILE##*.}"
+OFILE="${IFILE%.*}_cut.${DOEXT}"
+echo "Input : $IFILE"
+echo "Output: $OFILE"
+[ -f "$OFILE" ] && echo -ne "\n[ABORT] Output file exists!\n\n" && exit 0
+
+# do that thing you do...
+echo -n "Cutting (time:$VTIME)... "
+${DEXEC} -i ${IFILE} -t ${VTIME} -c copy ${OFILE} 2>/dev/null
+[ $? -eq 0 ] && echo "done." || echo "something went wrong?"
