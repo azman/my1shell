@@ -1,10 +1,11 @@
 #!/bin/bash
 
+THIS_FILE=`basename $0`
 PLAY_EXEC=${PLAY_EXEC:="mplayer"}
 PLAY_FILE=${PLAY_FILE:=""}
 PLAY_INIT=${PLAY_INIT:=""} # 00:00:00 (HH:MM:SS)
 PLAY_TIME=${PLAY_TIME:=""}
-PLAY_INFO=${PLAY_INFO:="play_that.info"}
+PLAY_INFO=${PLAY_INFO:="${THIS_FILE}.info"}
 # example PLAY_INFO file
 #PLAY_FILE="file.mp4"
 #PLAY_INIT="00:01:00"
