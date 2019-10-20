@@ -13,9 +13,13 @@ while [ "$1" != "" ]; do
 				if [ -f $1 ] ; then
 					CHKFILE="$1"
 					CHKTEST=`basename $1`
+					PNMFILE=`basename $1 .pnm`
 					BMPFILE=`basename $1 .bmp`
 					PNGFILE=`basename $1 .png`
-					if [ "$BMPFILE" != "$CHKTEST" ] ; then
+					if [ "$PNMFILE" != "$CHKTEST" ] ; then
+						CHKEXEC="cat"
+						OUTFILE=$PNMFILE
+					elif [ "$BMPFILE" != "$CHKTEST" ] ; then
 						CHKEXEC="bmptopnm"
 						OUTFILE=$BMPFILE
 					elif [ "$PNGFILE" != "$CHKTEST" ] ; then
