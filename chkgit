@@ -28,6 +28,7 @@ PROJ_NAME=${PROJ_NAME:=""}
 PROJ_COPY=${PROJ_COPY:=""}
 B_VERBOSE="NO"
 SWEEP_OLD="NO"
+WORK_PATH=${WORK_PATH:="$CURPATH"}
 
 do_command=""
 ok_command="create check origin update remote archive cleanup bundle"
@@ -52,6 +53,11 @@ while  [ "$1" != "" ]; do
 			shift
 			[ ! -d "$1" ] && echo "Invalid path '$1'!" && exit 1
 			PATH2BUND=`cd $1;pwd`
+			;;
+		--work-path|--wpath)
+			shift
+			[ ! -d "$1" ] && echo "Invalid path '$1'!" && exit 1
+			WORK_PATH=`cd $1;pwd`
 			;;
 		--github|-g)
 			PATH2BUND=$PATH2GHUB
@@ -232,6 +238,9 @@ chkgit_archive()
 	fi
 }
 
+# check work path
+[ "$WORK_PATH" != "$CURPATH" ] && cd $WORK_PATH
+
 # do your thing!
 
 if [ "$do_command" == "check" ] || [ "$do_command" == "" ]; then #default!
@@ -239,28 +248,28 @@ if [ "$do_command" == "check" ] || [ "$do_command" == "" ]; then #default!
 	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_isclean
-		cd $CURPATH
+		cd $WORK_PATH
 	done
 elif [ "$do_command" == "origin" ]; then
 	# browse subfolders and report origin url
 	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_origin
-		cd $CURPATH
+		cd $WORK_PATH
 	done
 elif [ "$do_command" == "remote" ]; then
 	# browse subfolders and report remote fetch url
 	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_remote
-		cd $CURPATH
+		cd $WORK_PATH
 	done
 elif [ "$do_command" == "update" ]; then
 	# browse subfolders and update
 	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_update
-		cd $CURPATH
+		cd $WORK_PATH
 	done
 elif [ "$do_command" == "create" ]; then
 	[ ! -d "$PATH2BUND" ] &&
@@ -305,13 +314,13 @@ elif [ "$do_command" == "create" ]; then
 	echo -n "Removing origin link to bundle... "
 	$GIT_BIN remote rm origin >/dev/null 2>&1
 	echo "done."
-	cd $CURPATH
+	cd $WORK_PATH
 elif [ "$do_command" == "bundle" ]; then
 	[ ! -d "$PATH2BUND" ] &&
 		echo "Invalid bundle path '$PATH2BUND'!" && exit 1
 	[ ! -d .git ] &&
-		echo "Not in a git path '$CURPATH'!" && exit 1
-	PROJ_THIS=`basename $CURPATH`
+		echo "Not in a git path '$WORK_PATH'!" && exit 1
+	PROJ_THIS=`basename $WORK_PATH`
 	[ -z "$PROJ_NAME" ] && PROJ_NAME=$PROJ_THIS
 	FULL_FIND=`find ${PATH2BUND} -name "${PROJ_NAME}-*.git" | sort`
 	for FULL_TEST in $FULL_FIND ; do
@@ -337,13 +346,13 @@ elif [ "$do_command" == "archive" ]; then
 	if [ "$PROJ_NAME" != "" -a -d "$PATH2PROJ/$PROJ_NAME" ] ; then
 		cd $PATH2PROJ/$PROJ_NAME
 		chkgit_archive
-		cd $CURPATH
+		cd $WORK_PATH
 	else
 		# browse subfolders and archive
 		for path in `find -L $PATH2PROJ/* -maxdepth 0 -type d` ; do
 			cd $path
 			chkgit_archive
-			cd $CURPATH
+			cd $WORK_PATH
 		done
 	fi
 elif [ "$do_command" == "cleanup" ]; then
@@ -351,7 +360,7 @@ elif [ "$do_command" == "cleanup" ]; then
 	for path in `find -L * -maxdepth 0 -type d` ; do
 		cd $path
 		chkgit_cleanup
-		cd $CURPATH
+		cd $WORK_PATH
 	done
 fi
 
