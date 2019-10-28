@@ -21,11 +21,13 @@ DOMARK2="^.* Done mirroring.*$"
 
 CHKSRC=
 for item in `getsync | sed -n "/$DOMARK1/,/$DOMARK2/{//b;p}"` ; do
+	item=`echo $item | sed 's|^deleting \(.*\)$|\1|'`
 	[ -f $item ] && CHKSRC="${CHKSRC}${item} "
 done
 
 CHKTGT=
 for item in `getsync --upload | sed -n "/$DOMARK1/,/$DOMARK2/{//b;p}"` ; do
+	item=`echo $item | sed 's|^deleting \(.*\)$|\1|'`
 	[ -f $item ] && CHKTGT="${CHKTGT}${item} "
 done
 
