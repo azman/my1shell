@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# getsync_this
+# - written by azman@my1matrix.net
+# - a getsync wrapper - WORK IN PROGRESS
+
+MY1TOOL="$(basename $0 .sh)"
+MY1PATH="$(dirname $0)"
+CURPATH="$(pwd)"
+CFGFILE="$CURPATH/.$MY1TOOL"
+GETSYNC=`which getsync 2>/dev/null`
+
+# look for getsync executable
+[ ! -x "$GETSYNC" ] && echo "Cannot find getsync utility!" && exit 1
+
+# look for config file
+[ -f "$CFGFILE" ] && source $CFGFILE
+
+DOMARK1="^sending incremental.*\$"
+DOMARK2="^.* Done mirroring.*$"
+
+CHKSRC=
+for item in `getsync | sed -n "/$DOMARK1/,/$DOMARK2/{//b;p}"` ; do
+	[ -f $item ] && CHKSRC="${CHKSRC}${item} "
+done
+
+CHKTGT=
+for item in `getsync --upload | sed -n "/$DOMARK1/,/$DOMARK2/{//b;p}"` ; do
+	[ -f $item ] && CHKTGT="${CHKTGT}${item} "
+done
+
+CHKBUT=0
+if [ "$CHKSRC" = "" -a "$CHKTGT" = "" ] ; then
+	echo "Everything in sync!"
+else
+	if [ "$CHKSRC" != "" ] ; then
+		echo "Local copy needs updating:"
+		for item in $CHKSRC ; do
+			echo "-- $item"
+		done
+		[ "$CHKTGT" = "" ] && echo "Do a 'getsync --exec'" || CHKBUT=1
+	fi
+	if [ "$CHKTGT" != "" ] ; then
+		echo "Remote copy needs updating:"
+		for item in $CHKTGT ; do
+			echo "-- $item"
+		done
+		[ "$CHKSRC" = "" ] && echo "Do a 'getsync --upload --exec'" || CHKBUT=1
+	fi
+	[ $CHKBUT -ne 0 ] && echo "Both sides have changed!! Needs manual review!"
+fi
+
+exit 0
