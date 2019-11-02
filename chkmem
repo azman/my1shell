@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# chkmem
+# - written by azman@my1matrix.net
+# - simple script to check available memory
+
+THAT_INFO="/proc/meminfo"
+
+# physical memory
+PMEM_INFO=`cat $THAT_INFO | grep Mem`
+# swap memory
+SWAP_INFO=`cat $THAT_INFO | grep Swap`
+
+echo "-- Output from $THAT_INFO"
+echo "$PMEM_INFO"
+echo "$SWAP_INFO"
+
+PMEM_FREE=`echo "$PMEM_INFO" | grep Free | sed -e 's|[[:space:]]*||g'`
+PMEM_FREE=`echo $PMEM_FREE | sed -e 's|^[^:]*:\([0-9]*\)kB$|\1|'`
+PMEM_TEMP=$((PMEM_FREE))
+PMEM_UNIT="kB"
+while [ $PMEM_TEMP -ge 1024 ] ; do
+	#echo -n "==> $PMEM_FREE / 1024.0 => "
+	PMEM_FREE=`echo "scale=4; $PMEM_FREE / 1024.0" | bc`
+	#echo -n "$PMEM_FREE => "
+	PMEM_TEMP=`echo "($PMEM_FREE+0.5)/1" | bc`
+	#echo "$PMEM_TEMP"
+	case "$PMEM_UNIT" in
+		kB) PMEM_UNIT="MB" ;;
+		MB) PMEM_UNIT="GB" ;;
+		GB) PMEM_UNIT="TB" ;;
+		*) PMEM_UNIT="??" ;;
+	esac
+done
+
+echo "-- Analysis"
+echo "FreeMemory: $PMEM_FREE $PMEM_UNIT"
+
+exit 0
