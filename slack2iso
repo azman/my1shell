@@ -4,33 +4,40 @@
 # - written by azman@my1matrix.net
 # - a section from alien_bob's mirror_slackware_current.sh
 
-SLACKROOT=${SLACKROOT:="$(pwd)"}
-[[ -z "$SLACKARCH" ]] && [[ -n "$ARCH" ]] && SLACKARCH=$ARCH
-SLACKARCH=${SLACKARCH:="$(uname -m)"}
-SLACKSUFX=${SLACKSUFX:=""}
-[[ "$SLACKARCH" == "x86_64" ]] && SLACKSUFX="64"
-SLACKFULL=${SLACKFULL:="slackware${SLACKSUFX}"}
-[[ -z "$SLACKVERS" ]] && [[ -n "$RELEASE" ]] && SLACKVERS=$RELEASE
-SLACKVERS=${SLACKVERS:="13.37"}
-SLACKFULL="${SLACKFULL}-${SLACKVERS}"
-SLACKPATH="${SLACKROOT}/${SLACKFULL}"
-[[ ! -d "$SLACKPATH" ]] &&
-	echo "Path to Slackware '$SLACKPATH' not found!" && exit 1
+# setup path to slackware tree
+[ -z "$SLACKROOT" ] && SLACKROOT=`pwd`
+[ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
+[ -z "$SLACKARCH" ] && SLACKARCH=`uname -m`
+[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64" || SLACKSUFX=
+[ -z "$SLACKNAME" ] && SLACKNAME="slackware$SLACKSUFX"
+[ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
+[ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
+[ -z "$SLACKVERS" ] && [ ! -f /etc/slackware-version ] && SLACKVERS="current" ||
+	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+SLACKFULL=$SLACKNAME-$SLACKVERS
+SLACKTREE=$SLACKROOT/$SLACKFULL
 
-[[ -d "$1" ]] && ISOPATH="$(cd $1;pwd)"
+[ ! -d "$SLACKTREE" ] &&
+	echo "Slackware tree '$SLACKTREE' not found!" && exit 1
+
+[ -d "$1" ] && ISOPATH=`cd $1 ; pwd`
 ISOPATH=${ISOPATH:="$HOME/temp"}
-ISOFILE=${ISOFILE:="${SLACKFULL}-install.iso"}
+ISONAME=${ISONAME:="${SLACKFULL}-install.iso"}
+ISOFILE=$ISOPATH/$ISONAME
 
+# make sure we have the tool
 MKISOFS=$(which mkisofs 2>/dev/null)
-[[ "$MKISOFS" == "" ]] && echo "Cannot find mkisofs! Aborting!" && exit 1
-[[ ! -d "$ISOPATH" ]] &&
-	echo "Creating target ISO path '$ISOPATH'... " && mkdir -p $ISOPATH
+[ "$MKISOFS" == "" ] && echo "Cannot find mkisofs! Aborting!" && exit 1
 
-cd $SLACKPATH
-[[ ! -f "$ISOFILE" ]] &&
-	echo "Removing ISO '$ISOFILE' in '$ISOPATH'... " && rm -f $ISOFILE
-echo -n "Creating ISO in '$ISOPATH' from '$SLACKPATH'... "
-$MKISOFS -o $ISOPATH/$ISOFILE \
+# check target path
+[ ! -d "$ISOPATH" ] &&
+	echo "Creating target ISO path '$ISOPATH'... " && mkdir -p $ISOPATH
+[ -f "$ISOFILE" ] &&
+	echo "Removing ISO '$ISOFILE'... " && rm -rf $ISOFILE
+
+cd $SLACKTREE
+echo -n "Creating ISO in '$ISOPATH' from '$SLACKTREE'... "
+$MKISOFS -o $ISOFILE \
 	-V "${SLACKFULL} Install DVD" \
 	-A "${SLACKFULL} Install DVD (build $(date +%Y%m%d))" \
 	-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N -v \
@@ -41,12 +48,12 @@ $MKISOFS -o $ISOPATH/$ISOFILE \
 echo "done!"
 cd - >/dev/null
 
-ISOHYBRID=$(which isohybrid 2>/dev/null)
-if [[ -x "$ISOHYBRID" ]] ; then
+ISOHYBRID=`which isohybrid 2>/dev/null`
+if [ -x "$ISOHYBRID" ] ; then
 	cd $ISOPATH
-	echo -n "Making $ISOFILE in '$ISOPATH' an isohybrid... "
-	$ISOHYBRID $ISOFILE >>$ISOPATH/${SLACKFULL}-install_build.log 2>&1
-	if [[ $? -ne 0 ]] ; then echo "error??" ; else echo "done!" ; fi
+	echo -n "Making $ISONAME in '$ISOPATH' an isohybrid... "
+	$ISOHYBRID $ISONAME >>$ISOPATH/${SLACKFULL}-install_build.log 2>&1
+	[ $? -ne 0 ] && echo "error??" || echo "done!"
 	cd - >/dev/null
 fi
 
