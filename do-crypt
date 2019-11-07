@@ -1,0 +1,45 @@
+#!/bin/bash
+
+THIS_TASK=$1 ; shift
+THIS_BDEV=""
+LUKS_NAME=${LUKS_NAME:="MY1LUKS"}
+LUKS_PATH=${LUKS_PATH:="/mnt/$LUKS_NAME"}
+
+while [ "$1" != "" ] ; do
+	case $1 in
+		--dev|--device)
+			shift
+			[ ! -b "$1" ] && echo "Invalid block device $1!" && exit 1
+			THIS_BDEV=$1
+			;;
+		--name|--luk-name)
+			shift
+			[ -z "$1" ] && echo "No name given?" && exit 1
+			LUKS_NAME=$1
+			;;
+		*) echo "Unknown param '$1'!" && exit 1 ;;
+	esac
+	shift
+done
+
+[ -z "$THIS_TASK" ] && echo "No task given!" && exit 1
+case $THIS_TASK in
+	create) cryptsetup luksFormat $THIS_BDEV ;;
+	open) cryptsetup luksOpen $THIS_BDEV $LUKS_NAME ;;
+	status) cryptsetup -v status $LUKS_NAME ;;
+	dump) cryptsetup luksDump $THIS_BDEV ;;
+	close) cryptsetup luksClose $LUKS_NAME ;;
+	mount)
+		[ ! -d "$LUKS_PATH" ] && mkdir $LUKS_PATH
+		mount /dev/mapper/$LUKS_NAME $LUKS_PATH ;;
+	unmount) umount $LUKS_PATH ;;
+	*) echo "Unknown task '$1'!" && exit 1 ;;
+esac
+
+exit 0
+
+#add key
+# cryptsetup luksAddKey /dev/sdb1
+
+#remove key
+# cryptsetup luksRemoveKey /dev/sdb1
