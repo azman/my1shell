@@ -1,78 +1,22 @@
 #!/bin/bash
 
-XFILE=`basename $0 .sh`
-IFILE="$1"
-OFILE="${IFILE%.*}.avi"
-TWICE=""
-DOLOG=/dev/null
-DOVAR=""
+TOOL_NAME=`basename $0`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH;pwd`
 
-[ "$IFILE" = "" ] && exit 0
-[ "$IFILE" = "$OFILE" ] && OFILE="${IFILE%.*}-conv.avi"
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+source_lib libtoolvideo
 
-# default settings
-V_RES=${V_RES:="704:304"}
-V_ASP=${V_ASP:="16:9"}
-V_BIT=${V_BIT:="700k"}
-V_QSC=${V_QSC:="6"}
-A_QSC=${A_QSC:="4"}
+TOOL_TASK="$1" ; shift
+case "$TOOL_TASK" in
+	convert) video_convert $@ ;;
+	*) [ "$TOOL_TASK" != "" ] && echo "Unknown task '$TOOL_TASK'!" ;;
+esac
 
-shift
-while [ "$1" != "" ]; do
-	case $1 in
-		--var) DOVAR="YES" ;;
-		--log) DOLOG="${XFILE}.log" ;;
-		--2pass) TWICE="YES" ;;
-		--vbit) shift ; V_BIT="$1" ;;
-		--vqsc) shift ; V_QSC="$1" ;;
-		--aqsc) shift ; A_QSC="$1" ;;
-		--tv) V_RES="512:384" ; V_ASP="4:3" ;; #mod16 resolution
-	esac
-	shift
-done
-ACODE="-ar 48000 -ab 128k"
-VCODE="-vf scale=${V_RES} -aspect ${V_ASP} -vb ${V_BIT} -r 25"
-
-# tinker with numbers
-#ffplay -vf eq=gamma=1.5:saturation=1.3 $IFILE
-#ffplay -vf eq=brightness=0.06:saturation=2 $IFILE
-
-# render
-#ffmpeg -i $IFILE -vf eq=gamma=1.5:saturation=1.3 -c:a copy $OFILE
-#ffmpeg -i $IFILE -vf eq=brightness=0.06:saturation=2 -c:a copy $OFILE
-
-# opt for variable bitrate
-[ "$DOVAR" = "YES" ] && TWICE="" && ACODE="-qscale:a ${A_QSC}" &&
-	VCODE="-qscale:v ${V_QSC} -vf scale=${V_RES} -aspect ${V_ASP} -r 25"
-# -qscale:v 4 is for mpegX stuffs!
-# -crf 18 is for libx264!
-
-# global options
-GOPTS="-sn" # disable subtitle
-# audio options
-AOPTS="-c:a libmp3lame $ACODE"
-# video options
-VOPTS="-c:v mpeg4 -vtag xvid $VCODE"
-
-echo "Input : $IFILE"
-echo "Output: $OFILE"
-echo "Settings: {A:$ACODE,V:$VCODE}"
-[ ! -f "$IFILE" ] && echo -ne "\n[ABORT] Input file missing!\n\n" && exit 0
-[ -f "$OFILE" ] && echo -ne "\n[ABORT] Output file exists!\n\n" && exit 0
-
-echo -n "" >${DOLOG}
-if [ "$TWICE" != "YES" ]; then
-	echo -n "Processing... "
-	ffmpeg -i ${IFILE} ${GOPTS} ${AOPTS} ${VOPTS} ${OFILE} 2>>${DOLOG}
-	echo "done."
-else
-	INIT1="-y"
-	INIT2=""
-	PASS1="-pass 1 ${GOPTS} ${AOPTS} ${VOPTS} -an -f avi /dev/null"
-	PASS2="-pass 2 ${GOPTS} ${AOPTS} ${VOPTS} ${OFILE}"
-	echo -n "Processing (PASS1)... "
-	ffmpeg ${INIT1} -i ${IFILE} ${PASS1} 2>>${DOLOG}
-	echo -ne "done.\nProcessing (PASS2)... "
-	ffmpeg ${INIT2} -i ${IFILE} ${PASS2} 2>>${DOLOG}
-	echo "done."
-fi
+exit 0

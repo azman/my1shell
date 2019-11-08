@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# libtoolvideo
+# - written by azman@my1matrix.org
+# - library functions for video-tool
+#   = basically a wrapper script for various tools
+
+video_convert()
+{
+	local ivid=$1 ; shift
+	# default settings
+	local vres=${vres:="704:304"}
+	local vasp=${vasp:="16:9"}
+	local vbit=${vbit:="700k"}
+	local vqsc=${vqsc:="6"}
+	local aqsc=${aqsc:="4"}
+	# check params
+	local ovid pas2 dvar dlog=/dev/null
+	while [ "$1" != "" ]; do
+		case $1 in
+			--var) dvar="yes" ;;
+			--log) dlog="$ovid.log" ;;
+			--2pass) pas2="yes" ;;
+			--vbit) shift ; vbit=$1 ;;
+			--vqsc) shift ; vqsc=$1 ;;
+			--aqsc) shift ; aqsc=$1 ;;
+			--output) shift ; ovid=$1 ;;
+			--tv) vres="512:384" ; vasp="4:3" ;; #mod16 resolution
+		esac
+		shift
+	done
+	[ -z "$ivid" ] && exit 0
+	[ ! -f "$ivid" ] && echo -ne "\n[ABORT] Input file missing!\n\n" && exit 0
+	[ -z "$ovid" ] && ovid="${ivid%.*}_conv.avi"
+	[ -f "$ovid" ] && echo -ne "\n[ABORT] Output file exists!\n\n" && exit 0
+	local acod="-ar 48000 -ab 128k"
+	local vcod="-vf scale=$vres -aspect $vasp -vb $vbit -r 25"
+	[ "$dvar" = "yes" ] && pas2="" && acod="-qscale:a $aqsc" &&
+		vcod="-qscale:v $vqsc -vf scale=$vres -aspect $vasp -r 25"
+	# -qscale:v 4 is for mpegX stuffs!
+	# -crf 18 is for libx264!
+	# tinker with numbers
+	#ffplay -vf eq=gamma=1.5:saturation=1.3 $ivid
+	#ffplay -vf eq=brightness=0.06:saturation=2 $ivid
+	# render
+	#ffmpeg -i $ivid -vf eq=gamma=1.5:saturation=1.3 -c:a copy $ovid
+	#ffmpeg -i $ivid -vf eq=brightness=0.06:saturation=2 -c:a copy $ovid
+	# global options
+	local gopt="-sn" # disable subtitle
+	# audio options
+	local aopt="-c:a libmp3lame $acod"
+	# video options
+	local vopt="-c:v mpeg4 -vtag xvid $vcod"
+	# convert!
+	echo "Input : $ivid"
+	echo "Output: $ovid"
+	echo "Settings: {A:$acod,V:$vcod}"
+	echo -n "" >${dlog}
+	if [ "$pas2" != "yes" ]; then
+		echo -n "Processing... "
+		ffmpeg -i ${ivid} ${gopt} ${aopt} ${vopt} ${ovid} 2>>${dlog}
+		echo "done."
+	else
+		local chk1="-y"
+		local chk2=""
+		local opt1="-pass 1 ${gopt} ${aopt} ${vopt} -an -f avi /dev/null"
+		local opt2="-pass 2 ${gopt} ${aopt} ${vopt} ${ovid}"
+		echo -n "Processing (PASS1)... "
+		ffmpeg ${chk1} -i ${ivid} ${opt1} 2>>${dlog}
+		echo -ne "done.\nProcessing (PASS2)... "
+		ffmpeg ${chk2} -i ${ivid} ${opt2} 2>>${dlog}
+		echo "done."
+	fi
+}
