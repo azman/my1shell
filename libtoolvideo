@@ -177,3 +177,19 @@ video_cut()
 	ffmpeg $vchk -i $ivid $vlen -c copy $ovid >/dev/null 2>&1
 	[ $? -eq 0 ] && echo "done." || echo "error?"
 }
+
+video_mp4join()
+{
+	# list is a text file containing list of mp4 files to be joined
+	# - 1 file per line
+	# - format: "file <filename>"
+	local list=$1
+	local ovid=$2
+	video_must_have_input $list
+	ovid=`video_prepare_output $list $ovid`
+	video_check_output $ovid
+	echo "List: $list"
+	echo -n "Joining video into '$ovid'... "
+	ffmpeg -f concat -i $list -c copy $ovid
+	[ $? -eq 0 ] && echo "done." || echo "error?"
+}
