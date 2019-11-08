@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # edkbuild
-# - written by azman@my1matrix.net)
+# - written by azman@my1matrix.net
 # - Xilinx EDK command-line project builder
 # - tested on ISE Design Suite 10.1
 
 # check xilinx environment settings
-if [[ -z "$XILINX_EDK" ]] || [[ -z "$XILINX" ]]; then
-	echo "XILINX environment NOT SET! Run 'settings<32|64>.sh' script from Xilinx installation."
+if [ -z "$XILINX_EDK" ] || [ -z "$XILINX" ]; then
+	echo "XILINX environment NOT SET! " \
+		"Run 'settings<32|64>.sh' script from Xilinx installation."
 	exit 1
 fi
 
@@ -23,7 +24,7 @@ TOOL_CONFFILE="$TOOL_THISFILE.conf"
 # look for config file
 for conf_path in  $(pwd) $TOOL_LOCATION ; do
 	config_file="${conf_path}/${TOOL_CONFFILE}"
-	[[ -r $config_file ]] && source $config_file && break
+	[ -r $config_file ] && source $config_file && break
 done
 # debug parameters
 COMPARE_DEBUG=${COMPARE_DEBUG:="NO"}
@@ -39,7 +40,7 @@ XPS_ROUTED=${XPS_ROUTED:="${XPS_TEMPPATH}/${EDK_SYSTEM}_routed"}
 XPS_PLATGEN_OPT=${XPS_PLATGEN_OPT:="${XPS_TEMPPATH}/platgen.opt"}
 XPS_XFLOW_OPT=${XPS_XFLOW_OPT:="${XPS_TEMPPATH}/xpsxflow.opt"}
 # implementation path
-IMP_TEMPPATH=${IMP_TEMPPATH:="implementation"} # apparently this is a hard-wired path!
+IMP_TEMPPATH=${IMP_TEMPPATH:="implementation"} # apparently,a hard-wired path!
 IMP_POSTSYN_NETLIST=${IMP_POSTSYN_NETLIST:="${IMP_TEMPPATH}/${EDK_SYSTEM}.ngc"}
 IMP_BMM_FILE=${IMP_BMM_FILE:="${IMP_TEMPPATH}/${EDK_SYSTEM}.bmm"}
 IMP_UCF_FILE=${IMP_UCF_FILE:="${IMP_TEMPPATH}/${EDK_SYSTEM}.ucf"}
@@ -55,7 +56,8 @@ FPGA_DOWNLOAD_FILE=${FPGA_DOWNLOAD_FILE:="${IMP_TEMPPATH}/download.bit"}
 FPGA_ACEFILE=${FPGA_ACEFILE:="${EDK_SYSTEM}-final.ace"}
 # don't know if i need this!
 XFLOW_DEPENDS=${XFLOW_DEPENDS:="${XPS_XFLOW_OPT} ${ETC_XFLOW_OPT}"}
-FPGA_IMP_DEPENDS="$IMP_BMM_FILE $IMP_POSTSYN_NETLIST $EDK_UCFFILE -option $XFLOW_DEPENDS"
+FPGA_IMP_DEPENDS="$IMP_BMM_FILE $IMP_POSTSYN_NETLIST $EDK_UCFFILE "
+FPGA_IMP_DEPENDS+="-option $XFLOW_DEPENDS"
 
 # THESE ARE READ FROM PROJECT FILE!
 # fpga device parameters
@@ -106,10 +108,10 @@ function check_deplist()
 	local do_options="NO"
 	local tgt_files=""
 	local dep_files=""
-	local opt_files="" # files that can be ignored if it's not there (NOT A RULE!)
+	local opt_files="" # files that can be ignored (NOT A RULE!)
 
 	# parse the input lines
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		case $1 in
 			-target)
 				do_depends="NO"
@@ -124,12 +126,13 @@ function check_deplist()
 				do_options="YES"
 				;;
 			*)
-				if [[ ! -f "$1" ]]; then
-					[[ $do_depends == "YES" ]] && [[ $do_options == "YES" ]] && shift && continue
-					[[ $COMPARE_DEBUG == "YES" ]] && echo "File $1 NOT found!"
+				if [ ! -f "$1" ]; then
+					[ $do_depends == "YES" -a $do_options == "YES" ] &&
+						shift && continue
+					[ $COMPARE_DEBUG == "YES" ] && echo "File $1 NOT found!"
 					return 1
 				fi
-				if [[ "$do_depends" == "NO" ]]; then
+				if [ "$do_depends" == "NO" ]; then
 					tgt_files="$tgt_files $1"
 				else
 					dep_files="$dep_files $1"
@@ -142,8 +145,9 @@ function check_deplist()
 	# now we can actually check dependencies
 	for tgt_file in $tgt_files; do
 		for dep_file in $dep_files; do
-			if [[ "$dep_file" -nt "$tgt_file" ]]; then
-				[[ $COMPARE_DEBUG == "YES" ]] && echo "File $dep_file newer than $tgt_file!"
+			if [ "$dep_file" -nt "$tgt_file" ]; then
+				[ $COMPARE_DEBUG == "YES" ] &&
+					echo "File $dep_file newer than $tgt_file!"
 				return 1
 			fi
 		done
@@ -173,41 +177,46 @@ function build_sysnet()
 		xco_pnet=$(dirname $xco_path)/netlist
 		xco_ngcf=${xco_name}.ngc
 		xco_genp=coregen.cgp
-		[[ ! -d "$xco_pnet" ]] && continue
-		[[ -r "${xco_pnet}/${xco_ngcf}" ]] && continue
+		[ ! -d "$xco_pnet" ] && continue
+		[ -r "${xco_pnet}/${xco_ngcf}" ] && continue
 		cd $xco_pnet
-		[[ ! -r "$xco_genp" ]] &&
+		[ ! -r "$xco_genp" ] &&
 			echo "Cannot find project file '$xco_genp'!" && exit 1
-		if [[ ! -r "$xco_ngcf" ]]; then
+		if [ ! -r "$xco_ngcf" ]; then
 			echo -n "Building CoreGen netlist from '$xco_file'... "
 			coregen -b $xco_full -p $xco_genp >> $EDK_LOGFILE
-			[[ ! -r "$xco_ngcf" ]] &&
+			[ ! -r "$xco_ngcf" ] &&
 				echo "Cannot find file '$xco_ngcf'! CoreGen failed?" && exit 1
 			echo "done!"
 		fi
 		cd - >/dev/null
 	done
 
-	if [[ -d "$IMP_TEMPPATH" ]]; then
+	if [ -d "$IMP_TEMPPATH" ]; then
 		NGC_WRAPPERS=$(find $IMP_TEMPPATH -maxdepth 1 -name *_wrapper.ngc)
 	fi
 
-	if [[ "$NGC_WRAPPERS" != "" ]]; then
-		check_deplist $EDK_MHSFILE $CORE_DEV_FILES -option $XPS_PLATGEN_OPT -target $IMP_BMM_FILE $NGC_WRAPPERS $IMP_POSTSYN_NETLIST
-		[[ $? -eq 0 ]] && echo "Nothing to do. NGC wrappers, '$IMP_POSTSYN_NETLIST' and '$IMP_BMM_FILE' are up-to-date!" && return
+	if [ "$NGC_WRAPPERS" != "" ]; then
+		check_deplist $EDK_MHSFILE $CORE_DEV_FILES \
+			-option $XPS_PLATGEN_OPT -target $IMP_BMM_FILE \
+			$NGC_WRAPPERS $IMP_POSTSYN_NETLIST
+		[ $? -eq 0 ] &&
+			echo "Nothing to do. " \
+				"NGC wrappers, '$IMP_POSTSYN_NETLIST' and " \
+				"'$IMP_BMM_FILE' are up-to-date!" && return
 	fi
 
 	local PLATGEN_OPTS="-p $FPGA_DEVICE -lp $EDK_MOD_PATH -lang $EDK_HDLLANG"
 	local header_msg="Creating system netlist for hardware specification..."
 	local banner_char="*"
-	local check_result
 
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	echo "$header_msg"
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	platgen $PLATGEN_OPTS $EDK_MHSFILE >> $EDK_LOGFILE
-	check_result=$?
-	[[ $check_result -ne 0 ]] && echo -e "[$TOOL_THISFILE] platgen error? [$check_result] Aborting...\n" && exit 1
+	local flag=$?
+	[ $flag -ne 0 ] &&
+		echo -e "[$TOOL_THISFILE] platgen error? [$flag] Aborting!\n" && exit 1
 
 	local curr_dir="$(pwd)"
 	local header_msg="Running synthesis (post-sysnthesis system netlist!)..."
@@ -229,7 +238,7 @@ function build_routed()
 	build_sysnet
 
 	check_deplist $FPGA_IMP_DEPENDS -target $XPS_ROUTED
-	[[ $? -eq 0 ]] && echo "Nothing to do. '$XPS_ROUTED' is up-to-date!" && return
+	[ $? -eq 0 ] && echo "Nothing to do. '$XPS_ROUTED' is up-to-date!" && return
 
 	local MANAGE_FASTRT_OPTIONS="-reduce_fanout no"
 	local header_msg="Running Xilinx Implementation tools..."
@@ -240,10 +249,13 @@ function build_routed()
 	echo "$header_msg"
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	cp -f $EDK_UCFFILE $IMP_UCF_FILE
-	xilperl ${XILINX_EDK}/data/fpga_impl/manage_fastruntime_opt.pl ${MANAGE_FASTRT_OPTIONS} >> $EDK_LOGFILE
-	xflow -wd ${IMP_TEMPPATH} -p ${FPGA_DEVICE} -implement xflow.opt ${EDK_SYSTEM}.ngc  >> $EDK_LOGFILE # xflow.opt created by perl script above?
-	check_result=$?
-	[[ $check_result -ne 0 ]] && echo -e "[$TOOL_THISFILE] xflow error? [$check_result] Aborting...\n" && exit 1
+	xilperl ${XILINX_EDK}/data/fpga_impl/manage_fastruntime_opt.pl \
+		${MANAGE_FASTRT_OPTIONS} >> $EDK_LOGFILE
+	xflow -wd ${IMP_TEMPPATH} -p ${FPGA_DEVICE} -implement xflow.opt \
+		${EDK_SYSTEM}.ngc  >> $EDK_LOGFILE # xflow.opt created by perl script above?
+	local flag=$?
+	[ $flag -ne 0 ] &&
+		echo -e "[$TOOL_THISFILE] xflow error? [$flag] Aborting!\n" && exit 1
 	touch $XPS_ROUTED
 }
 
@@ -251,13 +263,14 @@ function build_routed()
 # - create system bitstream
 function build_bit()
 {
-	[[ "$SKIP_BITGEN" == "YES" ]] && return
+	[ "$SKIP_BITGEN" == "YES" ] && return
 
 	# make sure dependencies are latest
 	build_routed
 
 	check_deplist $XPS_ROUTED $ETC_BITGEN_UT_FILE -target $FPGA_BITFILE
-	[[ $? -eq 0 ]] && echo "Nothing to do. '$FPGA_BITFILE' is up-to-date!" && return
+	[ $? -eq 0 ] &&
+		echo "Nothing to do. '$FPGA_BITFILE' is up-to-date!" && return
 
 	local OBSERVE_PAR_OPTIONS="-error no"
 	local header_msg="Running Bitgen..."
@@ -268,12 +281,14 @@ function build_bit()
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	echo "$header_msg"
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
-	xilperl ${XILINX_EDK}/data/fpga_impl/observe_par.pl ${OBSERVE_PAR_OPTIONS} ${IMP_TEMPPATH}/${EDK_SYSTEM}.par >> $EDK_LOGFILE
+	xilperl ${XILINX_EDK}/data/fpga_impl/observe_par.pl \
+		${OBSERVE_PAR_OPTIONS} ${IMP_TEMPPATH}/${EDK_SYSTEM}.par >> $EDK_LOGFILE
 	cp -f $ETC_BITGEN_UT_FILE $IMP_BITGEN_UT_FILE
 	cd ${IMP_TEMPPATH}
 	bitgen -w -f $BITGEN_UT_FILE ${EDK_SYSTEM} >> $EDK_LOGFILE
-	check_result=$?
-	[[ $check_result -ne 0 ]] && echo -e "[$TOOL_THISFILE] bitgen error? [$check_result] Aborting...\n" && exit 1
+	local flag=$?
+	[ $flag -ne 0 ] &&
+		echo -e "[$TOOL_THISFILE] bitgen error? [$flag] Aborting!\n" && exit 1
 	cd $curr_dir
 }
 
@@ -290,20 +305,21 @@ function build_lib()
 		USR_HEADERS="$USR_HEADERS $c_hdr"
 	done
 
-	check_deplist ${EDK_MHSFILE} ${EDK_MSSFILE} ${APP_SOURCES} ${APP_HEADERS} ${USR_SOURCES} ${USR_HEADERS} -target $APP_LIBS
-	[[ $? -eq 0 ]] && echo "Nothing to do. Libraries are up-to-date!" && return
+	check_deplist ${EDK_MHSFILE} ${EDK_MSSFILE} ${APP_SOURCES} \
+		${APP_HEADERS} ${USR_SOURCES} ${USR_HEADERS} -target $APP_LIBS
+	[ $? -eq 0 ] && echo "Nothing to do. Libraries are up-to-date!" && return
 
 	local LIBGEN_OPTS="-p $FPGA_DEVICE -lp $EDK_MOD_PATH -mhs $EDK_MHSFILE"
 	local header_msg="Creating software libraries..."
 	local banner_char="*"
-	local check_result
 
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	echo "$header_msg"
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	libgen ${LIBGEN_OPTS} ${EDK_MSSFILE} >> $EDK_LOGFILE
-	check_result=$?
-	[[ $check_result -ne 0 ]] && echo -e "[$TOOL_THISFILE] libgen error? [$check_result] Aborting...\n" && exit 1
+	local flag=$?
+	[ $flag -ne 0 ] &&
+		echo -e "[$TOOL_THISFILE] libgen error? [$flag] Aborting!\n" && exit 1
 }
 
 # build soft application
@@ -318,24 +334,33 @@ function build_app()
 	local APP_CC="mb-gcc"
 	local APP_CC_SIZE="mb-size"
 	local APP_CC_OPT="-O2"
-	local APP_CFLAGS="" 
+	local APP_CFLAGS=""
 	local APP_LIBFLAG="-L${APP_LIBPATH}/" # -L
 	local APP_INCFLAG="-I${APP_INCPATH}/ -I${APP_SOURCEPATH}/" # -I
 	local APP_LFLAGS="" # -l
 	# soft-compilation flags
-	local APP_CC_GLOBPTR_FLAG="-DMY1_BUILD_HOST=\"$(hostname)\" -DMY1_CURR_TIME=\"$(date +%Y%m%d%H%M%S)\"" # -mxl-gp-opt
-	local APP_CC_START_ADDR_FLAG="-Wl,-defsym -Wl,_TEXT_START_ADDR=0x10000000" # read this from xmp file?
+	local APP_CC_GLOBPTR_FLAG="-DMY1_BUILD_HOST=\"$(hostname)\" " \
+		"-DMY1_CURR_TIME=\"$(date +%Y%m%d%H%M%S)\"" # -mxl-gp-opt
+	# read this from xmp file?
+	local APP_CC_START_ADDR_FLAG="-Wl,-defsym -Wl,_TEXT_START_ADDR=0x10000000"
 	local APP_CC_STACK_SIZE_FLAG="-Wl,-defsym -Wl,_STACK_SIZE=0x4000"
 	local APP_CC_HEAP_SIZE_FLAG="-Wl,-defsym -Wl,_HEAP_SIZE=0x4000"
-	local APP_CC_INFERRED_FLAGS="-mno-xl-soft-mul -mxl-barrel-shift -mxl-pattern-compare -mcpu=v7.10.d"
+	local APP_CC_INFERRED_FLAGS="-mno-xl-soft-mul -mxl-barrel-shift " \
+		"-mxl-pattern-compare -mcpu=v7.10.d"
 	local APP_LINKER_SCRIPT_FLAG="" #-Wl,-T -Wl,${APP_LINKER_SCRIPT}
-	[[ "$APP_LINKER_SCRIPT" != "" ]] && APP_LINKER_SCRIPT_FLAG="-Wl,-T -Wl,${APP_LINKER_SCRIPT}"
+	[ "$APP_LINKER_SCRIPT" != "" ] &&
+		APP_LINKER_SCRIPT_FLAG="-Wl,-T -Wl,${APP_LINKER_SCRIPT}"
 	local APP_CC_DEBUG_FLAG="" # -g
 	local APP_CC_PROFILE_FLAG="" # -pg
-	local APP_OTHER_CC_FLAGS="${APP_CC_GLOBPTR_FLAG} ${APP_CC_START_ADDR_FLAG} ${APP_CC_STACK_SIZE_FLAG} ${APP_CC_HEAP_SIZE_FLAG} ${APP_CC_INFERRED_FLAGS} ${APP_LINKER_SCRIPT_FLAG} ${APP_CC_DEBUG_FLAG} ${APP_CC_PROFILE_FLAG}"
+	local APP_OTHER_CC_FLAGS="${APP_CC_GLOBPTR_FLAG} " \
+		"${APP_CC_START_ADDR_FLAG} ${APP_CC_STACK_SIZE_FLAG} " \
+		"${APP_CC_HEAP_SIZE_FLAG} ${APP_CC_INFERRED_FLAGS} " \
+		"${APP_LINKER_SCRIPT_FLAG} ${APP_CC_DEBUG_FLAG} ${APP_CC_PROFILE_FLAG}"
 
-	check_deplist ${APP_SOURCES} ${APP_HEADERS} ${APP_LINKER_SCRIPT} ${APP_LIBS} -target $APP_EXECUTABLE
-	[[ $? -eq 0 ]] && echo "Nothing to do. '$APP_EXECUTABLE' is up-to-date!" && return
+	check_deplist ${APP_SOURCES} ${APP_HEADERS} ${APP_LINKER_SCRIPT} \
+		${APP_LIBS} -target $APP_EXECUTABLE
+	[ $? -eq 0 ] &&
+		echo "Nothing to do. '$APP_EXECUTABLE' is up-to-date!" && return
 
 	local header_msg="Creating executable..."
 	local banner_char="*"
@@ -343,7 +368,9 @@ function build_app()
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	echo "$header_msg"
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
-	${APP_CC} ${APP_CC_OPT} ${APP_SOURCES} -o ${APP_EXECUTABLE} ${APP_OTHER_CC_FLAGS} ${APP_INCFLAG} ${APP_LIBFLAG} ${APP_CFLAGS} ${APP_LFLAGS} >> $EDK_LOGFILE
+	${APP_CC} ${APP_CC_OPT} ${APP_SOURCES} -o ${APP_EXECUTABLE} \
+		${APP_OTHER_CC_FLAGS} ${APP_INCFLAG} ${APP_LIBFLAG} \
+		${APP_CFLAGS} ${APP_LFLAGS} >> $EDK_LOGFILE
 	${APP_CC_SIZE} ${APP_EXECUTABLE} >> $EDK_LOGFILE
 }
 
@@ -354,8 +381,10 @@ function build_download()
 	build_bit
 	build_app
 
-	check_deplist $FPGA_BD_BMM_FILE $FPGA_BITFILE $APP_EXECUTABLE -target $FPGA_DOWNLOAD_FILE
-	[[ $? -eq 0 ]] && echo "Nothing to do. '$FPGA_DOWNLOAD_FILE' is up-to-date!" && return
+	check_deplist $FPGA_BD_BMM_FILE $FPGA_BITFILE \
+		$APP_EXECUTABLE -target $FPGA_DOWNLOAD_FILE
+	[ $? -eq 0 ] &&
+		echo "Nothing to do. '$FPGA_DOWNLOAD_FILE' is up-to-date!" && return
 
 	local header_msg="Initializing BRAM contents of the bitstream..."
 	local banner_char="*"
@@ -365,9 +394,11 @@ function build_download()
 	echo "$header_msg"
 	for (( a=0;a<${#header_msg};a++ )) ; do echo -n "$banner_char"; done ; echo
 	cp -f $FPGA_BD_BMM_FILE .
-	bitinit ${EDK_MHSFILE} -lp $EDK_MOD_PATH -pe $APP_PROCESSOR $APP_EXECUTABLE -bt $FPGA_BITFILE -o $FPGA_DOWNLOAD_FILE >> $EDK_LOGFILE
-	check_result=$?
-	[[ $check_result -ne 0 ]] && echo -e "[$TOOL_THISFILE] bitinit error? [$check_result] Aborting...\n" && exit 1
+	bitinit ${EDK_MHSFILE} -lp $EDK_MOD_PATH -pe $APP_PROCESSOR \
+		$APP_EXECUTABLE -bt $FPGA_BITFILE -o $FPGA_DOWNLOAD_FILE >> $EDK_LOGFILE
+	local flag=$?
+	[ $flag -ne 0 ] &&
+		echo -e "[$TOOL_THISFILE] bitinit error[$flag]? Aborting!\n" && exit 1
 	rm -f ${BD_BMM_FILE}
 }
 
@@ -381,14 +412,16 @@ function build_ace()
 	# genace option
 	local VSK_GENACE_OPT="-jprog\n-board user\n-target mdm\n"
 	VSK_GENACE_OPT+="-hw $FPGA_DOWNLOAD_FILE\n-elf $APP_EXECUTABLE\n"
-	VSK_GENACE_OPT+="-configdevice devicenr 1 idcode 0x0384e093 irlength 6 partname xc3sd3400a\n"
+	VSK_GENACE_OPT+="-configdevice devicenr 1 idcode 0x0384e093 "
+	VSK_GENACE_OPT+="irlength 6 partname xc3sd3400a\n"
 	VSK_GENACE_OPT+="-debugdevice devicenr 1 cpunr 0\n-ace $FPGA_ACEFILE\n"
 	# options for genace.tcl
 	local ACE_GENACE_OPT=${ACE_GENACE_OPT:="$VSK_GENACE_OPT"}
 	local TEMP_GENACE_OPT=${TEMP_GENACE_OPT:="genace.opt"}
 
 	check_deplist ${FPGA_DOWNLOAD_FILE} -target $FPGA_ACEFILE
-	[[ $? -eq 0 ]] && echo "Nothing to do. '$FPGA_ACEFILE' is up-to-date!" && return
+	[ $? -eq 0 ] &&
+		echo "Nothing to do. '$FPGA_ACEFILE' is up-to-date!" && return
 
 	local header_msg="Creating SystemACE file..."
 	local banner_char="*"
@@ -400,7 +433,8 @@ function build_ace()
 	echo -e "$ACE_GENACE_OPT" >$TEMP_GENACE_OPT
 	rm -rf $FPGA_ACEFILE
 	xmd -tcl genace.tcl -opt $TEMP_GENACE_OPT >> $EDK_LOGFILE
-	[[ ! -f "$FPGA_ACEFILE" ]] && echo -e "[$TOOL_THISFILE] xmd error? Aborting...\n" && exit 1
+	[ ! -f "$FPGA_ACEFILE" ] &&
+		echo -e "[$TOOL_THISFILE] xmd error? Aborting...\n" && exit 1
 	rm $TEMP_GENACE_OPT
 }
 
@@ -419,7 +453,8 @@ function get_deviceinfo()
 	FPGA_SPEED_GRADE=$(cat $xmp_file | grep "$dev_grade_str")
 
 	# check inconsistencies
-	if [[ "$FPGA_ARCH" == "" ]] || [[ "$FPGA_TYPE" == "" ]] || [[ "$FPGA_PACKAGE" == "" ]] || [[ "$FPGA_SPEED_GRADE" == "" ]]; then
+	if [ "$FPGA_ARCH" == "" ] || [ "$FPGA_TYPE" == "" ] ||
+			[ "$FPGA_PACKAGE" == "" ] || [ "$FPGA_SPEED_GRADE" == "" ]; then
 		echo "Failed to get device info from $xmp_file!"
 		echo "==> $FPGA_ARCH"
 		echo "==> $FPGA_TYPE"
@@ -433,7 +468,8 @@ function get_deviceinfo()
 	FPGA_TYPE=${FPGA_TYPE#${dev_dev_str}}
 	FPGA_PACKAGE=${FPGA_PACKAGE#${dev_pack_str}}
 	FPGA_SPEED_GRADE=${FPGA_SPEED_GRADE#${dev_grade_str}}
-	FPGA_DEVICE=${FPGA_DEVICE:="${FPGA_TYPE}${FPGA_PACKAGE}-${FPGA_SPEED_GRADE}"}
+	FPGA_PKGNAME=${FPGA_PACKAGE}-${FPGA_SPEED_GRADE}
+	FPGA_DEVICE=${FPGA_DEVICE:="${FPGA_TYPE}${FPGA_PKGNAME}"}
 }
 
 function get_systeminfo()
@@ -454,7 +490,8 @@ function get_systeminfo()
 	EDK_UCFFILE=${EDK_UCFFILE#${ucf_file_str}}
 
 	# check file existence AND consistency
-	if [[ ! -f "$EDK_MHSFILE" ]] || [[ ! -f "$EDK_MSSFILE" ]] || [[ "$EDK_HDLLANG" == "" ]] || [[ ! -f "$EDK_UCFFILE" ]]; then
+	if [ ! -f "$EDK_MHSFILE" ] || [ ! -f "$EDK_MSSFILE" ] ||
+			[ "$EDK_HDLLANG" == "" ] || [ ! -f "$EDK_UCFFILE" ]; then
 		echo "Failed to get system info from $xmp_file!"
 		echo "==> $mhs_file_str $EDK_MHSFILE"
 		echo "==> $mss_file_str $EDK_MSSFILE"
@@ -494,7 +531,8 @@ function get_buildinfo()
 	IFS=$ifs_save
 
 	# check consistencies
-	if [[ ! -d "$EDK_MOD_PATH" ]] || [[ "$APP_PROCESSOR" == "" ]] || [[ "$APP_EXECUTABLE" == "" ]]; then
+	if [ ! -d "$EDK_MOD_PATH" ] || [ "$APP_PROCESSOR" == "" ] ||
+			[ "$APP_EXECUTABLE" == "" ]; then
 		echo "Failed to build info from $xmp_file!"
 		echo "==> $userip_path_str $EDK_MOD_PATH"
 		echo "==> $APP_PROCESSOR"
@@ -507,7 +545,7 @@ function get_buildinfo()
 	for (( a=0;a<${#tmp_sources[@]};a++ )); do
 		tfile=${tmp_sources[$a]}
 		tfile=$(pwd)/${tfile#${source_name_str}}
-		if [[ ! -f "$tfile" ]]; then
+		if [ ! -f "$tfile" ]; then
 			echo "Failed to get source files info from $xmp_file!"
 			echo "==> $tfile"
 			exit 1
@@ -520,7 +558,7 @@ function get_buildinfo()
 	for (( a=0;a<${#tmp_headers[@]};a++ )); do
 		tfile=${tmp_headers[$a]}
 		tfile=$(pwd)/${tfile#${header_name_str}}
-		if [[ ! -f "$tfile" ]]; then
+		if [ ! -f "$tfile" ]; then
 			echo "Failed to get headers files info from $xmp_file!"
 			echo "==> $tfile"
 			exit 1
@@ -545,11 +583,11 @@ function get_remote_app()
 	local appdir=$(dirname $APP_EXECUTABLE)
 
 	# make sure library path exists
-	[[ -d "$libdir" ]] || mkdir -pv $libdir >>$EDK_LOGFILE
+	[ -d "$libdir" ] || mkdir -pv $libdir >>$EDK_LOGFILE
 	# get main library file
 	scp $remote_app/$APP_LIBS $APP_LIBS >>$EDK_LOGFILE
 	# make sure application path exists
-	[[ -d "$appdir" ]] || mkdir -pv $appdir >>$EDK_LOGFILE
+	[ -d "$appdir" ] || mkdir -pv $appdir >>$EDK_LOGFILE
 	# get main application file
 	scp $remote_app/$APP_EXECUTABLE $APP_EXECUTABLE >>$EDK_LOGFILE
 	# update time info?
@@ -563,11 +601,11 @@ function get_remote_bit()
 	local bmmdir=$(dirname $FPGA_BD_BMM_FILE)
 
 	# make sure bmmfile path exists
-	[[ -d "$bmmdir" ]] || mkdir -pv $bmmdir >>$EDK_LOGFILE
+	[ -d "$bmmdir" ] || mkdir -pv $bmmdir >>$EDK_LOGFILE
 	# get bmmfile
 	scp $remote_bit/$FPGA_BD_BMM_FILE $FPGA_BD_BMM_FILE >>$EDK_LOGFILE
 	# make sure bitfile path exists
-	[[ -d "$bitdir" ]] || mkdir -pv $bitdir >>$EDK_LOGFILE
+	[ -d "$bitdir" ] || mkdir -pv $bitdir >>$EDK_LOGFILE
 	# get bitfile
 	scp $remote_bit/$FPGA_BITFILE $FPGA_BITFILE >>$EDK_LOGFILE
 	# update time info?
@@ -586,7 +624,7 @@ function process_command()
 	local remote_app=""
 	local remote_bit=""
 
-	while [[ "$1" != "" ]]; do
+	while [ "$1" != "" ]; do
 		case $1 in
 			-c | --clear-log )
 				do_clear="YES"
@@ -613,38 +651,42 @@ function process_command()
 			-w | --work-dir )
 				shift
 				work_dir=$1
-				[[ ! -d "$work_dir" ]] && echo "Not a valid path ('$work_dir')!" && exit 1
+				[ ! -d "$work_dir" ] &&
+					echo "Not a valid path ('$work_dir')!" && exit 1
 				work_dir=$(cd $work_dir;pwd)
 				;;
 			* )
-				[[ "$do_command" != "" ]] && echo "Build command already given ($do_command)!" && exit 1
+				[ "$do_command" != "" ] &&
+					echo "Build command already given ($do_command)!" && exit 1
 				for a in $valid_builds; do
-					if [[ $1 == $a ]]; then
+					if [ $1 == $a ]; then
 						do_command=$1
 						break;
 					fi
 				done
-				[[ "$do_command" == "" ]] && echo "Unknown build command ($1)!" && exit 1
+				[ "$do_command" == "" ] &&
+					echo "Unknown build command ($1)!" && exit 1
 				;;
 		esac
 		shift
 	done
 
-	[[ ! -f "$work_dir/$xmp_file" ]] && echo "Maybe not a valid EDK project location ('$work_dir')!" && exit 1
+	[ ! -f "$work_dir/$xmp_file" ] &&
+		echo "Maybe not a valid EDK project location ('$work_dir')!" && exit 1
 	cd $work_dir
 	get_deviceinfo $xmp_file
 	get_systeminfo $xmp_file
 	get_buildinfo $xmp_file
-	[[ "$EDK_LOGFILE" == "" ]] && EDK_LOGFILE="$(basename $xmp_file .xmp).log"
-	[[ "$do_clear" == "YES" ]] && echo -n "" >$EDK_LOGFILE
-	[[ "$remote_app" == "" ]] || get_remote_app $remote_app
-	[[ "$remote_bit" == "" ]] || get_remote_bit $remote_bit
-	[[ "$do_command" == "bit" ]] && build_bit
-	[[ "$do_command" == "app" ]] && build_app
-	[[ "$do_command" == "dow" ]] && build_download
-	[[ "$do_command" == "ace" ]] && build_ace
-	[[ "$do_command" == "dum" ]] && echo "[DUMMY] ==> Write Your Text Here"
-	[[ "$do_command" == "" ]] && echo "No command given?"
+	[ "$EDK_LOGFILE" == "" ] && EDK_LOGFILE="$(basename $xmp_file .xmp).log"
+	[ "$do_clear" == "YES" ] && echo -n "" >$EDK_LOGFILE
+	[ "$remote_app" == "" ] || get_remote_app $remote_app
+	[ "$remote_bit" == "" ] || get_remote_bit $remote_bit
+	[ "$do_command" == "bit" ] && build_bit
+	[ "$do_command" == "app" ] && build_app
+	[ "$do_command" == "dow" ] && build_download
+	[ "$do_command" == "ace" ] && build_ace
+	[ "$do_command" == "dum" ] && echo "[DUMMY] ==> Write Your Text Here"
+	[ "$do_command" == "" ] && echo "No command given?"
 	cd $curr_dir
 	echo
 	echo "[$TOOL_THISFILE] ==> Done."
