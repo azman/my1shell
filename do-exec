@@ -4,8 +4,7 @@
 # - written by azman@my1matrix.org
 # - prepare shell for work on specific task
 
-WORK=`echo $1 | tr [a-z] [A-Z]`
-
+WORK=`echo $1 | tr [a-z] [A-Z]` ; shift
 case $WORK in
 	ICESTORM)
 	ICEPATH=${ICEPATH:="/home/share/tool/icestorm"}
@@ -48,6 +47,84 @@ case $WORK in
 	export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${STAGE_LIBPATH}/pkgconfig
 	export PATH=$STAGE_PATH/bin:$PATH
 	exec env PS1="(ROBO-EXEC) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+	;;
+	ALTERA)
+	ALTERA_VERS=${ALTERA_VERS:="13.0sp1"}
+	ALTERA_ROOT=${ALTERA_ROOT:="/home/share/appx/altera-${ALTERA_VERS}"}
+	ARCH_BITS="32"
+	BIN_TYPE=`file -L /bin/bash`
+	[ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] &&
+		ARCH_BITS="64"
+	ALTERA_ARCH=${ALTERA_ARCH:="$ARCH_BITS"}
+	ALTERA_PATH=${ALTERA_ROOT}/quartus/bin
+	MODSIM_PATH=${ALTERA_ROOT}/modelsim_ase/bin
+	FLAG=0
+	[ -d $MODSIM_PATH ] && echo "ModelSim:$MODSIM_PATH!" &&
+		export PATH=$MODSIM_PATH:$PATH && FLAG=1
+	[ -d $ALTERA_PATH ] && echo "Altera:$ALTERA_PATH!" &&
+		export PATH=$ALTERA_PATH:$PATH && FLAG=1w
+	[ $FLAG -eq 0 ] && echo "No altera tools found ($ALTERA_ROOT)!" && exit 1
+	export ALTERA_VERS ALTERA_ROOT
+	# added to allow modelsim binary to run
+	#LIB32_PATH="${ALTERA_ROOT}/lib32"
+	#[ -d "$LIB32_PATH" ] && export LD_LIBRARY_PATH="$LIB32_PATH"
+	if [ "$1" == "" ] ; then
+		# start a shell
+		exec env PS1="(ALTERA-EXEC) \u@\h:\w$ " $(which bash)
+	else
+		target=$1 ; shift
+		[ "$target" == "sch" ] && quartus $@
+		[ "$target" == "sim" ] && vsim $@
+	fi
+	;;
+	XILINX)
+	XILINX_VERS=${XILINX_VERS:="12.1"}
+	XILINX_PATH=${XILINX_PATH:="/home/share/appx/xilinx-${XILINX_VERS}"}
+	ARCH_BITS="32"
+	BIN_TYPE=$(file -L /bin/bash)
+	[ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] &&
+		ARCH_BITS="64"
+	XILINX_ARCH=${XILINX_ARCH:="$ARCH_BITS"}
+	XILINX_CONF=${XILINX_CONF:="${XILINX_PATH}/ISE/settings${XILINX_ARCH}.sh"}
+	XILEDK_CONF=${XILEDK_CONF:="${XILINX_PATH}/EDK/settings${XILINX_ARCH}.sh"}
+	PATH_ARCH=""
+	[ "$XILINX_ARCH" == "64" ] && PATH_ARCH=$XILINX_ARCH
+	if [ -r $XILINX_CONF ] ; then
+		. $XILINX_CONF
+	else
+		echo "Cannot find xilinx config ($XILINX_CONF)!"
+		exit 1
+	fi
+	[ -r $XILEDK_CONF ] && . $XILEDK_CONF
+	# allow ISE/EDK to use the USB Cable Driver
+	# - no longer need this since 11.1?
+	#export XIL_IMPACT_USE_LIBUSB=1
+	# added to override usage of system's tcl library
+	# - no longer need this on slack13.0 (tcl8.5.7)
+	#export LD_PRELOAD=${XILINX}/lib/${PLATFORM}/libtcl8.4.so
+	# added to use xilinx usb jtag cable
+	USB_DRIVER="/home/share/tool/lib${PATH_ARCH}/libusb-driver.so"
+	[ -r "$USB_DRIVER" ] && export LD_PRELOAD="$LD_PRELOAD $USB_DRIVER"
+	# added to use digilent usb jtag cable
+	DIGILENT_PATH="/usr/lib${PATH_ARCH}/digilent/adept"
+	LIBUSB_PATH="/home/share/tool/lib${PATH_ARCH}/libusb1/lib"
+	[ -d $DIGILENT_PATH -a -d $LIBUSB_PATH ] &&
+		LD_LIBRARY_PATH="$LIBUSB_PATH:$DIGILENT_PATH:$LD_LIBRARY_PATH"
+	THISPATH="$XILINX_PATH/EDK/gnu/microblaze/lin${PATH_ARCH}/bin"
+	THISPATH="$THISPATH:$XILINX_PATH/EDK/gnu/powerpc-eabi/lin${PATH_ARCH}/bin"
+	export PATH="$THISPATH:$PATH"
+	if [ "$1" == "" ] ; then
+		# start a shell
+		exec env PS1="(XILINX-EXEC) \u@\h:\w$ " $(which bash)
+	else
+		target=$1
+		shift
+		[ "$target" == "edk" ] && QT_PLUGIN_PATH= xps $@
+		[ "$target" == "ise" ] && QT_PLUGIN_PATH= ise $@
+		[ "$target" == "cgn" ] && QT_PLUGIN_PATH= coregen $@
+		[ "$target" == "imp" ] && QT_PLUGIN_PATH= impact $@
+		[ "$target" == "tcl" ] && QT_PLUGIN_PATH= xtclsh $@
+	fi
 	;;
 	*)
 	echo "Unknown work '$1'! Aborting!"
