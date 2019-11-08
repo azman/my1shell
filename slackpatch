@@ -153,63 +153,41 @@ execute_patches()
 
 check_patch()
 {
-	local pat_stat chk_null
 	local pat_list=`echo "$@" | sed 's/;/ /g'`
-	[ "$pat_opts" == "check" ] && echo "Packages need updating:"
 	for pat_loop in $pat_list ; do
-		pat_stat=`echo $pat_loop | cut -d':' -f2`
-		[ "$pat_stat" == "check" ] && chk_null="NO" && return 1
+		local pat_stat=`echo $pat_loop | cut -d':' -f2`
+		[ "$pat_stat" == "check" ] && exit 1
 	done
-	return 0
+	exit 0
 }
 
 process_command()
 {
 	local go_commands="check pdone nlist patch quiet"
-	local do_command
-	local pkg_list pkg_temp pkg_path pat_list
-	local pkg_path="--more ${SLACKROOT}/${SLACKFULL//ware/pack}"
+	local pkg_list pkg_temp pat_list
+	local pkg_more="--more ${SLACKROOT}/${SLACKFULL//ware/pack}"
+	local pkg_skip="$PKG_IGNORED"
+	local pkg_tree="$SLACKTREE"
+	local do_command=$1 ; shift
 	# check parameters
 	while [ "$1" != "" ]; do
-		case "$1" in
-			--verbose)
-				OPT_VERBOSE="YES"
-				;;
-			--log)
-				OPT_LOGFILE="$TOOL_LOGS"
-				;;
-			--override)
-				OPT_UPGRADE="--reinstall --install-new"
-				;;
-			--pure)
-				OPT_NOTHIRD="YES"
-				;;
-			--path)
-				shift
+		case $1 in
+			--verbose) OPT_VERBOSE="YES" ;;
+			--log) OPT_LOGFILE="$TOOL_LOGS" ;;
+			--override) OPT_UPGRADE="--reinstall --install-new" ;;
+			--pure) OPT_NOTHIRD="YES" ;;
+			--path) shift
 				# check additional path
 				[ ! -d "$1" ] && error_exit "Cannot find path '$1'!\n\n"
-				pkg_path="${pkg_path} --more "`cd $1 ; pwd`
-				;;
-			--pkg)
-				shift
+				pkg_more="${pkg_more} --more "`cd $1 ; pwd` ;;
+			--pkg) shift
 				# check discrete package name
 				pkg_temp=`find_install $1 $SLACKPACK`
 				[ "$pkg_temp" == "" ] && error_exit "Unknown package '$1'!\n\n"
 				pkg_temp=`get_pkg_info $pkg_temp | cut -d' ' -f1`
-				pkg_list="${pkg_list} ${pkg_temp}"
-				;;
-			-*)
-				error_exit "Unknown option '$1'\n\n!"
-				;;
-			*)
-				[ "$do_command" != "" ] &&
-					error_exit "Multiple commands '$1' & '$do_command'\n\n"
-				for tcommand in $go_commands; do
-					[ "$1" == "$tcommand" ] && do_command=$1 && break
-				done
-				[ "$do_command" == "" ] && echo -e "$MSG_THISHELP" &&
-					error_exit "Unknown command '$1'!\n\n"
-				;;
+				pkg_list="${pkg_list} ${pkg_temp}" ;;
+			-h|--help) echo -e "$MSG_THISHELP" && return 0 ;;
+			*) error_exit "Unknown param '$1'!\n\n" ;;
 		esac
 		shift
 	done
@@ -221,19 +199,15 @@ process_command()
 		echo -n "Looking for patches... "
 	fi
 	# find patches
-	pat_list=`list_patches --tree $SLACKTREE $pkg_path $PKG_IGNORED`
-	if [ "$do_command" != "quiet" ] ; then
-		echo -e "done!\n"
-	else
-		check_patch "$pat_list"
-		exit $?
-	fi
+	pat_list=`list_patches --tree $pkg_tree $pkg_more $pkg_skip`
+	[ "$do_command" == "quiet" ] && check_patch "$pat_list"
+	echo -e "done!\n"
+	# discrete package name list for patching
+	local do_execute="$pkg_list --patches"
 	# display packages
-	[ "$do_command" != "patch" ] &&
-		display_patches $do_command "$pat_list"
+	[ "$do_command" != "patch" ] && display_patches $do_command "$pat_list"
 	# patch packages
-	[ "$do_command" == "patch" ] &&
-		execute_patches $pkg_list --patches "$pat_list"
+	[ "$do_command" == "patch" ] && execute_patches $do_execute "$pat_list"
 	echo ; exit 0
 }
 

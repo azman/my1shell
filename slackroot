@@ -2,51 +2,50 @@
 
 # slackroot
 # - written by azman@my1matrix.org
-# - slackware 32-bit chroot install and update
+# - slackware root install and update
 
 # standard tool info
-MY1_TOOLNAME="my1 Slackware chroot32 Tool"
-MY1_TOOLVERS="2019.06.01"
-MY1_TOOLBASE=`basename $0 .sh`
-MY1_TOOLPATH=`dirname $0`
-MY1_TOOLPATH=`cd $MY1_TOOLPATH;pwd`
-MY1_TLIBNAME="libmy1slack"
-MY1_TLIBFULL="$MY1_TOOLPATH/$MY1_TLIBNAME"
-# look for my1slack library
-[ -r "$MY1_TLIBFULL" ] && . $MY1_TLIBFULL
-# get slackware tree info - make sure 32-bit?
-SLACKNAME="slackware"
-call_setup
-# tool specific
-MY1_TOOL_LOG=${MY1_TOOL_LOG:="/tmp/${MY1_TOOLBASE}.log"}
-MY1_ROOT_DEF=${MY1_ROOT_DEF:="/opt/chroot32"}
-# global options & settings
-MSG_THISHELP=$(cat <<SETHELPMSG
+TOOL_NAME=`basename $0 .sh`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH;pwd`
+TOOL_DESC="my1 Slackware RootFS Tool"
+TOOL_VERS="2019.11.00"
+TOOL_HELP=$(cat <<SETHELPMSG
 Usage:
-  $MY1_TOOLBASE <command> [options]
+  $TOOL_NAME <command> [options]
 Commands:
-  create : Creates a custom root installation
+  create : Creates a custom root installation (also inserts)
   update : Updates a custom root installation
 Options:
   -v | --verbose : More info
   -x | --execute : Execute (else just dry run!)
-  -r | --root <path> : Specify root path (default: $MY1_ROOT_DEF)
+  -r | --root <path> : Specify root path
   -p | --path <path> : Specify path for packages
   -f | --file <file> : Specify file containing package list
        --core    : Select basic system tool packages
        --console : Select console application packages
        --desktop : Select desktop application packages
-Log File:
-  $MY1_TOOL_LOG
 SETHELPMSG
 )
+
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+
+source_lib libmy1slack
+source_lib libmy1echo
+source_lib libmy1file
 
 do_root_update()
 {
 	local chk_root=$1
 	local chk_exec="NO"
 	local chk_syyy="YES"
-	local pkg_list pkg_temp pkg_opts="--reinstall --install-new"
+	local pkg_list pkg_temp pkg_opts
 	# check 'command-line'
 	shift # first param is chk_root
 	while [ "$1" != "" ]; do
@@ -54,29 +53,23 @@ do_root_update()
 		case $pkg_temp in
 			--exec) chk_exec="YES" ;;
 			--verbose) chk_syyy="NO" ;;
-			*)
-				if [ ! -f $pkg_temp ] ; then
-					warn_msg "File '$pkg_temp' not found! Not included!\n"
-				else
-					pkg_list="${pkg_list}$pkg_temp "
-				fi
-				;;
+			--reinstall) pkg_opts="${pkg_opts}${pkg_temp} " ;;
+			--install-new) pkg_opts="${pkg_opts}${pkg_temp} " ;;
+			*) [ -f $pkg_temp ] && pkg_list="${pkg_list}$pkg_temp " ||
+					warn_msg "File '$pkg_temp' not found!\n" ;;
 		esac
 		shift
 	done
-	# check valid root path... if executing!
+	# ensure root path... if executing!
 	[ "$chk_exec" == "YES" ] &&
-		must_have_path "$chk_root" "Root path '$chk_root' not found!"
+		make_path "$chk_root" && chk_root=`cd $chk_root ; pwd`
+	local chk_logs=$chk_root/install.logs
 	# install packages in list to given root
-	if [ "$chk_exec" == "YES" ]; then
-		echo "$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)" >$MY1_TOOL_LOG
-		echo "ExecTime: $(date +%Y%m%d%H%M)" >>$MY1_TOOL_LOG
-	fi
 	for pkg_file in $pkg_list; do
 		[ "$chk_syyy" != "YES" ] && echo &&
 			info_msg "Updating $(basename $pkg_file) in $chk_root ..."
 		[ "$chk_exec" == "YES" ] &&
-			ROOT=$chk_root upgradepkg $pkg_opts $pkg_file >>$MY1_TOOL_LOG
+			ROOT=$chk_root upgradepkg $pkg_opts $pkg_file >>$chk_logs
 		[ "$chk_syyy" != "YES" ] && info_msg --no-tag " done!"
 	done
 	[ "$chk_syyy" != "YES" ] && echo
@@ -95,29 +88,21 @@ do_root_install()
 		case $pkg_temp in
 			--exec) chk_exec="YES" ;;
 			--verbose) chk_syyy="NO" ;;
-			*)
-				if [ ! -f $pkg_temp ] ; then
-					warn_msg "File '$pkg_temp' not found! Not included!\n"
-				else
-					pkg_list="${pkg_list}$pkg_temp "
-				fi
-				;;
+			*) [ -f $pkg_temp ] && pkg_list="${pkg_list}$pkg_temp " ||
+					warn_msg "File '$pkg_temp' not found!\n" ;;
 		esac
 		shift
 	done
-	# check valid root path... if executing!
+	# ensure root path... if executing!
 	[ "$chk_exec" == "YES" ] &&
-		must_have_path "$chk_root" "Root path '$chk_root' not found!"
+		make_path "$chk_root" && chk_root=`cd $chk_root ; pwd`
+	local chk_logs=$chk_root/install.logs
 	# install packages in list to given root
-	if [ "$chk_exec" == "YES" ]; then
-		echo "$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)" >$MY1_TOOL_LOG
-		echo "ExecTime: $(date +%Y%m%d%H%M)" >>$MY1_TOOL_LOG
-	fi
 	for pkg_file in $pkg_list; do
 		[ "$chk_syyy" != "YES" ] && echo &&
 			info_msg "Installing $(basename $pkg_file) to $chk_root ..."
 		[ "$chk_exec" == "YES" ] &&
-			installpkg --root $chk_root $pkg_file >>$MY1_TOOL_LOG
+			installpkg --root $chk_root $pkg_file >>$chk_logs
 		[ "$chk_syyy" != "YES" ] && info_msg --no-tag " done!"
 	done
 	[ "$chk_syyy" != "YES" ] && echo
@@ -156,58 +141,31 @@ do_pack_list()
 
 rootfs_create()
 {
-	local pkg_path="$SLACKPACK"
 	local pkg_opts="CORE" # default package set
-	local chk_root="$MY1_ROOT_DEF"
-	local chk_file=""
-	local chk_exec=""
-	local chk_syyy=""
+	local pkg_path
+	local chk_root chk_file chk_exec chk_syyy
 	local pkg_list pkg_temp tmp_list pkg_name pkg_base
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
-			--path)
-				shift
-				pkg_path="$(cd $1;pwd)"
-				;;
-			--root)
-				shift
-				chk_root=$1
-				;;
-			--file)
-				shift
-				chk_file=$1
-				pkg_opts="FILE"
-				;;
-			--core)
-				pkg_opts="CORE"
-				;;
-			--console)
-				pkg_opts="CONS"
-				;;
-			--desktop)
-				pkg_opts="DESK"
-				;;
-			--verbose)
-				chk_syyy="--verbose"
-				;;
-			--exec)
-				chk_exec="--exec"
-				;;
-			*)
-				error_exit "Unknown parameter '$1'!\n\n"
-				;;
+			--path) shift ; [ -d "$1" ] && pkg_path="$(cd $1;pwd)" ;;
+			--root) shift ; [ -d "$1" ] && chk_root=$1 ;;
+			--file) shift ; chk_file=$1 ; pkg_opts="FILE" ;;
+			--core) pkg_opts="CORE" ;;
+			--console) pkg_opts="CONS" ;;
+			--desktop) pkg_opts="DESK" ;;
+			--verbose) chk_syyy="--verbose" ;;
+			--exec) chk_exec="--exec" ;;
+			*) error_exit "Unknown parameter '$1'!\n\n" ;;
 		esac
 		shift
 	done
 	# must be root to exec!
-	[ "$chk_exec" == "--exec" ] && must_be_root
-	# check in case we're only simulating target root (need not exist!)
-	if [ "$chk_exec" != "--exec" ] ; then
-		if [ "${chk_root:0:1}" != "/" ] ; then
-			[ "${chk_root:0:2}" == "./" ] && chk_root=${chk_root:2}
-			chk_root="$(pwd)/${chk_root}"
-		fi
+	[ "$chk_exec" = "--exec" ] && must_be_root
+	# check relative path
+	if [ "${chk_root:0:1}" != "/" ] ; then
+		[ "${chk_root:0:2}" == "./" ] && chk_root=${chk_root:2}
+		chk_root="$(pwd)/${chk_root}"
 	fi
 	# check paths
 	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!\n\n"
@@ -220,7 +178,7 @@ rootfs_create()
 	# if executing, check/create root path
 	if [ "$chk_exec" == "--exec" ] ; then
 		mkdir -p $chk_root
-		chk_root=$(cd $chk_root;pwd)
+		chk_root=`cd $chk_root ; pwd`
 		[ "$chk_syyy" == "--verbose" ] &&
 			info_msg "(Target path: '$chk_root') "
 	fi
@@ -251,35 +209,27 @@ rootfs_create()
 
 rootfs_update()
 {
-	local pkg_path="$SLACKPACK"
-	local chk_root="$MY1_ROOT_DEF"
+	local pkg_path
+	local chk_root
 	local chk_exec=""
 	local chk_syyy=""
-	local pkg_list pkg_temp pkg_name pkg_base
+	local pkg_list pkg_temp pkg_name pkg_base pkg_opts
 	local chk_list chk_stat chk_temp
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
-			--path)
-				shift
-				pkg_path="$(cd $1;pwd)"
-				;;
-			--root)
-				shift
-				chk_root=$1
-				;;
-			--verbose)
-				chk_syyy="--verbose"
-				;;
-			--exec)
-				chk_exec="--exec"
-				;;
-			*)
-				error_exit "Unknown parameter '$1'!\n\n"
-				;;
+			--path) shift ; pkg_path="$(cd $1;pwd)" ;;
+			--root) shift ; chk_root=$1 ;;
+			--reinstall) pkg_opts="${pkg_opts}$1 " ;;
+			--install-new) pkg_opts="${pkg_opts}$1 " ;;
+			--verbose) chk_syyy="--verbose" ;;
+			--exec) chk_exec="--exec" ;;
+			*) error_exit "Unknown parameter '$1'!\n\n" ;;
 		esac
 		shift
 	done
+	call_setup
+	[ -z "$pkg_path" ] && pkg_path=$SLACKPACK
 	# must be root to exec!
 	[ "$chk_exec" == "--exec" ] && must_be_root
 	# ensure full path for chk_root
@@ -306,25 +256,25 @@ rootfs_update()
 		return
 	fi
 	# install the packages
-	do_root_update $chk_root $pkg_list $chk_syyy $chk_exec
+	do_root_update $chk_root $pkg_list $pkg_opts $chk_syyy $chk_exec
 	# end main info msg
 	info_msg --no-tag "done.\n"
 }
 
-function process_command()
+process_command()
 {
-	local chk_task=$1 ; shift
-	[ -z "$chk_task" ] && echo -e "$MSG_THISHELP\n" && exit 0
-	case $chk_task in
+	local task=$1 ; shift
+	[ -z "$task" ] && echo -e "$TOOL_HELP\n" && exit 0
+	case $task in
 		create) rootfs_create $@ ;;
 		update) rootfs_update $@ ;;
-		*) echo -e "Unknown command '$chk_task'\n" && exit 1 ;;
+		*) echo -e "Unknown command '$task'\n" && exit 1 ;;
 	esac
 }
 
 # BEGIN MAIN SCRIPT
 
-echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+echo -e "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n"
 process_command "$@"
 echo ; exit 0
 

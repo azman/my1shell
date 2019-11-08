@@ -5,11 +5,11 @@
 # - test script for functions in libmy1* libraries
 
 # standard tool info
-TOOL_NAME="my1 Slackware Test Script"
-TOOL_VERS="2019.06.00"
-TOOL_BASE=`basename $0 .sh`
+TOOL_NAME=`basename $0 .sh`
 TOOL_PATH=`dirname $0`
 TOOL_PATH=`cd $TOOL_PATH ; pwd`
+TOOL_DESC="my1 Slackware Test Script"
+TOOL_VERS="2019.06.00"
 
 source_lib()
 {
@@ -36,7 +36,7 @@ call_debug()
 	echo
 }
 
-echo -e "\n$TOOL_BASE - $TOOL_NAME ($TOOL_VERS)\n"
+echo -e "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n"
 debug_chk ; call_debug ; debug_chk no
 if [ ! -z "$1" ] ; then
 	echo -e "[SLACKTEST] Executing '$@'...\n"

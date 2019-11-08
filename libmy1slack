@@ -476,34 +476,14 @@ list_patches()
 	local chk_skip chk_more chk_temp
 	while [ "$1" != "" ]; do
 		case $1 in
-			--tree)
-				shift
-				[ -d "$1" ] && sys_tree=`cd $1;pwd`
-				;;
-			--name)
-				shift
-				sys_name=$1
-				;;
-			--vers)
-				shift
-				sys_vers=$1
-				;;
-			--root)
-				shift
-				[ -d "$1" ] && chk_root=`cd $1;pwd`
-				;;
-			--path)
-				shift
-				[ -d "$1" ] && chk_path=`cd $1;pwd`
-				;;
-			--more)
-				shift
-				[ -d "$1" ] && chk_temp=`cd $1;pwd` &&
-					chk_more="${chk_more}${chk_temp} "
-				;;
-			*)
-				chk_skip="${chk_skip}$1 "
-				;;
+			--tree) shift ; [ -d "$1" ] && sys_tree=`cd $1;pwd` ;;
+			--name) shift ; sys_name=$1 ;;
+			--vers) shift ; sys_vers=$1 ;;
+			--root) shift ; [ -d "$1" ] && chk_root=`cd $1;pwd` ;;
+			--path) shift ; [ -d "$1" ] && chk_path=`cd $1;pwd` ;;
+			--more) shift ; [ -d "$1" ] && chk_temp=`cd $1;pwd` &&
+					chk_more="${chk_more}${chk_temp} " ;;
+			*) chk_skip="${chk_skip}$1 " ;;
 		esac
 		shift
 	done
@@ -529,71 +509,4 @@ list_patches()
 	for path in $chk_more ; do
 		list_package_path $path $sys_logs $chk_skip
 	done
-}
-
-# oooh! blinking color text!
-
-format_text()
-{
-	# format is "\033[<attr>;<textcolor>;<backcolor>m" \033 = \e (ESC char)
-	local ends="\033[0m"
-	# attributes
-	local bold="1" # bright (bold on xterm?)
-	local dim="2" # dim
-	local uline="4"
-	local blink="5" # doesn't work on xterm (only real console!)
-	local reverse="7"
-	local hidden="8"
-	# text colors
-	local black="30" # for background Xm + 10m
-	local red="31"
-	local green="32"
-	local yellow="33"
-	local blue="34"
-	local magenta="35"
-	local cyan="36"
-	local white="37"
-	local default="39"
-	# check options
-	local attr color text
-	while [ "$1" != "" ] ; do
-		case "$1" in
-		--reset) attr="0" ;;
-		--bold) attr=$bold ;;
-		--blink) attr=$blink ;;
-		--color)
-			shift; color="$1"
-			case "$color" in
-				black) color="$black" ;;
-				red) color="$red" ;;
-				green) color="$green" ;;
-				yellow) color="$yellow" ;;
-				blue) color="$blue" ;;
-				magenta) color="$magenta" ;;
-				cyan) color="$cyan" ;;
-				white) color="$white" ;;
-				*) color="$default" ;;
-			esac
-			;;
-		*)
-			[ "$MY1_DEBUG" == "YES" ] &&
-				echo "Attribute: $attr, Color: $color"
-			if [ "$color" != "" ] ; then
-				[ "$attr" == "" ] && attr="0"
-				color="\033[${attr};${color}m"
-			else
-				[ "$attr" != "" ] &&
-					color="\033[${attr}m"
-			fi
-			if [ "$color" == "" ] ;  then
-				text="${text}${1} "
-			else
-				text="${text}${color}${1}${ends} "
-			fi
-			attr="" color=""
-			;;
-		esac
-		shift
-	done
-	echo -e "$text"
 }
