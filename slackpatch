@@ -5,38 +5,14 @@
 # - slackware patch manager, using upgradepkg from pkgtools
 
 # standard tool info
-TOOL_NAME="my1 Slackware Patch Tool"
-TOOL_VERS="2019.08.00"
-TOOL_BASE=`basename $0 .sh`
+TOOL_NAME=`basename $0 .sh`
 TOOL_PATH=`dirname $0`
 TOOL_PATH=`cd $TOOL_PATH;pwd`
-# look for libmy1slack
-source_lib()
-{
-	local name=$1
-	local full=$TOOL_PATH/$name
-	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
-	. $full
-}
-source_lib libmy1slack
-source_lib libmy1file
-call_setup
-# look for config file
-for config in `pwd` $HOME; do
-	config=$config/.$TOOL_BASE
-	[ -r $config ] && . $config && break
-done
-TOOL_LOGS=${TOOL_LOGS:="/tmp/${TOOL_BASE}.log"}
-
-# global options & settings
-OPT_VERBOSE="NO"
-OPT_UPGRADE=""
-OPT_LOGFILE=${OPT_LOGFILE:="/dev/null"}
-OPT_NOTHIRD=${OPT_NOTHIRD:="NO"}
-PKG_IGNORED=${PKG_IGNORED:=""} # std package to ignore
-MSG_THISHELP=`cat <<SETHELPMSG
+TOOL_DESC="my1 Slackware Patch Tool"
+TOOL_VERS="2019.08.00"
+TOOL_HELP=`cat <<SETHELPMSG
 Usage:
-  $TOOL_BASE <command> [options]
+  $TOOL_NAME <command> [options]
 Commands:
   check : Check patch status (find relevant patches)
   pdone : List patches that has been applied
@@ -46,12 +22,39 @@ Commands:
 Options:
   --verbose : Verbose mode (will also prompt patching!)
   --log     : Write process & results to log file '$TOOL_LOGS'
+  --override: Upgrade like fresh installation
+  --pure    : Ignore 3rd-party packages
+  --root    : Assign rootfs to process on...
+  --help    : This help message
   --pkg <package_name>  : Check/update specific package
   --path <path_name>    : Specify additional patch path
   --skip <package_name> : Specify packages to skip
-Mirror Source:
-  $SLACKTREE
 SETHELPMSG`
+
+# look for library scripts
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+source_lib libmy1slack
+source_lib libmy1file
+source_lib libmy1echo
+# look for config file
+for config in `pwd` $HOME; do
+	config=$config/.$TOOL_NAME
+	[ -r $config ] && . $config && break
+done
+TOOL_LOGS=${TOOL_LOGS:="/tmp/${TOOL_NAME}.log"}
+# global options & settings
+OPT_VERBOSE="NO"
+OPT_UPGRADE=""
+OPT_CHKROOT=""
+OPT_LOGFILE=${OPT_LOGFILE:="/dev/null"}
+OPT_NOTHIRD=${OPT_NOTHIRD:="NO"}
+PKG_IGNORED=${PKG_IGNORED:=""} # std package to ignore
 
 display_patches()
 {
@@ -85,6 +88,8 @@ display_patches()
 apply_patch()
 {
 	local pat_temp pat_name pat_stat pat_file do_update
+	local opt_root=$OPT_CHKROOT
+	[ ! -z "$opt_root" ] && opt_root="ROOT=$OPT_ROOT"
 	pat_temp="$@"
 	pat_name=`echo $pat_temp | cut -d':' -f1`
 	pat_stat=`echo $pat_temp | cut -d':' -f2`
@@ -98,7 +103,7 @@ apply_patch()
 		read -n 1 -p "Update '$pat_name'? [y]/[*]/[q] : " do_update ; echo
 		if [ "$do_update" == "y" ]; then
 			echo -n "Updating '$pat_name'... "
-			/sbin/upgradepkg $OPT_UPGRADE ${pat_file} >>$OPT_LOGFILE
+			$opt_root /sbin/upgradepkg $OPT_UPGRADE $pat_file >>$OPT_LOGFILE
 			echo "done."
 		elif [ "$do_update" == "q" ]; then
 			warn_msg "Aborting on '$pat_name'!"
@@ -106,7 +111,7 @@ apply_patch()
 		fi
 	elif [ "$OPT_VERBOSE" == "NO" ]; then
 		echo -n "Auto-updating '$pat_name'... "
-		/sbin/upgradepkg $OPT_UPGRADE ${pat_file} >>$OPT_LOGFILE
+		$opt_root /sbin/upgradepkg $OPT_UPGRADE $pat_file >>$OPT_LOGFILE
 		echo "done."
 	fi
 }
@@ -140,7 +145,7 @@ execute_patches()
 	if [ ! -z "$chk_list" ]; then
 		# only root can apply patches!
 		must_be_root
-		log_init="$TOOL_BASE - $TOOL_NAME ($TOOL_VERS) - $(date)\n"
+		log_init="$TOOL_NAME - $TOOL_DESC ($TOOL_VERS) - $(date)\n"
 		echo -e $log_init >$OPT_LOGFILE
 		echo "Packages need updating:"
 		for pat_loop in $chk_list ; do
@@ -164,42 +169,60 @@ check_patch()
 process_command()
 {
 	local go_commands="check pdone nlist patch quiet"
-	local pkg_list pkg_temp pat_list
-	local pkg_more="--more ${SLACKROOT}/${SLACKFULL//ware/pack}"
-	local pkg_skip="$PKG_IGNORED"
-	local pkg_tree="$SLACKTREE"
 	local do_command=$1 ; shift
 	# check parameters
+	local pkg_temp pkg_path sys_root
 	while [ "$1" != "" ]; do
 		case $1 in
 			--verbose) OPT_VERBOSE="YES" ;;
 			--log) OPT_LOGFILE="$TOOL_LOGS" ;;
 			--override) OPT_UPGRADE="--reinstall --install-new" ;;
 			--pure) OPT_NOTHIRD="YES" ;;
-			--path) shift
-				# check additional path
-				[ ! -d "$1" ] && error_exit "Cannot find path '$1'!\n\n"
-				pkg_more="${pkg_more} --more "`cd $1 ; pwd` ;;
-			--pkg) shift
-				# check discrete package name
-				pkg_temp=`find_install $1 $SLACKPACK`
-				[ "$pkg_temp" == "" ] && error_exit "Unknown package '$1'!\n\n"
-				pkg_temp=`get_pkg_info $pkg_temp | cut -d' ' -f1`
-				pkg_list="${pkg_list} ${pkg_temp}" ;;
-			-h|--help) echo -e "$MSG_THISHELP" && return 0 ;;
+			--path) shift ; pkg_path="${pkg_path}$1 " ;;
+			--pack|--pkg) shift ; pkg_temp="${pkg_temp}$1 " ;;
+			--help|-h) echo -e "$TOOL_HELP" && return 0 ;;
+			--root) shift ; sys_root=$1 ;;
+			--skip) shift ; PKG_IGNORED="${PKG_IGNORED}$1 " ;;
 			*) error_exit "Unknown param '$1'!\n\n" ;;
 		esac
 		shift
 	done
+	if [ ! -z "$sys_root" ] ; then
+		[ ! -d "$sys_root" ] && error_exit "Cannot find root '$sys_root'!\n\n"
+		OPT_CHKROOT=`cd $sys_root ; pwd`
+	fi
+	call_setup $OPT_CHKROOT
+	[ ! -d "$SLACKTREE" ] &&
+		error_exit "Cannot find slack info in '$OPT_CHKROOT'!\n\n"
+	local pkg_tree="--tree $SLACKTREE"
+	local pkg_more="--more ${SLACKROOT}/${SLACKFULL//ware/pack}"
+	local pkg_skip="$PKG_IGNORED"
+	local pkg_list
+	# process discrete package list
+	if [ ! -z "$pkg_temp" ] ; then
+		for that in $pkg_temp ; do
+			# check discrete package name
+			that=`find_install $that $SLACKPACK`
+			[ "$that" == "" ] && error_exit "Unknown package '$that'!\n\n"
+			pkg_list=`get_pkg_info $that | cut -d' ' -f1`
+		done
+	fi
+	# process extra package paths
+	if [ ! -z "$pkg_path" ] ; then
+		for that in $pkg_path ; do
+			[ ! -d "$that" ] && error_exit "Cannot find path '$that'!\n\n"
+			pkg_more="${pkg_more} --more "`cd $that ; pwd`
+		done
+	fi
 	# if no command given, do a check
 	[ "$do_command" == "" ] && do_command="check"
 	if [ "$do_command" != "quiet" ] ; then
-		echo -e "\n$TOOL_BASE - $TOOL_NAME ($TOOL_VERS)\n"
-		echo "[$SLACKFULL]"
+		echo -e "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n"
+		echo "[$SLACKFULL=>$OPT_CHKROOT]"
 		echo -n "Looking for patches... "
 	fi
 	# find patches
-	pat_list=`list_patches --tree $pkg_tree $pkg_more $pkg_skip`
+	local pat_list=`list_patches $pkg_tree $pkg_more $pkg_skip`
 	[ "$do_command" == "quiet" ] && check_patch "$pat_list"
 	echo -e "done!\n"
 	# discrete package name list for patching
