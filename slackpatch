@@ -5,22 +5,28 @@
 # - slackware patch manager, using upgradepkg from pkgtools
 
 # standard tool info
-MY1_TOOLNAME="my1 Slackware Patch Tool"
-MY1_TOOLVERS="2019.08.00"
-MY1_TOOLBASE=`basename $0 .sh`
-MY1_TOOLPATH=`dirname $0`
-MY1_TOOLPATH=`cd $MY1_TOOLPATH;pwd`
-MY1_TLIBNAME="libmy1slack"
-MY1_TLIBFULL="$MY1_TOOLPATH/$MY1_TLIBNAME"
-# look for my1slack library
-[ -r "$MY1_TLIBFULL" ] && . $MY1_TLIBFULL
+TOOL_NAME="my1 Slackware Patch Tool"
+TOOL_VERS="2019.08.00"
+TOOL_BASE=`basename $0 .sh`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH;pwd`
+# look for libmy1slack
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+source_lib libmy1slack
+source_lib libmy1file
 call_setup
 # look for config file
 for config in `pwd` $HOME; do
-	config=$config/.$MY1_TOOLBASE
+	config=$config/.$TOOL_BASE
 	[ -r $config ] && . $config && break
 done
-MY1_TLOGFULL=${MY1_TLOGFULL:="/tmp/${MY1_TOOLBASE}.log"}
+TOOL_LOGS=${TOOL_LOGS:="/tmp/${TOOL_BASE}.log"}
 
 # global options & settings
 OPT_VERBOSE="NO"
@@ -30,7 +36,7 @@ OPT_NOTHIRD=${OPT_NOTHIRD:="NO"}
 PKG_IGNORED=${PKG_IGNORED:=""} # std package to ignore
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
-  $MY1_TOOLBASE <command> [options]
+  $TOOL_BASE <command> [options]
 Commands:
   check : Check patch status (find relevant patches)
   pdone : List patches that has been applied
@@ -39,7 +45,7 @@ Commands:
   quiet : Like 'check', but for use in another script!
 Options:
   --verbose : Verbose mode (will also prompt patching!)
-  --log     : Write process & results to log file '$MY1_TLOGFULL'
+  --log     : Write process & results to log file '$TOOL_LOGS'
   --pkg <package_name>  : Check/update specific package
   --path <path_name>    : Specify additional patch path
   --skip <package_name> : Specify packages to skip
@@ -134,7 +140,7 @@ execute_patches()
 	if [ ! -z "$chk_list" ]; then
 		# only root can apply patches!
 		must_be_root
-		log_init="$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS) - $(date)\n"
+		log_init="$TOOL_BASE - $TOOL_NAME ($TOOL_VERS) - $(date)\n"
 		echo -e $log_init >$OPT_LOGFILE
 		echo "Packages need updating:"
 		for pat_loop in $chk_list ; do
@@ -170,7 +176,7 @@ process_command()
 				OPT_VERBOSE="YES"
 				;;
 			--log)
-				OPT_LOGFILE="$MY1_TLOGFULL"
+				OPT_LOGFILE="$TOOL_LOGS"
 				;;
 			--override)
 				OPT_UPGRADE="--reinstall --install-new"
@@ -210,7 +216,7 @@ process_command()
 	# if no command given, do a check
 	[ "$do_command" == "" ] && do_command="check"
 	if [ "$do_command" != "quiet" ] ; then
-		echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+		echo -e "\n$TOOL_BASE - $TOOL_NAME ($TOOL_VERS)\n"
 		echo "[$SLACKFULL]"
 		echo -n "Looking for patches... "
 	fi

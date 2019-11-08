@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# boot_kernel
+# - written by azman@my1matrix.org
+# - simple script to change default kernel in slackware
+
+VERS=`uname -r`
+PICK="huge"
+BOOT="vmlinuz"
+CONF="config"
+SMAP="System.map"
+EXTD=`uname -m`
+[ "$EXTD" = "x86_64" ] && EXTD=".x64" || EXTD=
+
+while [ ! -z "$1" ] ; do
+	case $1 in
+		--version) shift ; VERS=$1 ;;
+		huge) PICK="huge" ;;
+		generic) PICK="generic" ;;
+		*) echo "Unknown param '$1'!" ; exit 1 ;;
+	esac
+	shift
+done
+
+create_link()
+{
+	local what=$1
+	local pick=$2
+	local vers=$3
+	local full=$what-$pick-$vers
+	[ ! -f "$full" ] && echo "Cannot find '$full'!" && exit 1
+	echo "Creating link '$what' to $full"
+	ln -sf $full $what
+}
+
+CURR=`pwd`
+cd /boot
+echo "Path:{"`pwd`"}"
+create_link $BOOT $PICK $VERS
+create_link $CONF $PICK $VERS$EXTD
+create_link $SMAP $PICK $VERS
+cd $CURR
