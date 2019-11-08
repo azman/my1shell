@@ -16,9 +16,14 @@ DO_NOTIFY="$HOME/temp/$TOOL_NAME-PATCH"
 
 echo -ne "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n\n"
 
-# find libmy1slack
-[ ! -f $TOOL_PATH/libmy1slack ] && echo "Cannot find libmy1slack!" && exit 1
-. $TOOL_PATH/libmy1slack
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+source_lib libmy1slack
 
 # make sure we are in correct path
 call_setup

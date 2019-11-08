@@ -395,15 +395,9 @@ process_command()
 		error_exit "'$log_path' not found! Aborting!\n\n"
 	tool_cmd=$1; shift
 	case "$tool_cmd" in
-		find)
-			view_find_package "$@"
-			;;
-		file)
-			view_file_package "$@"
-			;;
-		*)
-			echo -e "$MSG_THISHELP\n" && exit 0
-			;;
+		find) view_find_package "$@" ;;
+		file) view_file_package "$@" ;;
+		*) echo -e "$MSG_THISHELP\n" ;;
 	esac
 }
 

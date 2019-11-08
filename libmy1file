@@ -65,3 +65,26 @@ get_path_owner()
 	echo -n "$chk_user:$chk_grpn"
 }
 
+make_path()
+{
+	local path=$1
+	local init=$2
+	[ ! -d "$path" ] && mkdir -p $path && return
+	[ "$init" = "--init" ] &&  rm -rf $path/* $path/.[!.]*
+}
+
+make_mark()
+{
+	local init name mark path=$1 ; shift
+	while [ "$1" != "" ]; do
+		case "$1" in
+			--init) init=$1 ;;
+			--name) shift ; name=$1 ;;
+			--mark) shift ; mark=$1 ;;
+		esac
+		shift
+	done
+	make_path $path $init
+	[ -z "$name" -o -z "$mark" ] && return
+	echo `date $DATE_FORM`" $name" > $path/$mark
+}

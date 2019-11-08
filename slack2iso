@@ -4,29 +4,30 @@
 # - written by azman@my1matrix.org
 # - a section from alien_bob's mirror_slackware_current.sh
 
-# setup path to slackware tree
-[ -z "$SLACKROOT" ] && SLACKROOT=`pwd`
-[ -z "$SLACKARCH" ] && [ -n "$ARCH" ] && SLACKARCH=$ARCH
-[ -z "$SLACKARCH" ] && SLACKARCH=`uname -m`
-[ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64" || SLACKSUFX=
-[ -z "$SLACKNAME" ] && SLACKNAME="slackware$SLACKSUFX"
-[ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
-[ -z "$SLACKVERS" ] && [ -n "$RELEASE" ] && SLACKVERS=$RELEASE
-[ -z "$SLACKVERS" ] && [ ! -f /etc/slackware-version ] && SLACKVERS="current" ||
-	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
-SLACKFULL=$SLACKNAME-$SLACKVERS
-SLACKTREE=$SLACKROOT/$SLACKFULL
+# standard tool info
+TOOL_NAME=`basename $0`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH ; pwd`
 
-[ ! -d "$SLACKTREE" ] &&
-	echo "Slackware tree '$SLACKTREE' not found!" && exit 1
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
 
+source_lib libmy1slack
+call_setup
+
+[ ! -d $SLACKTREE ] && echo "Cannot find Slackware in $SLACKTREE" && exit 1
 [ -d "$1" ] && ISOPATH=`cd $1 ; pwd`
 ISOPATH=${ISOPATH:="$HOME/temp"}
 ISONAME=${ISONAME:="${SLACKFULL}-install.iso"}
 ISOFILE=$ISOPATH/$ISONAME
 
 # make sure we have the tool
-MKISOFS=$(which mkisofs 2>/dev/null)
+MKISOFS=`which mkisofs 2>/dev/null`
 [ "$MKISOFS" == "" ] && echo "Cannot find mkisofs! Aborting!" && exit 1
 
 # check target path
