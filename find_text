@@ -4,11 +4,16 @@ FIND_TEXT=$1
 FIND_PATH=`pwd`
 TOOL_PATH=`dirname $0`
 
-# find libmy1slack
-TLIB_FULL=$TOOL_PATH/libmy1slack
-[ ! -f "$TLIB_FULL" ] &&
-	echo "Cannot find $TLIB_FULL! Aborting!" && exit 1
-. $TLIB_FULL
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+
+source_lib libmy1slack
+source_lib libmy1echo
 
 for file in `find $FIND_PATH -not -path '*/\.*' -type f` ; do
 	temp=`cat $file | grep $FIND_TEXT`

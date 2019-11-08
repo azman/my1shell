@@ -5,19 +5,29 @@
 # - slackware package info viewer
 
 # standard tool info
-MY1_TOOLNAME="my1 Slackware Package Viewer Tool"
-MY1_TOOLVERS="2019.06.00"
-MY1_TOOLBASE=`basename $0 .sh`
-MY1_TOOLPATH=`dirname $0`
-MY1_TOOL_LIB="libmy1slack"
-# look for my1slack library
-[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
+TOOL_NAME="my1 Slackware Package Viewer Tool"
+TOOL_VERS="2019.06.00"
+TOOL_BASE=`basename $0 .sh`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH ; pwd`
+
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+
+source_lib libmy1slack
+source_lib libmy1echo
+
 # get slackware tree info
 call_setup
 # prepare help message
 MSG_THISHELP=`cat <<SETHELPMSG
 Usage:
-  $MY1_TOOLBASE <command> [options]
+  $TOOL_BASE <command> [options]
 Commands:
   find   : Find package(s) in mirror@installation
          > --alien    : Find & list alien package(s)
@@ -49,6 +59,58 @@ view_alien_pkgs()
 		fi
 	done
 	[ "$do_echo" == "YES" ] && info_msg "No alien package found!\n"
+}
+
+show_info()
+{
+	# get package info
+	local pkg_name=$1
+	local pkg_pack=$2 # slackpack
+	local pkg_flag pkg_find pkg_stat pkg_soft
+	local pkg_info=`find_install $pkg_name --full $pkg_pack`
+	local pkg_test=`find_package $pkg_name --full $pkg_pack`
+	[ "$pkg_info" == "" ] && pkg_flag="NOT " && pkg_info=$pkg_test
+	[ "$pkg_info" == "" ] && return 1
+	[ "$pkg_test" == "" ] && pkg_stat=" (ALIEN!)" || \
+		pkg_soft=`echo $pkg_test | cut -d' ' -f3`
+	[ "$pkg_soft" != "" ] && pkg_soft="("`basename $pkg_soft`")"
+	# info structure?
+	local pkg_base pkg_file pkg_path pkg_size pkg_full
+	pkg_base=`echo $pkg_info | cut -d' ' -f1`
+	pkg_file=`echo $pkg_info | cut -d' ' -f2`
+	pkg_path=`echo $pkg_info | cut -d' ' -f3`
+	pkg_size=`echo $pkg_info | cut -d' ' -f4`
+	pkg_full=`echo $pkg_info | cut -d' ' -f5`
+	[ ! -f $pkg_path/$pkg_file ] && pkg_find="NOT "
+	local pkg_temp pkg_name pkg_vers pkg_arch pkg_extd
+	pkg_temp=`get_pkg_info $pkg_base`
+	pkg_name=`echo $pkg_temp | cut -d' ' -f1`
+	pkg_vers=`echo $pkg_temp | cut -d' ' -f2`
+	pkg_arch=`echo $pkg_temp | cut -d' ' -f3`
+	pkg_extd=`echo $pkg_temp | cut -d' ' -f4`
+	# do the printing
+	local title="PACKAGE <$pkg_name> - BEGIN"
+	local trail="PACKAGE <$pkg_name> - END"
+	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
+	echo "$title"
+	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
+	echo "FILE               : ${pkg_file}${pkg_stat} $pkg_soft"
+	echo "LOCATION           : $pkg_path"
+	echo "VERSION            : $pkg_vers"
+	echo "ARCHITECTURE       : $pkg_arch"
+	echo "BUILD TAG          : $pkg_extd"
+	echo "SIZE (Compressed)  : $pkg_size"
+	echo "SIZE (Uncompressed): $pkg_full"
+	echo "PACKAGE STATUS     : ${pkg_find}FOUND"
+	echo "INSTALL STATUS     : ${pkg_flag}INSTALLED"
+	local pkg_desc=`find_install_desc $pkg_name`
+	[ "$pkg_desc" == "" ] && pkg_desc=`find_package_desc $pkg_name`
+	[ "$pkg_desc" != "" ] &&
+	echo "DESCRIPTION        : " && echo -e "$pkg_desc"
+	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
+	echo "$trail"
+	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
+	return 0
 }
 
 view_show_pkgs()
@@ -347,7 +409,7 @@ process_command()
 
 # BEGIN MAIN SCRIPT
 
-echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
+echo -e "\n$TOOL_BASE - $TOOL_NAME ($TOOL_VERS)\n"
 process_command "$@"
 echo ; exit 0
 

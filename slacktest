@@ -1,20 +1,43 @@
 #!/bin/bash
 
 # slacktest
-# - written by azman@my1matrix.net
-# - test script for libmy1slack functions
+# - written by azman@my1matrix.org
+# - test script for functions in libmy1* libraries
 
 # standard tool info
-MY1_TOOLNAME="my1 Slackware Test Script"
-MY1_TOOLVERS="2019.06.00"
-MY1_TOOLBASE=`basename $0 .sh`
-MY1_TOOLPATH=`dirname $0`
-MY1_TOOL_LIB="libmy1slack"
-# look for my1slack library
-[ -r "$MY1_TOOLPATH/$MY1_TOOL_LIB" ] && . $MY1_TOOLPATH/$MY1_TOOL_LIB
+TOOL_NAME="my1 Slackware Test Script"
+TOOL_VERS="2019.06.00"
+TOOL_BASE=`basename $0 .sh`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH ; pwd`
 
-echo -e "\n$MY1_TOOLBASE - $MY1_TOOLNAME ($MY1_TOOLVERS)\n"
-debug_chk yes ; call_debug ; debug_chk no
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+
+source_lib libmy1slack
+source_lib libmy1echo
+source_lib libmy1file
+source_lib libmy1get
+
+call_debug()
+{
+	call_setup
+	debug_msg "my1slack Library Name is $MY1_LIBNAME\n"
+	debug_msg "my1slack Library Version is $MY1_LIBVERS\n"
+	debug_msg "Command Call '$MY1_LIBCALL'\n"
+	debug_msg "Slackware is $SLACKFULL @ $SLACKROOT\n"
+	debug_msg "Slackware tree: $SLACKTREE\n"
+	debug_msg "Slackware sets: $SLACKPACK\n"
+	echo
+}
+
+echo -e "\n$TOOL_BASE - $TOOL_NAME ($TOOL_VERS)\n"
+debug_chk ; call_debug ; debug_chk no
 if [ ! -z "$1" ] ; then
 	echo -e "[SLACKTEST] Executing '$@'...\n"
 	test_value="\"$1\" "

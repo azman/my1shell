@@ -3,11 +3,13 @@
 # libmy1slack
 # - written by azman@my1matrix.net
 # - library functions for slackware system management
+#   = requires libmy1file
 
 MY1_LIBNAME="libmy1slack"
-MY1_LIBVERS="2019.06.00"
+MY1_LIBVERS="2019.11.00"
 MY1_LIBCALL=`basename $0 .sh`
-MY1_DODEBUG=${MY1_DODEBUG:="NO"}
+
+# slack info gathering
 
 find_slackname()
 {
@@ -52,88 +54,8 @@ find_slacktree()
 	echo -n $tree
 }
 
-# output functions
-
-tag_msg()
-{
-	local mtag=""
-	local ctag="39" # default color
-	local elog="" # log filename
-	local eout="yes" # warnings/errors should go to stderr!
-	local dbug="no"
-	while [ "$1" != "" ]; do
-		case $1 in
-			--log) shift ; elog="$1" ;;
-			--tag) shift ; mtag="$1" ;;
-			--color) shift ; ctag="$1" ;;
-			--debug) dbug="yes" ;;
-			--no-tag) mtag="" ;;
-			--stdout) eout="no" ;;
-			--stderr) eout="yes" ;;
-			*) break ;;
-		esac
-		shift
-	done
-	[ "$elog" != "" ] && echo -ne "$mtag $@" >>$elog
-	[ "$dbug" = "yes" -a "$MY1_DODEBUG" = "NO" ] && return 0
-	if [ "$eout" = "yes" ] ; then
-		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m " >&2
-		echo -ne "\033[1;${ctag}m$1\033[0m" >&2
-	else
-		[ "$mtag" != "" ] && echo -ne "\033[1;${ctag}m${mtag}\033[0m "
-		echo -ne "\033[1;${ctag}m$1\033[0m"
-	fi
-	return 0
-}
-
-error_msg()
-{
-	local color_tag="31" # red
-	tag_msg --tag "[ERROR]" --color "$color_tag" "$@"
-}
-
-error_exit()
-{
-	echo ; error_msg "$@"
-	exit 1
-}
-
-debug_msg()
-{
-	local color_tag="36" # cyan
-	tag_msg --tag "[DEBUG]" --color "$color_tag" --debug "$@"
-}
-
-debug_chk()
-{
-	[ "$1" = "yes" ] && MY1_DODEBUG="YES" || MY1_DODEBUG="NO"
-}
-
-check_msg()
-{
-	local color_tag="34" #blue
-	tag_msg --tag "[CHECK]" --color "$color_tag" --stdout "$@"
-}
-
-warn_msg()
-{
-	local color_tag="33" # yellow
-	tag_msg --tag "[WARN]" --color "$color_tag" "$@"
-}
-
-head_msg()
-{
-	local color_tag="34" #blue
-	tag_msg --color "$color_tag" --stdout "$@"
-}
-
-info_msg()
-{
-	local color_tag="32" # green
-	tag_msg --tag "[INFO]" --color "$color_tag" --stdout "$@"
-}
-
 # find current system info
+# - sets SLACK{NAME,VERS,FULL,TREE,ROOT,PACK,LOGS} variables
 
 call_setup()
 {
@@ -141,90 +63,11 @@ call_setup()
 	local pkg_home=$2
 	[ -z "$SLACKNAME" ] && SLACKNAME=`find_slackname $sys_root`
 	[ -z "$SLACKVERS" ] && SLACKVERS=`find_slackvers $sys_root`
-	SLACKVMAJ=`echo $SLACKVERS | cut -d. -f1`
-	SLACKVMIN=`echo $SLACKVERS | cut -d. -f2`
-	SLACKVREL=`echo $SLACKVERS | cut -d. -f3`
 	SLACKFULL="$SLACKNAME-$SLACKVERS"
 	SLACKTREE=`find_slacktree $SLACKFULL $pkg_home`
 	[ -d "$SLACKTREE" ] &&
 		SLACKROOT=`dirname $SLACKTREE` && SLACKPACK=$SLACKTREE/$SLACKNAME
 	SLACKLOGS="/var/log/packages"
-}
-
-# debug function
-
-call_debug()
-{
-	call_setup
-	debug_msg "my1slack Library Name is $MY1_LIBNAME\n"
-	debug_msg "my1slack Library Version is $MY1_LIBVERS\n"
-	debug_msg "Command Call '$MY1_LIBCALL'\n"
-	debug_msg "Slackware is $SLACKFULL @ $SLACKROOT\n"
-	debug_msg "Slackware tree: $SLACKTREE\n"
-	debug_msg "Slackware sets: $SLACKPACK\n"
-	echo
-}
-
-# utility functions
-
-find_binary()
-{
-	local chk_exec=$1
-	local set_exec=`which $chk_exec 2>/dev/null`
-	echo -n $set_exec
-}
-
-must_have_exec()
-{
-	local chk_exec=$1 ; shift
-	local msg_fail=$@
-	local chk_full=`find_binary $chk_exec`
-	[ "$msg_fail" == "" ] && msg_fail="Executable '$chk_exec' not found!"
-	[ ! -x "$chk_full"  ] && error_exit "$msg_fail\n\n"
-}
-
-must_have_path()
-{
-	local chk_path=$1 ; shift
-	local msg_fail=$@
-	[ "$msg_fail" == "" ] && msg_fail="Path '$chk_path' not found!"
-	[ ! -d "$chk_path"  ] && error_exit "$msg_fail\n\n"
-}
-
-must_have_file()
-{
-	local chk_file=$1 ; shift
-	local msg_fail=$@
-	[ "$msg_fail" == "" ] && msg_fail="File '$chk_file' not found!"
-	[ ! -f "$chk_file"  ] && error_exit "$msg_fail\n\n"
-}
-
-must_be_root()
-{
-	local msg_fail=$@
-	[ -z "$msg_fail" ] && msg_fail="Must run as root!"
-	[ $UID -ne 0 ] && error_exit "$msg_fail\n\n"
-}
-
-get_path_owner()
-{
-	local chk_user chk_grpn
-	local chk_path
-	local chk_this=$1
-	[ "$chk_this" == "/" ] && echo -n "root:root" && return
-	[ "$chk_this" == "." ] && chk_this=`pwd`
-	[ "$chk_this" == ".." ] && chk_this=`cd .. ; pwd`
-	[ -L "$chk_this" ] && chk_this=`readlink -e $chk_this`
-	[ ! -r "$chk_this" ] && return
-	chk_path=`dirname $chk_this`
-	chk_path=`cd $chk_path ; pwd`
-	chk_this=`basename $chk_this`
-	[ ! -r "$chk_path" ] && return
-	chk_user=`ls -l "${chk_path}/" | grep -e "${chk_this}$"`
-	set -- $chk_user
-	chk_user=$3
-	chk_grpn=$4
-	echo -n "$chk_user:$chk_grpn"
 }
 
 # slack management functions
@@ -495,58 +338,6 @@ find_install()
 	echo -n "$pkg_temp"
 }
 
-show_info()
-{
-	# get package info
-	local pkg_name=$1
-	local pkg_pack=$2 # slackpack
-	local pkg_flag pkg_find pkg_stat pkg_soft
-	local pkg_info=`find_install $pkg_name --full $pkg_pack`
-	local pkg_test=`find_package $pkg_name --full $pkg_pack`
-	[ "$pkg_info" == "" ] && pkg_flag="NOT " && pkg_info=$pkg_test
-	[ "$pkg_info" == "" ] && return 1
-	[ "$pkg_test" == "" ] && pkg_stat=" (ALIEN!)" || \
-		pkg_soft=`echo $pkg_test | cut -d' ' -f3`
-	[ "$pkg_soft" != "" ] && pkg_soft="("`basename $pkg_soft`")"
-	# info structure?
-	local pkg_base pkg_file pkg_path pkg_size pkg_full
-	pkg_base=`echo $pkg_info | cut -d' ' -f1`
-	pkg_file=`echo $pkg_info | cut -d' ' -f2`
-	pkg_path=`echo $pkg_info | cut -d' ' -f3`
-	pkg_size=`echo $pkg_info | cut -d' ' -f4`
-	pkg_full=`echo $pkg_info | cut -d' ' -f5`
-	[ ! -f $pkg_path/$pkg_file ] && pkg_find="NOT "
-	local pkg_temp pkg_name pkg_vers pkg_arch pkg_extd
-	pkg_temp=`get_pkg_info $pkg_base`
-	pkg_name=`echo $pkg_temp | cut -d' ' -f1`
-	pkg_vers=`echo $pkg_temp | cut -d' ' -f2`
-	pkg_arch=`echo $pkg_temp | cut -d' ' -f3`
-	pkg_extd=`echo $pkg_temp | cut -d' ' -f4`
-	# do the printing
-	local title="PACKAGE <$pkg_name> - BEGIN"
-	local trail="PACKAGE <$pkg_name> - END"
-	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
-	echo "$title"
-	for (( a=0;a<${#title};a++ )) ; do echo -n "-"; done ; echo
-	echo "FILE               : ${pkg_file}${pkg_stat} $pkg_soft"
-	echo "LOCATION           : $pkg_path"
-	echo "VERSION            : $pkg_vers"
-	echo "ARCHITECTURE       : $pkg_arch"
-	echo "BUILD TAG          : $pkg_extd"
-	echo "SIZE (Compressed)  : $pkg_size"
-	echo "SIZE (Uncompressed): $pkg_full"
-	echo "PACKAGE STATUS     : ${pkg_find}FOUND"
-	echo "INSTALL STATUS     : ${pkg_flag}INSTALLED"
-	local pkg_desc=`find_install_desc $pkg_name`
-	[ "$pkg_desc" == "" ] && pkg_desc=`find_package_desc $pkg_name`
-	[ "$pkg_desc" != "" ] &&
-	echo "DESCRIPTION        : " && echo -e "$pkg_desc"
-	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
-	echo "$trail"
-	for (( a=0;a<${#trail};a++ )) ; do echo -n "-"; done ; echo
-	return 0
-}
-
 list_package_path()
 {
 	# get all packages in given path
@@ -596,7 +387,7 @@ list_package_path()
 				chk_vers="[${pkg2vers}/${pkg2extd}($pkg2base)]->"
 				chk_vers="${chk_vers}[${pkg_vers}/${pkg_extd}($pkg_base)]"
 			fi
-			# DEBUG debug_msg "$pkg_full\n" && continue
+			# DEBUG echo "[DEBUG] $pkg_full" && continue
 		else
 			local chk_arch sys_arch="x86"
 			local tmp_arch=`find_slackname`
@@ -608,7 +399,7 @@ list_package_path()
 				noarch) chk_arch="$sys_arch" ;;
 				*) chk_arch="" ;;
 			esac
-			# DEBUG debug_msg "$pkg_full '$chk_arch'/'$sys_arch'\n" && continue
+			# DEBUG echo "[DEBUG] $pkg_full '$chk_arch'/'$sys_arch'"
 			[ "$chk_arch" != "$sys_arch" ] && continue
 			chk_stat="nlist"
 		fi

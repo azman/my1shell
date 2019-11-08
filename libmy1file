@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# libmy1file
+# - written by azman@my1matrix.org
+# - library functions for file/path checking
+# - the must_* functions require libmy1echo
+
+find_binary()
+{
+	local chk_exec=$1
+	local set_exec=`which $chk_exec 2>/dev/null`
+	echo -n $set_exec
+}
+
+must_have_exec()
+{
+	local chk_exec=$1 ; shift
+	local msg_fail=$@
+	local chk_full=`find_binary $chk_exec`
+	[ "$msg_fail" == "" ] && msg_fail="Executable '$chk_exec' not found!"
+	[ ! -x "$chk_full"  ] && error_exit "$msg_fail\n\n"
+}
+
+must_have_path()
+{
+	local chk_path=$1 ; shift
+	local msg_fail=$@
+	[ "$msg_fail" == "" ] && msg_fail="Path '$chk_path' not found!"
+	[ ! -d "$chk_path"  ] && error_exit "$msg_fail\n\n"
+}
+
+must_have_file()
+{
+	local chk_file=$1 ; shift
+	local msg_fail=$@
+	[ "$msg_fail" == "" ] && msg_fail="File '$chk_file' not found!"
+	[ ! -f "$chk_file"  ] && error_exit "$msg_fail\n\n"
+}
+
+must_be_root()
+{
+	local msg_fail=$@
+	[ -z "$msg_fail" ] && msg_fail="Must run as root!"
+	[ $UID -ne 0 ] && error_exit "$msg_fail\n\n"
+}
+
+get_path_owner()
+{
+	local chk_user chk_grpn
+	local chk_path
+	local chk_this=$1
+	[ "$chk_this" == "/" ] && echo -n "root:root" && return
+	[ "$chk_this" == "." ] && chk_this=`pwd`
+	[ "$chk_this" == ".." ] && chk_this=`cd .. ; pwd`
+	[ -L "$chk_this" ] && chk_this=`readlink -e $chk_this`
+	[ ! -r "$chk_this" ] && return
+	chk_path=`dirname $chk_this`
+	chk_path=`cd $chk_path ; pwd`
+	chk_this=`basename $chk_this`
+	[ ! -r "$chk_path" ] && return
+	chk_user=`ls -l "${chk_path}/" | grep -e "${chk_this}$"`
+	set -- $chk_user
+	chk_user=$3
+	chk_grpn=$4
+	echo -n "$chk_user:$chk_grpn"
+}
+
