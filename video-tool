@@ -19,6 +19,7 @@ case "$TOOL_TASK" in
 	split-video) video_split_video $@ ;;
 	split-audio) video_split_audio $@ ;;
 	merge-audio) video_merge_audio $@ ;;
+	cut) video_cut $@ ;;
 	*) [ "$TOOL_TASK" != "" ] && echo "Unknown task '$TOOL_TASK'!" ;;
 esac
 

@@ -47,6 +47,7 @@ video_convert()
 	local aqsc=${aqsc:="4"}
 	# check params
 	local ovid pas2 dvar dlog=/dev/null
+	local vchk vlen
 	while [ "$1" != "" ]; do
 		case $1 in
 			--var) dvar="yes" ;;
@@ -57,6 +58,9 @@ video_convert()
 			--aqsc) shift ; aqsc=$1 ;;
 			--output) shift ; ovid=$1 ;;
 			--tv) vres="512:384" ; vasp="4:3" ;; #mod16 resolution
+			--vlen) shift ; vlen=$1 ;;
+			--init) shift ; vchk=$1 ;;
+			*) echo -ne "\n[ABORT] Unknown param '$1'!\n\n" && exit 0
 		esac
 		shift
 	done
@@ -81,18 +85,21 @@ video_convert()
 	local aopt="-c:a libmp3lame $acod"
 	# video options
 	local vopt="-c:v mpeg4 -vtag xvid $vcod"
+	local iopt
+	[ ! -z "$vchk" ] && iopt="$iopt -ss $vchk"
+	[ ! -z "$vlen" ] && gopt="$gopt -t $vlen"
 	# convert!
 	echo "Input : $ivid"
 	echo "Output: $ovid"
-	echo "Settings: {A:$acod,V:$vcod}"
+	echo "Settings: {A:$acod,V:$vcod,init:$vchk,vlen:$vlen}"
 	echo -n "" >${dlog}
 	if [ "$pas2" != "yes" ]; then
 		echo -n "Processing... "
-		ffmpeg -i ${ivid} ${gopt} ${aopt} ${vopt} ${ovid} 2>>${dlog}
+		ffmpeg ${iopt} -i ${ivid} ${gopt} ${aopt} ${vopt} ${ovid} 2>>${dlog}
 		echo "done."
 	else
-		local chk1="-y"
-		local chk2=""
+		local chk1="${iopt} -y"
+		local chk2="${iopt} "
 		local opt1="-pass 1 ${gopt} ${aopt} ${vopt} -an -f avi /dev/null"
 		local opt2="-pass 2 ${gopt} ${aopt} ${vopt} ${ovid}"
 		echo -n "Processing (PASS1)... "
@@ -144,5 +151,29 @@ video_merge_audio()
 	echo "Inputs: {$vchk,$achk}"
 	echo -n "Merging video/audio into '$ovid'..."
 	ffmpeg -i $vchk -i $achk -vcodec copy -acodec copy -y $ovid >/dev/null 2>&1
+	[ $? -eq 0 ] && echo "done." || echo "error?"
+}
+
+video_cut()
+{
+	local ivid=$1 ; shift
+	# default video length is 1 minute
+	local vchk vlen="1:00"
+	while [ "$1" != "" ]; do
+		case $1 in
+			--vlen) shift ; vlen=$1 ;;
+			--init) shift ; vchk=$1 ;;
+			*) echo -ne "\n[ABORT] Unknown param '$1'!\n\n" && exit 0
+		esac
+		shift
+	done
+	[ ! -z "$vchk" ] && vchk="-ss $vchk"
+	vlen="-t $vlen"
+	video_must_have_input $ivid
+	ovid=`video_prepare_output $ivid $ovid`
+	video_check_output $ovid
+	echo "Input: $ivid"
+	echo -n "Cutting (init:$vchk,time:$vlen) into $ovid... "
+	ffmpeg $vchk -i $ivid $vlen -c copy $ovid >/dev/null 2>&1
 	[ $? -eq 0 ] && echo "done." || echo "error?"
 }
