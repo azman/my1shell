@@ -5,6 +5,37 @@
 # - library functions for video-tool
 #   = basically a wrapper script for various tools
 
+video_must_have_input()
+{
+	local ivid=$1
+	[ -z "$ivid" ] && exit 0
+	[ ! -f "$ivid" ] &&
+		echo -ne "\n[ABORT] Input file missing ($ivid)!\n\n" && exit 0
+}
+
+video_prepare_output()
+{
+	local ivid=$1
+	local ovid=$2
+	[ -z "$ovid" ] && ovid="${ivid%.*}_conv.avi"
+	echo -n $ovid
+}
+
+video_prepare_audio()
+{
+	local ivid=$1
+	local aout=$2
+	[ -z "$aout" ] && aout="${ivid%.*}_conv.mp3"
+	echo -n $aout
+}
+
+video_check_output()
+{
+	local ovid=$1
+	[ -f "$ovid" ] &&
+		echo -ne "\n[ABORT] Output file exists ($ovid)!\n\n" && exit 0
+}
+
 video_convert()
 {
 	local ivid=$1 ; shift
@@ -29,10 +60,9 @@ video_convert()
 		esac
 		shift
 	done
-	[ -z "$ivid" ] && exit 0
-	[ ! -f "$ivid" ] && echo -ne "\n[ABORT] Input file missing!\n\n" && exit 0
-	[ -z "$ovid" ] && ovid="${ivid%.*}_conv.avi"
-	[ -f "$ovid" ] && echo -ne "\n[ABORT] Output file exists!\n\n" && exit 0
+	video_must_have_input $ivid
+	ovid=`video_prepare_output $ivid $ovid`
+	video_check_output $ovid
 	local acod="-ar 48000 -ab 128k"
 	local vcod="-vf scale=$vres -aspect $vasp -vb $vbit -r 25"
 	[ "$dvar" = "yes" ] && pas2="" && acod="-qscale:a $aqsc" &&
@@ -71,4 +101,48 @@ video_convert()
 		ffmpeg ${chk2} -i ${ivid} ${opt2} 2>>${dlog}
 		echo "done."
 	fi
+}
+
+video_split_audio()
+{
+	local ivid=$1
+	local aout=$2
+	video_must_have_input $ivid
+	aout=`video_prepare_audio $ivid $aout`
+	video_check_output $aout
+	# audio options
+	local aopt="-c:a libmp3lame -ar 48000 -ab 128k"
+	echo "Input: $ivid"
+	echo -n "Extracting audio to '$aout'..."
+	ffmpeg -i $ivid -vn $aopt $aout >/dev/null 2>&1
+	[ $? -eq 0 ] && echo "done." || echo "error?"
+}
+
+video_split_video()
+{
+	local ivid=$1
+	local vout=$2
+	video_must_have_input $ivid
+	vout=`video_prepare_output $ivid $ovid`
+	video_check_output $vout
+	echo "Input: $ivid"
+	echo -n "Extracting video to '$vout'..."
+	ffmpeg -i $ivid -vcodec copy -an -y $vout >/dev/null 2>&1
+	[ $? -eq 0 ] && echo "done." || echo "error?"
+}
+
+video_merge_audio()
+{
+	local vchk=$1
+	local achk=$2
+	local ovid=$3
+	video_must_have_input $vchk
+	video_must_have_input $achk
+	[ -z "$ovid" ] &&
+		echo -ne "\n[ABORT] Output file not given!\n\n" && exit 0
+	video_check_output $ovid
+	echo "Inputs: {$vchk,$achk}"
+	echo -n "Merging video/audio into '$ovid'..."
+	ffmpeg -i $vchk -i $achk -vcodec copy -acodec copy -y $ovid >/dev/null 2>&1
+	[ $? -eq 0 ] && echo "done." || echo "error?"
 }
