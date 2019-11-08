@@ -193,3 +193,35 @@ video_mp4join()
 	ffmpeg -f concat -i $list -c copy $ovid
 	[ $? -eq 0 ] && echo "done." || echo "error?"
 }
+
+video_play()
+{
+	local ivid=$1
+	local tool=`basename $0`
+	local exec=${exec:="mplayer"}
+	local init=${init:=""} # 00:00:00 (HH:MM:SS)
+	local time=${time:=""}
+	local info=${info:="${tool}-play.info"}
+	local path play
+	# example info file
+	#ivid="file.mp4"
+	#init="00:01:00"
+	#time="20"
+	while [ "$1" != "" ]; do
+		case $1 in
+			--init) shift ; init=$1 ;;
+			--time) shift ; time=$1 ;;
+			--info) shift ; info=$1 ;;
+			*) echo -ne "\n[ABORT] Unknown param '$1'!\n\n" && exit 0
+		esac
+		shift
+	done
+	# since . $info directly does NOT work :(
+	[ -f "$info" ] && path=`dirname $info` &&
+		path=`cd $path ; pwd` && info=`basename $info` &&
+		info=$path/$info && . $info
+	video_must_have_input $ivid
+	play=`which $exec 2>/dev/null`
+	[ $? -ne 0 ] && echo "Cannot execute $exec!" && exit 1
+	${play} -ss ${init} -endpos ${time} ${ivid} >/dev/null 2>&1
+}
