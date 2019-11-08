@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # getwifi
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - simple wifi connect script based on wpa utilities
 
 WIFI_DEV=${WIFI_DEV:="wlan0"}

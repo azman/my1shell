@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # bash-setup
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - create useful bash config files
 
 MY1TOOL="$(basename $0 .sh)"

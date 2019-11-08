@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # edkbuild
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - Xilinx EDK command-line project builder
 # - tested on ISE Design Suite 10.1
 

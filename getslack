@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # getslack
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - a 'reduced' version of alien_bob's mirror_slackware_current.sh
 
 TOOL_NAME=`basename $0 .sh`

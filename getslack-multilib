@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # getslack-multilib
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - alien_bob's multilib package retriever
 
 TOOL_NAME=`basename $0 .sh`

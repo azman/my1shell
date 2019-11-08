@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # maxisbb
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - to get connected to 3G broadband network using HUAWEI device
 
 HUAWEI_DEV_NAME="HUAWEI"

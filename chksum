@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # chksum
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - create and check MD5 sum hashes
 
 CURR_PATH=`pwd`

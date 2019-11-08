@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # gitpack
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - was a part of packthis script (maintain related options)
 # - create git bundle (AND git patch if necessary)
 

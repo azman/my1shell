@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # slack-update
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - get updates for slackware system
 # - requires getslack, getslackpack, getslackbuild scripts
 

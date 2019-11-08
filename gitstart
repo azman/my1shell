@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # gitstart
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - write basic git config setup
 
 GIT_NAME=${GIT_NAME:="Azman M. Yusof"}
-GIT_MAIL=${GIT_MAIL:="azman@my1matrix.net"}
+GIT_MAIL=${GIT_MAIL:="azman@my1matrix.org"}
 
 git config --global user.name "$GIT_NAME"
 git config --global user.email "$GIT_MAIL"

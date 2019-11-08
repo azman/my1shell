@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # chkscreen
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - simple display manager based on xrandr
 
 # example using xrandr tool

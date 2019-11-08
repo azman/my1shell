@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # iso2boot
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - modified from slack2iso
 
 ISOPATH=${ISOPATH:="$HOME/temp"}

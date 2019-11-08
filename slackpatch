@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # slackpatch
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - slackware patch manager, using upgradepkg from pkgtools
 
 # standard tool info

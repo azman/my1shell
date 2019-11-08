@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # video-tool
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - a front-end script for mencoder/ffmpeg tools
 
 DVD_RIP_TITLE=${DVD_RIP_TITLE:="dvd-rip"}

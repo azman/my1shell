@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # chknew
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - check new configuration file
 # - make the 'update' if requested
 

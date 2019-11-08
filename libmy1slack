@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # libmy1slack
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - library functions for slackware system management
 #   = requires libmy1file
 

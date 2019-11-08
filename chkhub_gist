@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # chkgithub_gist
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - look up all gists on github belonging to a user account
 # - clone if not already locally available
 

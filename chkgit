@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # chkgit
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - browse folders in current path and check git repos
 # - create project from a git bundle
 

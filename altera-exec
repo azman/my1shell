@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # altera-exec
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - start quartus or altera-env shell
 
 MY1TOOL="$(basename $0 .sh)"

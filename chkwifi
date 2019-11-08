@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # chkwifi
-# - written by azman@my1matrix.net
+# - written by azman@my1matrix.org
 # - simple script to check wifi from /proc/net/wireless
 
 WIFI_PATH="/proc/net/wireless"
