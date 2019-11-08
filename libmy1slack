@@ -279,6 +279,54 @@ find_info()
 	echo -n "$pkg_base $pkg_file $pkg_path $pkg_size $pkg_full"
 }
 
+find_info_ng()
+{
+	# get package info from a PACKAGES.TXT file or /var/log/packages entry
+	local name=$1
+	local info=$2
+	# info structure
+	local base file path size full
+	# pattern search?
+	local temp="\s${name}-[^-]*-[^-]*-[^-]*$"
+	local test=`cat $info | grep -e "$temp" -A3`
+	[ "$test" = "" ] && return
+	# extract basic info
+	local labs="PACKAGE NAME:"
+	file=`echo "$test" | grep "^$labs"`
+	file=`echo "$file" | sed "s/$labs[[:space:]]*//"`
+	labs="PACKAGE LOCATION:"
+	path=`echo "$test" | grep "^$labs"`
+	path=`echo "$path" | sed "s/$labs[[:space:]]*//"`
+	# /var/log/packages entry has base name only!
+	base=`echo $file | sed 's/\.t[xg]z//'`
+	if [ "$base" == "$file" ]; then
+		file=`basename $path`
+		path=`dirname $path`
+	fi
+	labs="PACKAGE SIZE (compressed): "
+	size=`echo "$test" | grep "^$labs"`
+	if [ "$size" == "" ] ; then
+		labs="COMPRESSED PACKAGE SIZE:"
+		size=`echo "$test" | grep -e "^$labs"`
+		size=`echo "$size" | sed "s/$labs[[:space:]]*//"`
+	else
+		size=`echo "$size" | sed "s/$labs[[:space:]]*//"`
+		size=`echo "$size" | sed 's/ K.*//'`"K"
+	fi
+	labs="PACKAGE SIZE (uncompressed):"
+	full=`echo "$test" | grep "^$labs"`
+	if [ "$full" == "" ] ; then
+		labs="UNCOMPRESSED PACKAGE SIZE:"
+		full=`echo "$test" | grep -e "^$labs"`
+		full=`echo "$full" | sed "s/$labs[[:space:]]*//"`
+	else
+		full=`echo "$full" | sed "s/$labs[[:space:]]*//"`
+		full=`echo "$full" | sed 's/ K.*//'`"K"
+	fi
+	# arrange output
+	echo -n "$base $file $path $size $full"
+}
+
 find_package()
 {
 	# get package entry from mirror tree
@@ -336,6 +384,20 @@ find_install()
 	local pkgs_txt="$log_path/$pkg_base"
 	pkg_temp=`find_info $pkg_name $pkgs_txt $pkg_pack`
 	echo -n "$pkg_temp"
+}
+
+find_install_ng()
+{
+	# get package entry from /var/log/packages
+	local name=$1
+	local root=$2
+	local temp="^${name}-[^-]*-[^-]*-[^-]*$"
+	local logs="${root}/var/log/packages"
+	[ ! -d "$logs" ] && return
+	local base=`ls $logs | grep -e "$temp"`
+	[ -z "$base" ] && return
+	temp=`find_info_ng $name $logs/$base`
+	[ -z "$temp" ] && echo -n "$base" || echo -n "$temp"
 }
 
 list_package_path()
