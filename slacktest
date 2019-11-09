@@ -26,13 +26,20 @@ source_lib libmy1get
 
 call_debug()
 {
-	call_setup
+	local info=`find_slack`
+	local full=`echo $info | cut -d':' -f1`
+	local logs=`echo $info | cut -d':' -f3`
+	local tree=`echo $info | cut -d':' -f4`
+	local main=`dirname $tree`
+	local name=`echo $full | cut -d'-' -f1`
+	local pack="$tree/$name"
 	debug_msg "my1slack Library Name is $MY1_LIBNAME\n"
 	debug_msg "my1slack Library Version is $MY1_LIBVERS\n"
 	debug_msg "Command Call '$MY1_LIBCALL'\n"
-	debug_msg "Slackware is $SLACKFULL @ $SLACKROOT\n"
-	debug_msg "Slackware tree: $SLACKTREE\n"
-	debug_msg "Slackware sets: $SLACKPACK\n"
+	debug_msg "Slackware is $full @ $main\n"
+	debug_msg "Slackware tree: $tree\n"
+	debug_msg "Slackware sets: $pack\n"
+	debug_msg "Slackware logs: $logs\n"
 	echo
 }
 

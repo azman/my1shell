@@ -44,17 +44,36 @@ find_slackvers()
 
 find_slacktree()
 {
-	local name=$1
-	[ -z "$name" ] && name=`find_slackname`"-"`find_slackvers`
+	local full=$1
 	local path=$2
+	[ -z "$full" ] && return
 	[ -z "$path" ] && path="/home" # default path to look for
 	[ ! -d "$path" ] && return
-	local opts="-maxdepth 3 -name $name -type d"
+	path=`cd $path ; pwd`
+	local opts="-maxdepth 3 -name $full -type d"
 	local tree=`find $path $opts 2>/dev/null`
 	echo -n $tree
 }
 
-# find current system info
+# find info on installed slackware
+# - this is what other scripts should call!
+
+find_slack()
+{
+	local root=$1 # full path name!
+	local home=$2
+	local name=`find_slackname $root`
+	local vers=`find_slackvers $root`
+	[ "$name" = "" -o "$vers" = "" ] && return 1
+	local full="$name-$vers"
+	local tree=`find_slacktree $full $home`
+	local logs=$root/var/log/packages
+	[ ! -d $logs ] && logs=""
+	echo -n "$full:$root:$logs:$tree"
+	return 0
+}
+
+# find current system info [DEPRECATED]
 # - sets SLACK{NAME,VERS,FULL,TREE,ROOT,PACK,LOGS} variables
 
 call_setup()
@@ -63,11 +82,14 @@ call_setup()
 	local pkg_home=$2
 	[ -z "$SLACKNAME" ] && SLACKNAME=`find_slackname $sys_root`
 	[ -z "$SLACKVERS" ] && SLACKVERS=`find_slackvers $sys_root`
+	[ "$SLACKNAME" = "" -o "$SLACKVERS" = "" ] && return 1
 	SLACKFULL="$SLACKNAME-$SLACKVERS"
 	SLACKTREE=`find_slacktree $SLACKFULL $pkg_home`
-	[ -d "$SLACKTREE" ] &&
-		SLACKROOT=`dirname $SLACKTREE` && SLACKPACK=$SLACKTREE/$SLACKNAME
-	SLACKLOGS="/var/log/packages"
+	[ ! -d "$SLACKTREE" ] && return 2
+	SLACKROOT=`dirname $SLACKTREE`
+	SLACKPACK="$SLACKTREE/$SLACKNAME"
+	SLACKLOGS="$sys_root/var/log/packages"
+	return 0
 }
 
 # slack management functions
