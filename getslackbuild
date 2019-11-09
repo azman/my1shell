@@ -6,33 +6,54 @@
 
 TOOL_NAME=`basename $0 .sh`
 TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH ; pwd`
 # look for config file
-for config in `pwd` $HOME; do
-	config=$config/.$TOOL_NAME
-	[ -r $config ] && source $config && break
+for conf in `pwd` $HOME; do
+	conf=$conf/.$TOOL_NAME
+	[ -r $conf ] && . $conf && break
 done
-
-# find libraries
-[ ! -f $TOOL_PATH/libmy1slack ] &&
-	echo "Cannot find libmy1slack!" && exit 1
-. $TOOL_PATH/libmy1slack
-must_have_file $TOOL_PATH/libmy1get
-. $TOOL_PATH/libmy1get
-
+# look for library scripts
+source_lib()
+{
+	local name=$1
+	local full=$TOOL_PATH/$name
+	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
+	. $full
+}
+source_lib libmy1slack
+source_lib libmy1echo
+source_lib libmy1file
+source_lib libmy1get
 # temporary path
 TOOL_USER=`whoami`
 TOOL_TEMP="/tmp/$TOOL_USER/$TOOL_NAME"
-
 # tool specific
 TOOL_DESC="my1 SlackBuilds.org Executor"
-TOOL_VERS="2019.07.00"
+TOOL_VERS="2019.11.00"
+TOOL_HELP=`cat <<SETHELPMSG
+Usage:
+  $TOOL_NAME [options] <pkg_name>
+Options:
+  --path|-p </path/to/slackbuilds>
+  --pack|-f </sub/path/to/package/group>
+  --depends | -d : Check (and build) dependencies
+  --update  | -u : Fetch new build script if available
+  --install | -i : Install when (and if) the build completes
+  --execute | -x : Execute build (else, simply check @ dry-run)
+  --buildup | -b : Force build even already installed
+  --verbose | -v : Show more information (for --check-installed)
+              -l : List ALL local scripts (without updating)
+              -s : Use existing package list (no internet update)
+              -a : Update all locally saved build scripts
+              -r : Check reverse dependencies
+              -c : Compare installed version against build script
+SETHELPMSG`
 TOOL_PDIR=`dirname $TOOL_PATH`
 WORK_PATH="$TOOL_PDIR/slackbuilds"
 CURR_PATH=`pwd -P`
 PACK_PATH="test-pack" # default package path
-[ -z "$SLACKNAME" ] && [ -n "$ARCH" ] && [ "$ARCH" = "x86_64" ] &&
-	SLACKNAME="slackware64" || SLACKNAME="slackware"
-[ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS || SLACKVERSE="current"
+
+# setup here to use SLACK* variables
 call_setup
 BUILD_URL="http://slackbuilds.org/slackbuilds/$SLACKVERS"
 BUILDLIST="SLACKBUILDS.TXT"
@@ -52,24 +73,6 @@ OPT_CHK_SYS="NO"
 OPT_BUILDUP="NO"
 OPT_VERBOSE="NO"
 OPT_REVDEPS="NO"
-MSG_THISHELP=`cat <<SETHELPMSG
-Usage:
-  $TOOL_NAME [options] <pkg_name>
-Options:
-  --path|-p </path/to/slackbuilds>
-  --pack|-f </sub/path/to/package/group>
-  --depends | -d : Check (and build) dependencies
-  --update  | -u : Fetch new build script if available
-  --install | -i : Install when (and if) the build completes
-  --execute | -x : Execute build (else, simply check @ dry-run)
-  --buildup | -b : Force build even already installed
-  --verbose | -v : Show more information (for --check-installed)
-              -l : List ALL local scripts (without updating)
-              -s : Use existing package list (no internet update)
-              -a : Update all locally saved build scripts
-              -r : Check reverse dependencies
-              -c : Compare installed version against build script
-SETHELPMSG`
 
 info_build()
 {
@@ -534,58 +537,23 @@ process_command()
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
-			--install|-i)
-				OPT_INSTALL="--install"
-				;;
-			--depends|-d)
-				OPT_DEPENDS="YES"
-				;;
-			-r)
-				OPT_REVDEPS="YES"
-				;;
-			--execute|-x)
-				OPT_EXECUTE="YES"
-				;;
-			--update|-u)
-				OPT_CLEANUP="YES"
-				OPT_WARNOLD="YES"
-				;;
-			-a)
-				OPT_ALL_NEW="YES"
-				;;
-			-c)
-				OPT_CHK_SYS="YES"
-				;;
-			--verbose|-v)
-				OPT_VERBOSE="YES"
-				;;
-			-l)
-				OPT_LISTALL="YES"
-				;;
-			-s)
-				OPT_LISTOLD="YES"
-				;;
-			--buildup|-b)
-				OPT_BUILDUP="YES"
-				;;
-			--path|-p)
-				shift
-				must_have_path $1 "Invalid path '$1'!"
-				WORK_PATH=`cd $1;pwd`
-				;;
-			--pack|-f)
-				shift
-				PACK_PATH="$1"
-				;;
-			-*)
-				echo -e "$MSG_THISHELP\n"
-				echo -e "[ERROR] Unknown option '$1'!\n" ; exit 1
-				;;
-			*)
-				[ "$pkg_name" != "" ] &&
-					echo -e "[ERROR] Multiple package? [$pkg_name]\n" && exit 1
-				pkg_name="$1"
-				;;
+			--install|-i) OPT_INSTALL="--install" ;;
+			--depends|-d) OPT_DEPENDS="YES" ;;
+			--execute|-x) OPT_EXECUTE="YES" ;;
+			--update|-u) OPT_CLEANUP="YES" ; OPT_WARNOLD="YES" ;;
+			--verbose|-v) OPT_VERBOSE="YES" ;;
+			--buildup|-b) OPT_BUILDUP="YES" ;;
+			--path|-p) shift ; must_have_path $1 ; WORK_PATH=`cd $1;pwd` ;;
+			--pack|-f) shift ; PACK_PATH="$1" ;;
+			-r) OPT_REVDEPS="YES" ;;
+			-a) OPT_ALL_NEW="YES" ;;
+			-c) OPT_CHK_SYS="YES" ;;
+			-l) OPT_LISTALL="YES" ;;
+			-s) OPT_LISTOLD="YES" ;;
+			-*) error_exit "Unknown option '$1'!\n\n" ;;
+			*) [ "$pkg_name" != "" ] &&
+					error_exit "Unknown parameter '$1'\n\n"
+				pkg_name="$1" ;;
 		esac
 		shift
 	done
@@ -600,7 +568,7 @@ process_command()
 	# check option to check installed build script(s)
 	[ "$OPT_CHK_SYS" == "YES" ] && do_check_installed && exit 0
 	# check if name supplied
-	[ "$pkg_name" == "" ] && echo -e "$MSG_THISHELP\n" && exit 0
+	[ "$pkg_name" == "" ] && echo -e "$TOOL_HELP\n" && exit 0
 	# check option to check dependents
 	[ "$OPT_REVDEPS" == "YES" ] && do_check_reversedeps $pkg_name && exit 0
 	# check if package path supplied

@@ -5,7 +5,6 @@
 # - a 'reduced' version of alien_bob's mirror_slackware_current.sh
 
 TOOL_NAME=`basename $0 .sh`
-TOOL_PATH=`dirname $0`
 # look for config file
 for conf in `pwd`/.$TOOL_NAME $HOME/.$TOOL_NAME ; do
 	[ -r $conf ] && source $conf && break
@@ -21,21 +20,15 @@ done
 	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
 SLACKFULL=$SLACKNAME-$SLACKVERS
 SLACKTREE=$SLACKROOT/$SLACKFULL
-# capture error in sub-shells
-set -e # activates errexit
-# setup rsync stuffs (e.g. default rsync url)
+# setup rsync stuffs
+RSYNC_BIN=`which rsync 2>/dev/null`
+[ "$RSYNC_BIN" == "" ] && echo "Cannot find rsync!" && exit 1
 [ -z "$RSYNCURLROOT" ] && RSYNCURLROOT="slackware.mirrors.tds.net::slackware/"
 RSYNC_URL="$RSYNCURLROOT$SLACKFULL/"
 RSYNC_OPT="--delete --delete-excluded --partial -rlptD --progress"
-# check if rsync binary is available
-RSYNC_BIN=`which rsync 2>/dev/null`
-[ "$RSYNC_BIN" == "" ] && echo "Cannot find rsync! Aborting!" && exit 1
-# customized default sync list
-[ -z "$EXCLUDES" ] && EXCLUDES="--exclude=source/"
 # start actual mirroring process - reduced version of alien_bob's script
 echo -e "#\n# Checking and changing to $SLACKTREE ...\n#"
-[ ! -d $SLACKTREE ] && mkdir -pv $SLACKTREE
-cd $SLACKTREE
+[ ! -d $SLACKTREE ] && mkdir -pv $SLACKTREE ; cd $SLACKTREE
 echo "*** Using $RSYNC_URL ***"
 $RSYNC_BIN $RSYNC_OPT $INCLUDES $EXCLUDES $RSYNC_URL $SLACKTREE
 echo "*** Using $RSYNC_URL - (2nd Run) ***"

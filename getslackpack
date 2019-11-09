@@ -5,7 +5,6 @@
 # - standalone slackware package retriever
 
 TOOL_NAME=`basename $0 .sh`
-TOOL_PATH=`dirname $0`
 # look for config file
 for conf in `pwd`/.$TOOL_NAME $HOME/.$TOOL_NAME ; do
 	[ -r $conf ] && source $conf && break
@@ -26,16 +25,12 @@ TOOL_USER=`whoami`
 TOOL_TEMP="/tmp/$TOOL_USER/$TOOL_NAME"
 # x86 packages usually target specific arch - used in salix/rwork repos!
 [ -z "$ARCH_X86" ] && ARCH_X86="i486"
-case $SLACKARCH in
-	x86|i*86) SLACKARCH=$ARCH_X86 ;;
-esac
-
+case $SLACKARCH in x86|i*86) SLACKARCH=$ARCH_X86 ;; esac
 # default repo - alien stuffs!
 BOB_ROOT="http://bear.alienbase.nl"
 DEF_ROOT="${BOB_ROOT}/mirrors/people/alien/slackbuilds"
 DEF_REPO="alien"
 DEF_PACK="libreoffice libreoffice-dict-en openjdk"
-
 # tool options - allow config file to set these...
 OPT_CHECK=${OPT_CHECK:="YES"}
 OPT_CLEAN=${OPT_CLEAN:="NO"}
@@ -305,12 +300,8 @@ do_readconf()
 				pkg_repo="rwork"
 				pkg_rawp=",go_raw"
 				;;
-			-*)
-				echo "Unknown repo '$1'!" >&2 && exit 1
-				;;
-			*)
-				echo "${pkg_root},${pkg_repo},$1${pkg_rawp}"
-				;;
+			-*) echo "Unknown repo '$1'!" >&2 && exit 1 ;;
+			*) echo "${pkg_root},${pkg_repo},$1${pkg_rawp}" ;;
 		esac
 		shift
 	done
@@ -502,67 +493,34 @@ do_execthis()
 chk_param()
 {
 	local chk_valid="--$DEF_REPO"
+	local opt_xfburn="--rwork xfburn libburn libisofs"
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
-			--alien)
-				chk_valid="$1"
-				;;
-			--aliensec)
-				chk_valid="$1"
-				;;
-			--slack)
-				chk_valid="$1"
-				;;
-			--salix)
-				chk_valid="$1"
-				;;
-			--rwork)
-				chk_valid="$1"
-				;;
-			--reset)
-				THIS_CONF=""
-				;;
-			--check)
-				OPT_CHECK="YES"
-				;;
-			--default)
-				THIS_CONF="${THIS_CONF} --$DEF_REPO $DEF_PACK"
-				;;
-			--xfburn)
-				THIS_CONF="${THIS_CONF} --rwork xfburn libburn libisofs"
-				;;
-			--exec)
-				OPT_CHECK="NO"
-				;;
-			--clean)
-				OPT_CLEAN="YES"
-				;;
-			--sweep)
-				OPT_SWEEP="YES"
-				;;
-			--path)
-				shift
-				[ ! -d "$1" ] && echo "[ERROR] Invalid path '$1'!" && exit 1
-				SLACKPATH=`cd $1; pwd`
-				;;
-			-*)
-				echo "[ERROR] Unknown option '$1'!"
-				exit 1
-				;;
-			*)
-				THIS_CONF="${THIS_CONF} ${chk_valid} $1 "
-				;;
+			--alien) chk_valid="$1" ;;
+			--aliensec) chk_valid="$1" ;;
+			--slack) chk_valid="$1" ;;
+			--salix) chk_valid="$1" ;;
+			--rwork) chk_valid="$1" ;;
+			--reset) THIS_CONF="" ;;
+			--check) OPT_CHECK="YES" ;;
+			--default) THIS_CONF="${THIS_CONF} --$DEF_REPO $DEF_PACK" ;;
+			--xfburn) THIS_CONF="${THIS_CONF} $opt_xfburn" ;;
+			--exec) OPT_CHECK="NO" ;;
+			--clean) OPT_CLEAN="YES" ;;
+			--sweep) OPT_SWEEP="YES" ;;
+			--path) shift
+				[ ! -d "$1" ] && echo "Invalid path '$1'!" && exit 1
+				SLACKPATH=`cd $1; pwd` ;;
+			-*) echo "[ERROR] Unknown option '$1'!" ; exit 1 ;;
+			*) THIS_CONF="${THIS_CONF} ${chk_valid} $1 " ;;
 		esac
 		shift
 	done
 }
 
-# duh!
-chk_param "$@"
-# do your thing!
+chk_param $@
 do_execthis "$(do_readconf $THIS_CONF)"
-
 # look for duplicate and delete old???
 
 exit 0
