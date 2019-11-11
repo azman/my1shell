@@ -32,7 +32,14 @@ TOOL_DESC="my1 SlackBuilds.org Executor"
 TOOL_VERS="2019.11.00"
 TOOL_HELP=`cat <<SETHELPMSG
 Usage:
-  $TOOL_NAME [options] <pkg_name>
+  $TOOL_NAME [task] [options]
+Task:
+  help   : Show this help message
+  list   : List all local scripts
+  update : Updates package list in work path
+  fetch  : Fetch a package (and optionally all deps)
+  build  : Build a package (and optionally all deps)
+  fresh  : Update all local scripts
 Options:
   --path|-p </path/to/slackbuilds>
   --pack|-f </sub/path/to/package/group>
@@ -47,534 +54,534 @@ Options:
               -a : Update all locally saved build scripts
               -r : Check reverse dependencies
               -c : Compare installed version against build script
+  (*)    : First options without '-' is considered a pacakge name
 SETHELPMSG`
 TOOL_PDIR=`dirname $TOOL_PATH`
-WORK_PATH="$TOOL_PDIR/slackbuilds"
-CURR_PATH=`pwd -P`
+WORK_PATH="$TOOL_PDIR/slackbuilds" # default slackbuilds path
 PACK_PATH="test-pack" # default package path
-
-# setup here to use SLACK* variables
-call_setup
-BUILD_URL="http://slackbuilds.org/slackbuilds/$SLACKVERS"
+CURR_PATH=`pwd -P`
 BUILDLIST="SLACKBUILDS.TXT"
 BUILDPATH="$TOOL_TEMP"
-BUILDFULL="$BUILDPATH/$BUILDLIST"
-
-# global options & settings
-OPT_INSTALL="NO"
-OPT_DEPENDS="NO"
-OPT_EXECUTE="NO"
-OPT_CLEANUP="NO"
-OPT_WARNOLD="NO"
-OPT_LISTOLD="NO"
-OPT_LISTALL="NO"
-OPT_ALL_NEW="NO"
-OPT_CHK_SYS="NO"
-OPT_BUILDUP="NO"
-OPT_VERBOSE="NO"
-OPT_REVDEPS="NO"
-
-info_build()
+# setup default BUILD_URL
+select_url()
 {
-	local fun_name="info_build()"
-	local chk_file=$1 # full path name to SlackBuild
-	local pkg_name=`basename $chk_file .SlackBuild`
-	local pkg_path=`dirname $chk_file`
-	local inf_file=$pkg_path/$pkg_name.info
-	must_have_file $inf_file "$fun_name: Cannot find info '$inf_file'!"
-	local chk_name=`basename $pkg_path`
-	[ "$chk_name" != "$pkg_name" ] &&
-		error_exit "$fun_name: Path mismatch? {$chk_name/$pkg_name}\n\n"
-	local pkg_pack=`dirname $pkg_path`
-	local pkg_info=`cat $inf_file`
+	local root=$1
+	local vers=`find_slackvers $root`
+	echo -n "http://slackbuilds.org/slackbuilds/$vers"
+}
+BUILD_URL=`select_url`
+
+info_build() #DONE
+{
+	local func="info_build()"
+	[ ! -z "${temp+x}" ] && error_exit "$func: Var 'temp' NOT defined!\n\n"
+	local full=$1 # full path name to SlackBuild
+	local name=`basename $full .SlackBuild`
+	local path=`dirname $full`
+	local that="$path/$name.info"
+	must_have_file $that "$func: Cannot find info file '$that'!"
+	local base=`basename $path`
+	[ "$base" != "$name" ] && error_exit "$func: Mismatch!{$base/$name}\n\n"
+	local pack=`dirname $path`
+	local desc=`cat $that`
 	# get package version
-	local pkg_vers=`echo "$pkg_info" | grep VERSION=`
-	pkg_vers=`echo "$pkg_vers" | sed 's/^.*="\(.*\)".*$/\1/'`
+	local vers=`echo "$desc" | grep VERSION=`
+	vers=`echo "$vers" | sed 's/^.*="\(.*\)".*$/\1/'`
 	# get download file name
-	local pkg_file=`echo "$pkg_info" | grep DOWNLOAD=`
-	pkg_file=`echo "$pkg_file" | sed 's/^.*="\(.*\)".*$/\1/'`
+	local file=`echo "$desc" | grep DOWNLOAD=`
+	file=`echo "$file" | sed 's/^.*="\(.*\)".*$/\1/'`
 	# get download file name x86_64
-	local pkg_fil2=`echo "$pkg_info" | grep DOWNLOAD_x86_64=`
-	pkg_fil2=`echo "$pkg_fil2" | sed 's/^.*="\(.*\)".*$/\1/'`
+	local fil2=`echo "$desc" | grep DOWNLOAD_x86_64=`
+	fil2=`echo "$fil2" | sed 's/^.*="\(.*\)".*$/\1/'`
 	# get dependencies
-	pkg_deps=`echo "$pkg_info" | grep REQUIRES= | sed 's/^.*="\(.*\)".*$/\1/'`
-	pkg_deps=`echo $pkg_deps | tr ' ' ','`
+	local deps=`echo "$desc" | grep REQUIRES= | sed 's/^.*="\(.*\)".*$/\1/'`
+	deps=`echo $deps | tr ' ' ','`
 	# format info
-	echo -n "$pkg_name;$pkg_vers;$pkg_pack;$pkg_file;$pkg_fil2;$pkg_deps"
+	temp="$name;$pack;$vers;$file;$fil2;$deps"
 }
 
-find_build()
+find_build() #DONE
 {
-	local fun_name="find_build()"
-	local pkg_name=$1
-	local pkg_path=$WORK_PATH
-	must_have_path $pkg_path "$fun_name: Cannot find path '$pkg_path'!"
-	local chk_file=`find $pkg_path -type f -name "${pkg_name}.SlackBuild"`
-	echo -n "$chk_file"
+	local func="find_build()"
+	local work=$1
+	local name=$2
+	local file=`find $work -type f -name "${name}.SlackBuild"`
+	echo -n "$file"
 }
 
-list_build()
+list_build() #DONE
 {
-	local fun_name="list_build()"
-	local chk_path=$WORK_PATH
-	must_have_path $chk_path "$fun_name: Cannot find path '$chk_path'!"
-	local chk_list=`find $chk_path -type f -name "*.SlackBuild" | sort -u`
-	echo -n "$chk_list"
+	local func="list_build()"
+	local work=$1
+	local list=`find $work -type f -name "*.SlackBuild" | sort -u`
+	echo -n "$list"
 }
 
-search_list()
+find_opts() #DONE
 {
-	local pkg_name=$1
-	local pkg_list=$BUILDFULL
-	local pkg_root=$BUILD_URL
+	local flag=$1 ; shift
+	local opts=$@
+	local temp=`echo $opts | grep -- $flag`
+	[ "$temp" != "" ] && echo -n "$flag"
+}
+
+search_list() #DONE
+{
+	local func="search_list()"
+	[ ! -z "${temp+x}" ] && error_exit "$func: Var 'temp' NOT defined!\n\n"
+	local name=$1
+	local work=$2
+	local that=$BUILDLIST
+	local list=$work/$that
 	# look for pkg_name
-	local pkg_test="SLACKBUILD NAME: $pkg_name"
-	local pkg_text=`cat $pkg_list|grep -e "${pkg_test}$" -A10`
-	[ "$pkg_text" == "" ] &&
-		error_exit "Cannot find script for '$pkg_name'!\n\n"
+	local test="SLACKBUILD NAME: $name"
+	local text=`cat $list | grep -e "${test}$" -A10`
+	[ "$text" == "" ] && error_exit "$func: Cannot find '$name' in '$list'!\n\n"
 	# extract info
-	pkg_test=`echo "$pkg_text" | grep 'SLACKBUILD NAME'`
-	pkg_test=`echo "$pkg_test" | sed 's/.*: \(.*\)$/\1/'`
-	[ "$pkg_test" != "$pkg_name" ] &&
-		error_exit "Name error? '$pkg_test'/'$pkg_name'!\n\n"
-	local pkg_load=`echo "$pkg_text" | grep 'SLACKBUILD LOCATION'`
-	pkg_load=`echo "$pkg_load" | sed 's/.*: \.\(.*\)$/\1/'`
-	pkg_load="${pkg_root}${pkg_load}.tar.gz"
-	local pkg_vers=`echo "$pkg_text" | grep 'SLACKBUILD VERSION'`
-	pkg_vers=`echo "$pkg_vers" | sed 's/.*: \(.*\)$/\1/'`
-	local pkg_file=`echo "$pkg_text" | grep 'SLACKBUILD DOWNLOAD:'`
-	pkg_file=`echo "$pkg_file" | sed 's/.*: \(.*\)$/\1/'`
-	local pkg_fil2=`echo "$pkg_text" | grep 'SLACKBUILD DOWNLOAD_x86_64'`
-	pkg_fil2=`echo "$pkg_fil2" | sed 's/.*: \(.*\)$/\1/'`
-	local pkg_deps=`echo "$pkg_text" | grep 'SLACKBUILD REQUIRES'`
-	pkg_deps=`echo "$pkg_deps" | sed 's/.*: \(.*\)$/\1/'`
-	pkg_deps=`echo $pkg_deps | tr ' ' ','`
-	echo -n "$pkg_load;$pkg_vers;$pkg_file;$pkg_fil2;$pkg_deps"
+	test=`echo "$text" | grep 'SLACKBUILD NAME'`
+	test=`echo "$test" | sed 's/.*: \(.*\)$/\1/'`
+	[ "$test" != "$name" ] && return 2
+	local load=`echo "$text" | grep 'SLACKBUILD LOCATION'`
+	load=`echo "$load" | sed 's/.*: \.\(.*\)$/\1/'` # remove leading ./
+	load="${load}.tar.gz"
+	local vers=`echo "$text" | grep 'SLACKBUILD VERSION'`
+	vers=`echo "$vers" | sed 's/.*: \(.*\)$/\1/'`
+	local file=`echo "$text" | grep 'SLACKBUILD DOWNLOAD:'`
+	file=`echo "$file" | sed 's/.*: \(.*\)$/\1/'`
+	local fil2=`echo "$text" | grep 'SLACKBUILD DOWNLOAD_x86_64'`
+	fil2=`echo "$fil2" | sed 's/.*: \(.*\)$/\1/'`
+	local deps=`echo "$text" | grep 'SLACKBUILD REQUIRES'`
+	deps=`echo "$deps" | sed 's/.*: \(.*\)$/\1/'`
+	deps=`echo $deps | tr ' ' ','`
+	# format info
+	temp="$name;$load;$vers;$file;$fil2;$deps"
 }
 
-show_build()
+show_build() #DONE
 {
-	local fun_name="show_build()"
-	local chk_info=$1
-	local chk_name=`echo "$chk_info" | cut -d';' -f1`
-	local chk_vers=`echo "$chk_info" | cut -d';' -f2`
-	local chk_pack=`echo "$chk_info" | cut -d';' -f3`
-	chk_pack=`echo $chk_pack | sed "s|$WORK_PATH||"`
-	local chk_deps=`echo "$chk_info" | cut -d';' -f6`
-	# setup trap for search_list
-	trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-	local lst_info=`search_list $chk_name`
-	trap - ERR
-	local lst_vers=`echo "$lst_info" | cut -d';' -f2`
+	local func="show_build()"
+	local info=$1
+	local work=$2
+	local opts=$3
+	local temp
+	if [ "$opts" = "--get-info" ] ; then
+		info_build $info # this should be a full pathname of a build script
+		info=$temp
+		unset temp
+	fi
+	local name=`echo "$info" | cut -d';' -f1`
+	local pack=`echo "$info" | cut -d';' -f2`
+	local vers=`echo "$info" | cut -d';' -f3`
+	pack=`echo $pack | sed "s|$work||"`
+	local deps=`echo "$info" | cut -d';' -f6`
+	search_list $name $work
+	local that=`echo "$temp" | cut -d';' -f3`
+	unset temp
 	# show it!
-	head_msg "Package: $chk_name ($lst_vers)"
-	[ "$chk_pack" != "" ] && info_msg --no-tag " [Pack: $chk_pack]"
-	[ "$chk_vers" != "" -a "$chk_vers" != "$lst_vers" ] &&
-		head_msg ", Local Version: {$chk_vers}"
-	echo ; [ "$chk_deps" != "" ] &&
-		warn_msg --no-tag "-- Requires: $chk_deps\n"
+	head_msg "Package: $name ($that)"
+	[ "$pack" != "" ] && info_msg --no-tag " [Pack: $pack]"
+	[ "$vers" != "" -a "$vers" != "$that" ] &&
+		head_msg ", Local Version: {$vers}"
+	echo ; [ "$deps" != "" ] && warn_msg --no-tag "-- Requires: $deps\n"
 }
 
-do_list_local()
+do_list_local() #DONE
 {
-	local fun_name="do_list_local()"
-	local chk_full=`list_build`
-	[ -z "$chk_full" ] &&
-		info_msg --no-tag "No scripts found!\n\n" && return
-	info_msg --no-tag "List all buildscripts...\n\n"
-	for that in $chk_full ; do
-		# setup trap for info_build
-		trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-		local chk_info=`info_build $that`
-		trap - ERR
-		show_build $chk_info
-	done ; echo
+	local func="do_list_local()"
+	local work=$1
+	local list=`list_build $work`
+	[ -z "$list" ] && info_msg --no-tag "No scripts found!\n\n" && return
+	info_msg --no-tag "Listing all buildscripts...\n\n"
+	for that in $list ; do
+		show_build $that $work --get-info
+	done
 }
 
-update_list()
+do_list_update() #DONE
 {
-	local pkg_temp="$TOOL_TEMP"
-	local pkg_root="$BUILD_URL"
-	local pkg_list="$BUILDLIST"
-	local cur_path=`pwd`
-	# prepare path for list
-	if [ ! -d $pkg_temp ] ; then
-		mkdir -p $pkg_temp 2>/dev/null
-		[ $? -ne 0 ] && error_exit "Cannot create path '$pkg_temp'!\n\n"
-	fi
-	# check if not found OR nothing modified last 120 minutes
-	local new_list="-mmin -120"
-	[ "$OPT_LISTOLD" = "YES" ] && new_list=""
-	local chk_list=`find $pkg_temp -name $pkg_list $new_list 2>/dev/null`
-	if [ "$chk_list" == "" ]; then
-		cd $pkg_temp
-		wget --spider $pkg_root >/dev/null 2>&1
+	local work=$1
+	local flag=$2
+	local that=$BUILDLIST
+	local list=$work/$that
+	local site=$BUILD_URL
+	local opts="-mtime -1" # last 24h
+	[ "$flag" == "--fresh" ] && opts="-mmin -120" # last 2h
+	[ "$flag" == "--new" -a -f "$list" ] && mv $list ${list}.BAK
+	local what=`find $work -maxdepth 1 -name $that $opts 2>/dev/null`
+	if [ "$what" = "" ]; then
+		local curr=`pwd` ; cd $work
+		wget --spider $site >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
-			rm -rf $pkg_list $pkg_list.gz # just in case, delete old one
-			do_download ${pkg_root}/$pkg_list.gz $pkg_list.gz
-			[ ! -r "$pkg_list.gz" ] &&
-				error_exit "Cannot download $pkg_list.gz!\n\n"
-			gzip -d $pkg_list.gz
-		else
-			[ -r "$pkg_list" -a "$OPT_WARNOLD" = "YES" ] &&
-				warn_msg "NOT using latest $pkg_list!\n"
+			rm -rf $list ${list}.gz # just in case, delete old ones
+			do_download $site/${that}.gz ${that}.gz
+			[ ! -r "${list}.gz" ] && error_exit "Cannot get ${that}.gz!\n\n"
+			gzip -d ${list}.gz
+			info_msg "-- File '$list' updated!\n"
+			rm -f ${list}.BAK
 		fi
-		cd $cur_path
+		cd $curr
 	fi
-	# we must have it!
-	local tmp_list="$BUILDFULL"
-	[ ! -r "$tmp_list" ] && error_exit "File '$tmp_list' not found!\n\n"
+	[ ! -r "$list" ] && error_exit "File '$list' not found!\n\n"
+	[ "$flag" == "--new" -a -f "${list}.BAK" ] &&
+		info_msg "-- Using old '$list'!\n" && mv ${list}.BAK $list
 }
 
-go_fetch_ware()
+go_fetch_ware() #DONE
 {
-	local pkg_info=$1
-	local pkg_load=`echo "$pkg_info" | cut -d';' -f1`
-	local pkg_test=`dirname $pkg_load`
-	local pkg_path=$2
+	local info=$1
+	local load=`echo "$info" | cut -d';' -f2`
+	local site=$BUILD_URL
+	load=$site/$load # do this earlier? in info_build?
+	local test=`dirname $load`
+	local path=$2
 	# check if tarball available?
-	local pkg_file=`echo "$pkg_info" | cut -d';' -f3`
-	local pkg_fil2=`echo "$pkg_info" | cut -d';' -f4`
-	if [ "$pkg_file" != "${pkg_file#* }" ] ; then
-		local tmp_file
-		for chk in $pkg_file ; do
-			[ "$tmp_file" = "" ] && tmp_file=$chk && continue
-			local tmp_ball=`basename $chk`
-			[ ! -f "${pkg_path}/${tmp_ball}" ] &&
-				do_loadball $pkg_path $chk
+	local file=`echo "$info" | cut -d';' -f4`
+	local fil2=`echo "$info" | cut -d';' -f5`
+	if [ "$file" != "${file#* }" ] ; then # multiple files?
+		local temp
+		for that in $file ; do
+			[ "$temp" = "" ] && temp=$that && continue
+			local what=`basename $that`
+			[ ! -f "${path}/${what}" ] && do_loadball $path $that
 		done
-		pkg_file=$tmp_file
+		file=$temp
 	fi
-	local pkg_ball=`basename $pkg_file`
-	[ ! -f "${pkg_path}/${pkg_ball}" ] &&
-		do_loadball $pkg_path $pkg_file
-	if [ "$pkg_fil2" != "" ] ; then
-		pkg_ball=`basename $pkg_fil2`
-		[ ! -f "${pkg_path}/${pkg_ball}" ] &&
-			do_loadball $pkg_path $pkg_fil2
+	local ball=`basename $file`
+	[ ! -f "${path}/${ball}" ] && do_loadball $path $file
+	if [ "$fil2" != "" ] ; then
+		ball=`basename $fil2`
+		[ ! -f "${path}/${ball}" ] && do_loadball $path $fil2
 	fi
 }
 
-go_fetch_ball()
+go_fetch_ball() #DONE
 {
-	local pkg_info=$1
-	local pkg_load=`echo "$pkg_info" | cut -d';' -f1`
-	local pkg_test=`dirname $pkg_load`
-	local pkg_text=`basename $pkg_load`
-	local pkg_temp="$TOOL_TEMP"
-	local pkg_path=$2
-	local cur_path=`pwd`
-	cd $pkg_temp
-	wget --spider $pkg_test >/dev/null 2>&1
-	[ $? -ne 0 ] && error_exit "Cannot get $pkg_test!\n\n"
+	local info=$1
+	local load=`echo "$info" | cut -d';' -f2`
+	local site=$BUILD_URL
+	load=$site/$load # do this earlier? in info_build?
+	local test=`dirname $load`
+	local text=`basename $load`
+	local temp="$TOOL_TEMP"
+	local pack=$2
+	local curr=`pwd`
+	cd $temp
+	wget --spider $site >/dev/null 2>&1
+	[ $? -ne 0 ] && error_exit "Cannot wget $site!\n\n"
 	# remove old tarballs?
-	rm -rf ${pkg_text}*
-	do_download $pkg_load $pkg_text 2>/dev/null
-	[ ! -r "$pkg_text" ] && error_exit "Cannot download $pkg_load!\n\n"
-	cd $cur_path
-	local pkg_vers=`echo "$pkg_info" | cut -d';' -f2`
-	pkg_test=$pkg_temp/$pkg_text
-	[ ! -d "$pkg_path" ] && mkdir -p $pkg_path
-	cd $pkg_path
+	rm -rf ${text}*
+	do_download $load $text 2>/dev/null
+	[ ! -r "$text" ] && error_exit "Cannot download $load!\n\n"
+	cd $curr
+	local name=`echo "$info" | cut -d';' -f1`
+	local vers=`echo "$info" | cut -d';' -f3`
+	test=$temp/$text
+	[ ! -d "$pack" ] && mkdir -p $pack
+	cd $pack
 	# remove old?
-	rm -rf $pkg_name
+	rm -rf ${name}
 	# extract accordingly?
-	tar xf $pkg_test 2>/dev/null
-	[ $? -ne 0 ] && error_exit "Cannot extract $pkg_test!\n\n"
-	cd $cur_path
+	tar xf $test 2>/dev/null
+	[ $? -ne 0 ] && error_exit "Cannot extract $test!\n\n"
+	cd $curr
 }
 
-go_fetch()
+go_fetch() #DONE
 {
-	local fun_name="go_fetch()"
-	local pkg_name=$1 # package name
-	local pkg_path=$2 # storage path
-	local top_path=$WORK_PATH
-	# setup trap for search_list
-	trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-	local chk_info=`search_list $pkg_name`
-	trap - ERR
-	local chk_vers=`echo "$chk_info" | cut -d';' -f2`
-	# setup trap for find_build
-	trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-	local pkg_info pkg_vers
-	local pkg_file=`find_build $pkg_name`
-	trap - ERR
-	if [ "$pkg_file" != "" ] ; then
-		# setup trap for info_build
-		trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-		pkg_info=`info_build $pkg_file`
-		trap - ERR
-		if [ "$pkg_info" != "" ] ; then
-			pkg_vers=`echo "$pkg_info" | cut -d';' -f2`
-			# we have one locally, use that path!
-			pkg_path=`echo "$pkg_info" | cut -d';' -f3`
+	local func="go_fetch()"
+	local work=$1
+	local name=$2
+	local pack=$3
+	local flag=$4
+	[ -z "$pack" ] && pack=$work || pack=$work/$pack
+	local temp
+	search_list $name $work
+	local info=$temp
+	unset temp
+	local vers test=`echo "$info" | cut -d';' -f3` # version in list
+	local file=`find_build $work $name`
+	if [ "$file" != "" ] ; then
+		info_build $file
+		if [ "$temp" != "" ] ; then
+			vers=`echo "$temp" | cut -d';' -f3` # version in build info
+			pack=`echo "$temp" | cut -d';' -f2` # use local path!
 		fi
+		unset temp
 	fi
-	# do we need to fetch?
-	[ "$OPT_CLEANUP" == "YES" ] && pkg_vers=
-	if [ "$pkg_vers" == "" -o "$pkg_vers" != "$chk_vers" ] ; then
-		go_fetch_ball $chk_info $pkg_path
-	fi
-	# re-check script, setup trap for find_build
-	trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-	pkg_file=`find_build $pkg_name`
-	trap - ERR
-	[ "$pkg_file" = "" ] &&
-		error_exit "$fun_name: Failed to fetch $pkg_name?\n\n"
-	go_fetch_ware $chk_info `dirname $pkg_file`
+	[ "$flag" = "--new" ] && vers=""
+	[ "$vers" == "" -o "$vers" != "$test" ] && go_fetch_ball $info $pack
+	file=`find_build $work $name`
+	[ "$file" = "" ] && error_exit "$func: Failed to fetch $name?\n\n"
+	go_fetch_ware $info `dirname $file`
 }
 
-do_update_all()
+do_fetch_build() #DONE
 {
-	local fun_name="do_update_all()"
-	local chk_full=`list_build`
-	[ -z "$chk_full" ] &&
-		info_msg --no-tag "No scripts found!\n\n" && return
+	local func="do_fetch_build()"
+	local work=$1 ; shift
+	local name=$1 ; shift
+	local pack=$1 ; shift
+	local opts=$@
 	# update list
-	update_list
+	do_list_update $work
+	# go for it...
+	go_fetch $work $name $pack
+	# check!
+	local file=`find_build $work $name`
+	[ "$file" = "" ] && error_exit "$func: Failed to fetch $name?!\n\n"
+	local temp info
+	info_build $file
+	info=$temp
+	show_build $info $work
+	# iterate through dependencies, if requested
+	temp=`find_opts --depends $opts`
+	if [ "$temp" != "" ]; then
+		local deps=`echo "$info" | cut -d';' -f6`
+		# some deps asks to refer to README
+		[ "$deps" = "%README%" ] && warn_msg "Deps info in README!" && deps=""
+		deps=`echo $deps | tr ',' ' '`
+		for that in $deps ; do
+			do_fetch_build $work $that $pack $opts
+		done
+	fi
+}
+
+do_update_all() #DONE
+{
+	local func="do_update_all()"
+	local work=$1
+	local list=`list_build $work`
+	[ -z "$list" ] && info_msg --no-tag "No scripts found!\n\n" && return
+	# update list
+	do_list_update $work --fresh
 	info_msg --no-tag "Updating all buildscripts...\n\n"
-	for that in $chk_full ; do
-		# get name from script file name
-		local pkg_name=`basename $that .SlackBuild`
-		# go for it...
-		go_fetch $pkg_name $WORK_PATH
-		# setup trap for find_build
-		trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-		local pkg_file=`find_build $pkg_name`
-		trap - ERR
-		[ "$pkg_file" = "" ] &&
-			error_exit "$fun_name: Failed to fetch $pkg_name?!\n\n"
-		# setup trap for info_build
-		trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-		local pkg_info=`info_build $pkg_file`
-		trap - ERR
-		# show it...
-		show_build $pkg_info
+	for that in $list ; do
+		local name=`basename $that .SlackBuild`
+		go_fetch $work $name
+		local file=`find_build $work $name`
+		[ ! -f "$file" ] && error_exit "$func: Failed to fetch $name?!\n\n"
+		show_build $file $work --get-info
 	done ; echo
 }
 
-go_build()
+go_build() #DONE
 {
-	local pkg_file=$1
-	must_have_file $pkg_file "Build script '$pkg_file' not found!"
-	local pkg_name=`basename $pkg_file .SlackBuild`
-	local pkg_path=`dirname $pkg_file`
-	local pkg_vers=$2
-	local opt_inst=$3
-	local cur_path=`pwd`
+	local func="go_build()"
+	local file=$1 ; shift
+	must_have_file $file "Build script '$file' not found!"
+	local name=`basename $file .SlackBuild`
+	local path=`dirname $file`
+	local vers=$1 ; shift
+	local opts=$@
+	local curr=`pwd`
 	# check if already installed? should check version as well?
-	local pkg_base=`find_install $pkg_name`
-	if [ "$pkg_base" != "" ] ; then
-		local chk_info=`get_pkg_info $pkg_base`
-		local chk_vers=`echo "$chk_info" | cut -d' ' -f2`
+	local temp bver base=`find_install $name`
+	if [ "$base" != "" ] ; then
+		temp=`get_pkg_info $base`
+		bver=`echo "$temp" | cut -d' ' -f2`
 		# check version - stop if exactly the same!
-		if [ "$chk_vers" == "$pkg_vers" ] ; then
-			echo "Package $pkg_base installed."
-			[ "$OPT_BUILDUP" == "NO" ] && return
+		if [ "$bver" == "$vers" ] ; then
+			echo "Package $base installed."
+			temp=`find_opts --buildup $opts`
+			[ "$temp" = "" ] && return
 		fi
 	fi
 	# only root can actually build!
-	must_be_root "Must run as root! ($pkg_name-$pkg_vers)"
+	must_be_root "Must run as root! ($name-$vers)"
 	# start build?
-	local log_file=$TOOL_TEMP/${pkg_name}.buildlog
-	cd $pkg_path
-	info_msg "Building '$pkg_name' ... "
-	sh ${pkg_name}.SlackBuild >$log_file 2>&1
-	[ $? -ne 0 ] && error_exit "Error building '$pkg_name'!\n\n"
+	local logs=$TOOL_TEMP/${name}.buildlog
+	cd $path
+	info_msg "Building '$name' ... "
+	sh ${name}.SlackBuild >$logs 2>&1
+	[ $? -ne 0 ] && error_exit "Error building '$name'!\n\n"
 	info_msg --no-tag "done!\n"
-	cd $cur_path
-	local pkg_ball=`cat $log_file | tail -n 2 | grep Slackware`
-	pkg_ball=`echo "$pkg_ball" | sed 's/^.*package \(.*\) created.*$/\1/'`
-	must_have_file $pkg_ball "Cannot find package '$pkg_ball'!"
-	if [ "$opt_inst" == "--install" ] ; then
-		if [ "$pkg_base" != "" ] ; then
-			local chk_opts=""
+	cd $curr
+	local ball=`cat $logs | tail -n 2 | grep Slackware`
+	ball=`echo "$ball" | sed 's/^.*package \(.*\) created.*$/\1/'`
+	must_have_file $ball "Cannot find package '$ball'!"
+	temp=`find_opts --install $opts`
+	if [ "$temp" != "" ] ; then
+		if [ "$base" != "" ] ; then
+			local flag qver
 			# upgrade existing?
-			local chk_info=`get_pkg_info $pkg_base`
-			local chk_vers=`echo "$chk_info" | cut -d' ' -f2`
-			[ "$chk_vers" == "$pkg_vers" ] && chk_opts="--reinstall"
+			temp=`get_pkg_info $base`
+			qver=`echo "$temp" | cut -d' ' -f2`
+			[ "$qver" == "$vers" ] && flag="--reinstall"
 			# go upgrade!
-			info_msg "Upgrading '$pkg_ball' ($chk_vers -> $pkg_vers)... "
-			upgradepkg $chk_opts $pkg_ball >>$log_file 2>&1
-			[ $? -ne 0 ] && error_exit "Error upgrading '$pkg_ball'!\n\n"
+			info_msg "Upgrading '$ball' ($bver -> $qver)... "
+			upgradepkg $flag $ball >>$logs 2>&1
+			[ $? -ne 0 ] && error_exit "Error upgrading '$ball'!\n\n"
 			info_msg --no-tag "done!\n"
 		else
 			# go install!
-			info_msg "Installing '$pkg_ball'... "
-			installpkg $pkg_ball >>$log_file 2>&1
-			[ $? -ne 0 ] && error_exit "Error installing '$pkg_ball'!\n\n"
+			info_msg "Installing '$ball'... "
+			installpkg $ball >>$logs 2>&1
+			[ $? -ne 0 ] && error_exit "Error installing '$ball'!\n\n"
 			info_msg --no-tag "done!\n"
 		fi
 	else
 		# copy built package & build log to cur_path
-		info_msg "Copying '$pkg_ball' to '$cur_path'... "
-		mv $pkg_ball $cur_path
-		pkg_ball=$cur_path/`basename $pkg_ball`
-		mv $log_file $cur_path
-		log_file=$cur_path/`basename $log_file`
+		info_msg "Copying '$ball' to '$curr'... "
+		mv $ball $curr
+		ball=$curr/`basename $ball`
+		mv $logs $curr
+		logs=$curr/`basename $logs`
 		info_msg --no-tag "done!\n"
-		# fix permission of built package & build log
-		local ref_perm=`get_path_owner $cur_path`
-		local chk_perm=`get_path_owner $pkg_ball`
-		if [ "$chk_perm" != "" -a "$ref_perm" != "" ] ; then
-			if [ "$chk_perm" != "$ref_perm" ] ; then
+		# fix permission of built package & logs
+		local refp=`get_path_owner $curr`
+		local chkp=`get_path_owner $ball`
+		if [ "$chkp" != "" -a "$refp" != "" ] ; then
+			if [ "$chkp" != "$refp" ] ; then
 				info_msg "Fixing file permissions ... "
-				chown $ref_perm $pkg_ball $log_file
+				chown $refp $ball $logs
 				info_msg --no-tag "done!\n"
 			fi
 		fi
 	fi
 }
 
-do_run_build()
+do_run_build() #DONE
 {
-	local fun_name="do_run_build()"
-	local pkg_name=$1
-	local pkg_path=$2
-	local opt_inst=$3
-	local sav_path=$pkg_path
-	# fetch build
-	go_fetch $pkg_name $pkg_path
-	# setup trap for find_build
-	trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-	local pkg_file=`find_build $pkg_name`
-	trap - ERR
-	[ "$pkg_file" = "" ] && error_exit "Failed to fetch $pkg_name?\n\n"
-	# setup trap for info_build
-	trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-	local pkg_info=`info_build $pkg_file`
-	trap - ERR
-	local pkg_vers=`echo "$pkg_info" | cut -d';' -f2`
-	local pkg_deps=`echo "$pkg_info" | cut -d';' -f6`
+	local func="do_run_build()"
+	local work=$1 ; shift
+	local name=$1 ; shift
+	local opts=$@
+	local file=`find_build $work $name`
+	[ "$file" = "" ] && error_exit "Cannot find '$name.SlackBuild'!\n\n"
+	local temp
+	info_build $file
+	local info=$temp
+	unset temp
+	local vers=`echo "$info" | cut -d';' -f3`
+	local deps=`echo "$info" | cut -d';' -f6`
 	# show this before dependencies if not really building
-	if [ "$OPT_EXECUTE" != "YES" ]; then
-		show_build $pkg_info
-	fi
+	local exec=`find_opts --execute $opts`
+	[ "$exec" = "" ] && show_build $info $work
 	# iterate through dependencies, if requested
-	if [ "$OPT_DEPENDS" == "YES" ]; then
+	local temp=`find_opts --depends $opts`
+	if [ "$temp" != "" ]; then
 		# some deps asks to refer to README
-		[ "$pkg_deps" == "%README%" ] && pkg_deps=""
-		pkg_deps=`echo $pkg_deps | tr ',' ' '`
-		for pkg in $pkg_deps ; do
-			do_run_build $pkg $sav_path --install
+		[ "$deps" == "%README%" ] && deps=""
+		deps=`echo $deps | tr ',' ' '`
+		for that in $deps ; do # force install!
+			do_run_build $work $that $opts --install
 		done
 	fi
 	# build only if explicitly requested
-	[ "$OPT_EXECUTE" == "YES" ] &&
-		go_build $pkg_file $pkg_vers $opt_inst
+	[ "$exec" != "" ] && go_build $file $vers $opts
 }
 
-do_check_installed()
+do_check_installed() #DONE
 {
-	local fun_name="do_check_installed()"
-	local chk_full=`list_build`
-	[ -z "$chk_full" ] &&
-		info_msg --no-tag "No scripts found!\n\n" && return
-	for that in $chk_full ; do
-		# setup trap for info_build
-		trap 'error_exit "*** $fun_name FAILED at line $LINENO ***\n\n"' ERR
-		local chk_info=`info_build $that`
-		trap - ERR
-		local chk_name=`echo "$chk_info" | cut -d';' -f1`
-		local chk_vers=`echo "$chk_info" | cut -d';' -f2`
-		local chk_pack=`echo "$chk_info" | cut -d';' -f3`
-		chk_pack=`echo $chk_pack | sed "s|$WORK_PATH||"`
+	local func="do_check_installed()"
+	local work=$1 ; shift
+	local opts=$@
+	local list=`list_build $work`
+	[ -z "$list" ] && info_msg --no-tag "No scripts found!\n\n" && return
+	for that in $list ; do
+		local temp info
+		info_build $that
+		info=$temp
+		unset temp
+		local name=`echo "$info" | cut -d';' -f1`
+		local pack=`echo "$info" | cut -d';' -f2`
+		local vers=`echo "$info" | cut -d';' -f3`
+		pack=`echo $pack | sed "s|$work||"`
 		# look for installed
-		local pkg_base=`find_install $chk_name`
-		[ "$pkg_base" == "" ] && continue;
-		local pkg_info=`get_pkg_info $pkg_base`
-		local pkg_vers=`echo "$pkg_info" | cut -d' ' -f2`
+		local base=`find_install $name`
+		[ "$base" == "" ] && continue;
+		local test=`get_pkg_info $base`
+		local what=`echo "$test" | cut -d' ' -f2`
+		local verb=`find_opts --verbose $opts`
 		# check version
-		[ "$pkg_vers" == "$chk_vers" -a "$OPT_VERBOSE" != "YES" ] && continue;
+		[ "$vers" == "$what" -a "$verb" = "" ] && continue;
 		# show if not the same version
-		head_msg "Installed: {$pkg_base}, "
-		head_msg "Build: $chk_name ($chk_vers)"
-		[ "$chk_pack" != "" ] && info_msg --no-tag " [Pack: $chk_pack]"
+		head_msg "Installed: {$base}, Build: $name ($what)"
+		[ "$pack" != "" ] && info_msg --no-tag " [Pack: $pack]"
 		echo
 	done ; echo
 }
 
 do_check_reversedeps()
 {
-	local fun_name="do_check_reversedeps()"
-	local pkg_name=$1
-	local pkg_file=`find_build $pkg_name`
-	[ $? -ne 0 ] && error_exit "Failed to find $pkg_name?\n\n"
-	[ "$pkg_file" = "" ] &&
-		error_exit "Cannot find '$pkg_name.SlackBuild'!\n\n"
-	local pkg_info=`info_build $pkg_file`
-	[ $? -ne 0 ] && error_exit "Failed to get $pkg_name info?\n\n"
-	# get full list
-	local pkg_dept
-	for that in `list_build` ; do
-		local chk_name=`basename $that .SlackBuild`
-		[ "$chk_name" = "$pkg_name" ] && continue
-		local chk_info=`info_build $that`
-		[ $? -ne 0 ] && error_exit "Failed to get $chk_name info?\n\n"
-		# get deps
-		local chk_deps=`echo "$chk_info" | cut -d';' -f6`
-		[ "$chk_deps" = "" ] && continue
-		# some deps asks to refer to README
-		[ "$chk_deps" == "%README%" ] && chk_deps=""
-		chk_deps=`echo $chk_deps | tr ',' ' '`
-		for what in $chk_deps ; do
-			if [ "$what" = "$pkg_name" ] ; then
-				pkg_dept="${pkg_dept}$chk_name "
+	local func="do_check_reversedeps()"
+	local work=$1
+	local name=$2
+	local file=`find_build $work $name`
+	[ "$file" = "" ] && error_exit "Cannot find '$name.SlackBuild'!\n\n"
+	local info temp
+	info_build $file
+	info=$temp
+	unset temp
+	[ "$info" = "" ] && error_exit "Failed to get $name info?\n\n"
+	local dept list=`list_build $work`
+	for that in $list ; do
+		local next=`basename $that .SlackBuild`
+		[ "$next" = "$name" ] && continue
+		local test
+		info_build $that
+		test=$temp
+		unset temp
+		local what=`echo "$test" | cut -d';' -f6`
+		[ "$what" = "%README%" ] && what=""
+		[ "$what" = "" ] && continue
+		what=`echo $what | tr ',' ' '`
+		for haha in $what ; do
+			if [ "$haha" = "$name" ] ; then
+				dept="${dept}$next "
 				break
 			fi
 		done
 	done
-	[ -z "$pkg_dept" ] && pkg_dept="None"
-	# show it
-	show_build $pkg_info
-	warn_msg --no-tag "-- Dependents: $pkg_dept\n\n"
+	local more=1
+	[ -z "$dept" ] && dept="None" && more=0
+	show_build $info $work
+	warn_msg --no-tag "-- Dependents: $dept\n"
+	[ $more -eq 0 ] && return
+	for that in $dept ; do
+		do_check_reversedeps $work $that
+	done
 }
 
 process_command()
 {
-	local pkg_name pkg_path
+	local task=$1 ; shift
+	[ "$task" = "" ] && task="help"
+	local work=$WORK_PATH # default path for slackbuilds
+	local pack=$PACK_PATH # default sub-folder name for slackbuilds
 	# check parameters
+	local name optf opts
 	while [ "$1" != "" ]; do
-		case "$1" in
-			--install|-i) OPT_INSTALL="--install" ;;
-			--depends|-d) OPT_DEPENDS="YES" ;;
-			--execute|-x) OPT_EXECUTE="YES" ;;
-			--update|-u) OPT_CLEANUP="YES" ; OPT_WARNOLD="YES" ;;
-			--verbose|-v) OPT_VERBOSE="YES" ;;
-			--buildup|-b) OPT_BUILDUP="YES" ;;
-			--path|-p) shift ; must_have_path $1 ; WORK_PATH=`cd $1;pwd` ;;
-			--pack|-f) shift ; PACK_PATH="$1" ;;
-			-r) OPT_REVDEPS="YES" ;;
-			-a) OPT_ALL_NEW="YES" ;;
-			-c) OPT_CHK_SYS="YES" ;;
-			-l) OPT_LISTALL="YES" ;;
-			-s) OPT_LISTOLD="YES" ;;
-			-*) error_exit "Unknown option '$1'!\n\n" ;;
-			*) [ "$pkg_name" != "" ] &&
-					error_exit "Unknown parameter '$1'\n\n"
-				pkg_name="$1" ;;
+		case $1 in
+			-p|--path) shift ; must_have_path $1 ; work=`cd $1 ; pwd` ;;
+			-i|--install) opts="$opts --install" ;;
+			-x|--execute) opts="$opts --execute" ;;
+			-d|--depends) optf="$optf --depends" ; opts="$opts --depends" ;;
+			-b|--buildup) opts="$opts --buildup" ;;
+			-v|--verbose) optf="$optf --verbose" ;;
+			--pack) shift ; pack=$1 ;;
+			--new) optf="$optf --new" ;;
+			-*) error_exit "Unknown option '$1'\n\n" ;;
+			*) [ "$name" != "" ] && error_exit "Unknown:'$1'\n\n" ; name=$1 ;;
 		esac
 		shift
 	done
-	# check if path is valid?
-	pkg_path=$WORK_PATH
-	must_have_path $pkg_path "Path '$pkg_path' not found! Aborting!"
-	info_msg --no-tag "Slackbuilds path: $WORK_PATH\n\n"
-	# check option to list existing build script(s) against existing list
-	[ "$OPT_LISTALL" == "YES" ] && do_list_local && exit 0
-	# check option to update ALL build scripts found
-	[ "$OPT_ALL_NEW" == "YES" ] && do_update_all && exit 0
-	# check option to check installed build script(s)
-	[ "$OPT_CHK_SYS" == "YES" ] && do_check_installed && exit 0
-	# check if name supplied
-	[ "$pkg_name" == "" ] && echo -e "$TOOL_HELP\n" && exit 0
-	# check option to check dependents
-	[ "$OPT_REVDEPS" == "YES" ] && do_check_reversedeps $pkg_name && exit 0
-	# check if package path supplied
-	[ "$PACK_PATH" != "" ] && pkg_path=$pkg_path/$PACK_PATH
-	# do your thing!
-	update_list ; do_run_build $pkg_name $pkg_path $OPT_INSTALL
+	# check if work path is valid
+	must_have_path $work "Slackbuilds path '$work' not found!"
+	info_msg --no-tag "Slackbuilds path: $work\n\n"
+	# execute task
+	case "$task" in
+		help) echo -e "$TOOL_HELP\n" ; exit 0 ;;
+		list) do_list_local $work ;;
+		update) do_list_update $work $optf ;;
+		fetch) do_fetch_build $work $name $pack $optf ;;
+		build) do_run_build $work $name $opts ;;
+		fresh) do_update_all $work $optf ;;
+		check) do_check_installed $work $optf ;;
+		check-rev) do_check_reversedeps $work $name $optf ;;
+		*) error_exit "Unknown task '$task'!\n\n" ;;
+	esac
+	echo ; exit 0
 }
 
 # BEGIN MAIN SCRIPT
