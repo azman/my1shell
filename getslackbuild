@@ -41,20 +41,15 @@ Task:
   build  : Build a package (and optionally all deps)
   fresh  : Update all local scripts
 Options:
-  --path|-p </path/to/slackbuilds>
-  --pack|-f </sub/path/to/package/group>
-  --depends | -d : Check (and build) dependencies
-  --update  | -u : Fetch new build script if available
+  --path | -p </path/to/slackbuilds>
+  --pack | -g </sub/path/to/package/group>
+  --depends | -d : Fetch (and build) dependencies
   --install | -i : Install when (and if) the build completes
   --execute | -x : Execute build (else, simply check @ dry-run)
   --buildup | -b : Force build even already installed
   --verbose | -v : Show more information (for --check-installed)
-              -l : List ALL local scripts (without updating)
-              -s : Use existing package list (no internet update)
-              -a : Update all locally saved build scripts
-              -r : Check reverse dependencies
-              -c : Compare installed version against build script
-  (*)    : First options without '-' is considered a pacakge name
+  --new          : Force fresh download of everything
+  (*)            : First options without '-' is considered a pacakge name
 SETHELPMSG`
 TOOL_PDIR=`dirname $TOOL_PATH`
 WORK_PATH="$TOOL_PDIR/slackbuilds" # default slackbuilds path
@@ -554,12 +549,12 @@ process_command()
 	while [ "$1" != "" ]; do
 		case $1 in
 			-p|--path) shift ; must_have_path $1 ; work=`cd $1 ; pwd` ;;
+			-g|--pack) shift ; pack=$1 ;;
 			-i|--install) opts="$opts --install" ;;
 			-x|--execute) opts="$opts --execute" ;;
 			-d|--depends) optf="$optf --depends" ; opts="$opts --depends" ;;
 			-b|--buildup) opts="$opts --buildup" ;;
 			-v|--verbose) optf="$optf --verbose" ;;
-			--pack) shift ; pack=$1 ;;
 			--new) optf="$optf --new" ;;
 			-*) error_exit "Unknown option '$1'\n\n" ;;
 			*) [ "$name" != "" ] && error_exit "Unknown:'$1'\n\n" ; name=$1 ;;
