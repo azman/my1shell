@@ -200,6 +200,7 @@ do_list_update() #DONE
 	local list=$work/$that
 	local site=$BUILD_URL
 	local opts="-mtime -1" # last 24h
+	local mesg=1
 	[ "$flag" == "--fresh" ] && opts="-mmin -120" # last 2h
 	[ "$flag" == "--new" -a -f "$list" ] && mv $list ${list}.BAK
 	local what=`find $work -maxdepth 1 -name $that $opts 2>/dev/null`
@@ -213,12 +214,14 @@ do_list_update() #DONE
 			gzip -d ${list}.gz
 			info_msg "-- File '$list' updated!\n"
 			rm -f ${list}.BAK
+			mesg=0
 		fi
 		cd $curr
 	fi
-	[ ! -r "$list" ] && error_exit "File '$list' not found!\n\n"
+	[ ! -r "$list" ] && error_exit "File '$list' not found!\n"
 	[ "$flag" == "--new" -a -f "${list}.BAK" ] &&
-		info_msg "-- Using old '$list'!\n" && mv ${list}.BAK $list
+		info_msg "-- Using old '$list'!\n" && mv ${list}.BAK $list && mesg=0
+	[ $mesg -ne 0 ] && info_msg "Using '$list'!\n"
 }
 
 go_fetch_ware() #DONE
@@ -318,7 +321,7 @@ do_fetch_build() #DONE
 	local pack=$1 ; shift
 	local opts=$@
 	# update list
-	do_list_update $work
+	do_list_update $work ; echo
 	# go for it...
 	go_fetch $work $name $pack
 	# check!
@@ -348,7 +351,7 @@ do_update_all() #DONE
 	local list=`list_build $work`
 	[ -z "$list" ] && info_msg --no-tag "No scripts found!\n\n" && return
 	# update list
-	do_list_update $work --fresh
+	do_list_update $work --fresh ; echo
 	info_msg --no-tag "Updating all buildscripts...\n\n"
 	for that in $list ; do
 		local name=`basename $that .SlackBuild`
@@ -356,7 +359,7 @@ do_update_all() #DONE
 		local file=`find_build $work $name`
 		[ ! -f "$file" ] && error_exit "$func: Failed to fetch $name?!\n\n"
 		show_build $file $work --get-info
-	done ; echo
+	done
 }
 
 go_build() #DONE
@@ -494,7 +497,7 @@ do_check_installed() #DONE
 		head_msg "Installed: {$base}, Build: $name ($what)"
 		[ "$pack" != "" ] && info_msg --no-tag " [Pack: $pack]"
 		echo
-	done ; echo
+	done
 }
 
 do_check_reversedeps()
@@ -502,6 +505,7 @@ do_check_reversedeps()
 	local func="do_check_reversedeps()"
 	local work=$1
 	local name=$2
+	[ -z "$name" ] && error_exit "No package name given!\n\n"
 	local file=`find_build $work $name`
 	[ "$file" = "" ] && error_exit "Cannot find '$name.SlackBuild'!\n\n"
 	local info temp
@@ -566,7 +570,7 @@ process_command()
 	info_msg --no-tag "Slackbuilds path: $work\n\n"
 	# execute task
 	case "$task" in
-		help) echo -e "$TOOL_HELP\n" ; exit 0 ;;
+		help) echo "$TOOL_HELP" ;;
 		list) do_list_local $work ;;
 		update) do_list_update $work $optf ;;
 		fetch) do_fetch_build $work $name $pack $optf ;;
@@ -576,7 +580,6 @@ process_command()
 		check-rev) do_check_reversedeps $work $name $optf ;;
 		*) error_exit "Unknown task '$task'!\n\n" ;;
 	esac
-	echo ; exit 0
 }
 
 # BEGIN MAIN SCRIPT
