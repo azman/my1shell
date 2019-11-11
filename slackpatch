@@ -99,7 +99,6 @@ apply_patch()
 	local stat=`echo $temp | cut -d':' -f2`
 	local file=`echo $temp | cut -d':' -f3`
 	# check if can be applied
-	echo "[DEBUG] '$stat' '$name' @ '$root' (opts:$opts;wait:$wait)"
 	[ "$stat" != "check" ] && return # patch not needed
 	[ ! -r "$file" ] && error_exit "File '$file' not found!\n\n"
 	# prompt stuff
@@ -118,7 +117,7 @@ apply_patch()
 	# apply the patch! if NOT skipped...
 	if [ $skip -eq 0 ]; then
 		echo -n "$what '$name'... "
-		echo "$root /sbin/upgradepkg $opts $file >>$logs"
+		$root /sbin/upgradepkg $opts $file >>$logs
 		echo "done."
 	fi
 }
