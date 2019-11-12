@@ -75,16 +75,17 @@ make_path()
 
 make_mark()
 {
-	local init name mark path=$1 ; shift
+	local init name mark form path=$1 ; shift
 	while [ "$1" != "" ]; do
 		case "$1" in
 			--init) init=$1 ;;
 			--name) shift ; name=$1 ;;
 			--mark) shift ; mark=$1 ;;
+			--date) shift ; form=$1 ;;
 		esac
 		shift
 	done
 	make_path $path $init
 	[ -z "$name" -o -z "$mark" ] && return
-	echo `date $DATE_FORM`" $name" > $path/$mark
+	echo `date $form`" $name" > $path/$mark
 }
