@@ -65,6 +65,47 @@ get_path_owner()
 	echo -n "$chk_user:$chk_grpn"
 }
 
+fix_path_owner_this()
+{
+	local path=$1
+	[ ! -f "$path" -a ! -d "$path" ] && error_exit "Invalid path '$path'!\n\n"
+	local subs=$2
+	[ "$subs" = "--all" ] && subs="-R" || subs=""
+	local pdir=`dirname $path`
+	local perm=`get_path_owner $pdir`
+	local temp=`get_path_owner $path`
+	if [ "$temp" != "$perm" -a "$perm" != "" ] ; then
+		info_msg "Fixing permission for '$path' ($subs)... "
+		chown $subs $perm $path
+		info_msg --no-tag "done.\n"
+	fi
+	if [ -d $path -a "$subs" != "" ] ; then # also check contents
+		# in case some content far far away still not owned
+		local user=`echo $perm | cut -d':' -f1`
+		local list=`find $path ! -user $user`
+		if [ "$list" != "" ] ; then
+			#warn_msg "{$list}\n"
+			info_msg "Fixing permission for contents in '$path' ($subs)... "
+			chown $subs $perm $path
+			info_msg --no-tag "done.\n"
+		fi
+	fi
+}
+
+fix_path_owner()
+{
+	fix_path_owner_this $1 --all
+}
+
+prompt_to_continue()
+{
+	local what
+	read -p "Continue? [y/N] " -n 1 what && echo
+	[ "$what" = "y" ] && what="Y"
+	[ -z "$what" -o "$what" != "Y" ] && what="N"
+	[ "$what" = "N" ] && exit 0
+}
+
 make_path()
 {
 	local path=$1

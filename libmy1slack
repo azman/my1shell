@@ -69,7 +69,7 @@ find_slack()
 	local tree=`find_slacktree $full $home`
 	local logs=$root/var/log/packages
 	[ ! -d $logs ] && logs=""
-	echo -n "$full:$root:$logs:$tree"
+	echo -n "$full:$root:$logs:$tree:$tree/$name"
 	return 0
 }
 
