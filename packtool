@@ -1,0 +1,572 @@
+#!/bin/bash
+
+# packtool
+# - written by azman@my1matrix.org
+# - manage slackware installation layers
+#   = using overlayfs
+# **TODO** update function
+
+TOOL_NAME=`basename $0`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH;pwd`
+TOOL_INFO=${TOOL_INFO:="INFO"}
+TOOL_CALL=${TOOL_CALL:="my1live"}
+# using my1shell library
+. $TOOL_PATH/libmy1slack
+. $TOOL_PATH/libmy1echo
+. $TOOL_PATH/libmy1file
+
+find_keyvalue()
+{
+
+	local key=$1 ; shift
+	echo -n "$@" | egrep -o "(^|[[:space:]])$key=[^[:space:]]+" | \
+		tr -d " " | cut -d "=" -f 2- | tail -n 1
+}
+
+find_word()
+{
+	local word=$1 ; shift
+	echo -n "$@" | sed -n -e "s|.*\(${word}\).*|\1|p"
+}
+
+pack_mark()
+{
+	local func="pack_mark()"
+	local path=$1 ; shift
+	local form="+%Y%m%d%H%M"
+	local init name mark
+	while [ "$1" != "" ]; do
+		case "$1" in
+			--init) init=$1 ;;
+			--name) shift ; name=$1 ;;
+			--mark) shift ; mark=$1 ;;
+		esac
+		shift
+	done
+	[ -z "$name" ] && error_exit "$func: No name given!\n\n"
+	[ -z "$mark" ] && error_exit "$func: No mark given!\n\n"
+	make_mark $path $init --name $name --mark $mark --date $form
+}
+
+# create dist (path basename) info (file)
+
+pack_make_dist()
+{
+	local func="pack_make_dist()"
+	local info=$1 ; shift # just name
+	local path=$1 ; shift # can be relative path
+	[ -d "$path" ] && error_exit "$func: Path '$path' exists!\n\n"
+	mkdir -p $path
+	path=`cd $path ; pwd`
+	local dist=`basename $path`
+	local file="$path/$info"
+	local name=$1 # system name
+	local vers=$2 # system version
+	local arch=$3 # system architecture
+	local mark=$4 # system marker
+	echo "# $(date) => info file for overlayfs system" > $file
+	echo "info=$info" >> $file
+	echo "dist=$dist" >> $file
+	echo "name=$name" >> $file
+	echo "vers=$vers" >> $file
+	echo "arch=$arch" >> $file
+	echo "mark=$mark" >> $file
+	echo "# base paths are relative to this file" >> $file
+	echo "base=" >> $file
+}
+
+pack_find_param()
+{
+	local info=$1
+	local ikey=$2
+	local idat=`cat $info | grep "${ikey}="`
+	[ -z "$idat" ] && return
+	echo -n "$ikey"
+}
+
+pack_read_param()
+{
+	local info=$1
+	local ikey=$2
+	local idat=`cat $info | grep "${ikey}="`
+	[ -z "$idat" ] && return
+	local ival=`find_keyvalue $ikey $idat`
+	echo -n "$ival"
+}
+
+# validates info file and make full name
+
+pack_validate_info()
+{
+	local func="pack_validate_info()"
+	#local info=$1 # should be defined by calling function
+	[ ! -z "${info+x}" ] && error_exit "$func: Var 'info' NOT defined!\n\n"
+	info=$1
+	[ ! -f "$info" ] && error_exit "Cannot find $info!\n\n"
+	# check info entry
+	local base=`basename $info`
+	local temp=`pack_read_param $info info`
+	[ "$temp" != "$base" ] &&
+		error_exit "$func: Invalid info ($temp/$base)!\n\n"
+	# check dist entry
+	local path=`dirname $info`
+	path=`cd $path ; pwd`
+	local dist=`basename $path`
+	temp=`pack_read_param $info dist`
+	[ "$temp" != "$dist" ] &&
+		error_exit "$func: Invalid dist ($temp/$dist)!\n\n"
+	# make full pathname
+	info="$path/$base"
+}
+
+# validates packs
+
+pack_validate_pack()
+{
+	local func="pack_validate_pack()"
+	local info=$1 # should be validated and with fullpath
+	[ ! -z "${pack+x}" ] && error_exit "$func: Var 'pack' NOT defined!\n\n"
+	pack=$2
+	[ -z "$pack" ] && error_exit "$func: No pack given!\n\n"
+	local temp=`basename $pack`
+	[ "$temp" != "$pack" ] && error_exit "$func: Invalid pack '$pack'\n\n"
+}
+
+pack_read_info()
+{
+	local info
+	pack_validate_info $1
+	local temp=`pack_read_param $info info`
+	local name=`pack_read_param $info name`
+	local vers=`pack_read_param $info vers`
+	local arch=`pack_read_param $info arch`
+	local mark=`pack_read_param $info mark`
+	local dist=`pack_read_param $info dist`
+	local base=`pack_read_param $info base`
+	# must declare text to get them
+	[ -z "${text+x}" ] && text="$info,$temp,$name,$vers,$arch,$mark,$dist,$base"
+}
+
+pack_insert_keyvalue()
+{
+	local info
+	pack_validate_info $1
+	local ikey=$2 # info key
+	local ival=$3 # info value
+	local temp=`pack_find_param $info $ikey`
+	[ ! -z "$temp" ] && return 1 # make sure unique entry
+	echo "# $(date) => added $ikey" >> $info
+	echo "$ikey=$ival" >> $info
+	return 0
+}
+
+pack_modify_keyvalue()
+{
+	local info
+	pack_validate_info $1
+	local ikey=$2
+	local ival=$3
+	local temp=`pack_find_param $info $ikey`
+	[ -z "$temp" ] && return 1 # make sure entry exists
+	# make the change
+	sed -i "s|^$ikey=.*$|$ikey=$ival|" $info
+}
+
+# lists base paths in full pathnames
+# - when data is provided, start from AFTER that
+
+pack_base_list()
+{
+	local func="pack_base_list()"
+	local info
+	pack_validate_info $1
+	[ ! -z "${base+x}" ] && error_exit "$func: Var 'base' NOT defined!\n\n"
+	local data=$2
+	local list=`pack_read_param $info base`
+	[ "$list" = "" ] && return
+	local path=`dirname $info`
+	if [ ! -z "$data" ] ; then
+		local temp=`echo $list | grep "$data"`
+		[ -z "$temp" -o ! -d "$path/$data" ] && data=
+	fi
+	list=`echo $list | tr ':' ' '`
+	#local base # should be defined by calling function
+	for that in $list ; do
+		[ "$data" = "$that" ] && base= && continue
+		that=$path/$that
+		[ "$base" = "" ] && base=$that || base="$base:$that"
+	done
+}
+
+# check if data is in base list
+# - returns 0 if NOT in base
+
+pack_base_check()
+{
+	local info=$1
+	# info should already been validated
+	local data=$2
+	[ -z "$data" ] && return 1
+	local base=`pack_read_param $info base`
+	[ "$base" = "" ] && return 0
+	local temp=`echo $base | grep "$data"`
+	[ -z "$temp" ] && return 0
+	return 2
+}
+
+pack_base_insert()
+{
+	# info and pack should be validated by calling function
+	local info=$1
+	local pack=$2
+	# update base overlay info (lowerdir)
+	local base=`pack_read_param $info base`
+	[ -z "$base" ] && base="$pack" || base="${pack}:${base}"
+	sed -i "s|^base=.*$|base=$base|" $info
+}
+
+# mount overlayfs - must be root!
+
+pack_base_mount()
+{
+	local func="pack_base_mount()"
+	local info
+	pack_validate_info $1 # full pathname
+	local pick=$2 # base pathname in dist
+	local path=`dirname $info`
+	local data
+	if [ ! -z "$pick" ] ; then
+		# check if pick is valid pack
+		data=`basename $pick`
+		[ "$data" != "$pick" -o ! -d "$path/$pick" ] &&
+			error_exit "$func: Invalid pick '$pick'\n\n"
+		data="$path/$pick"
+	fi
+	local base ; pack_base_list $info $pick
+	# in case not given, make them
+	[ -z "$base" ] && base=$path/base && make_path "$base" --init
+	[ -z "$data" ] && data=$path/play && make_path "$data" --init
+	# always make root and work paths
+	local root=$path/root ; make_path "$root" --init
+	local work=$path/temp ; make_path "$work" --init
+	# prepare overlay info
+	local over="-t overlay"
+	over="$over -o lowerdir=$base,upperdir=$data,workdir=$work overlay"
+	# debug message... keeping this for now!
+	check_msg --no-tag "[OVER] $over\n"
+	# mount it!
+	info_msg "-- Mounting overlayfs on '$root'... "
+	mount $over $root 2>/dev/null
+	local test=$?
+	info_msg --no-tag "done!($test)\n"
+	return $test
+}
+
+# unmount overlayfs - must be root!
+
+pack_base_unmount()
+{
+	local func="pack_base_unmount()"
+	local info
+	pack_validate_info $1 # full pathname
+	local path=`dirname $info`
+	local root=$path/root
+	info_msg "-- Syncing disks... "
+	sync ; sync ; sync
+	info_msg --no-tag "done.\n"
+	info_msg "-- Unmounting overlayfs on '$root'... "
+	umount $root 2>/dev/null
+	local test=$?
+	info_msg --no-tag "done!($test)\n"
+	info_msg "-- Cleaning up... "
+	rm -rf $root
+	local work=$path/temp
+	rm -rf $work
+	local base=$path/base
+	[ -d "$base" ] && rm -rf $base
+	local play=$path/play
+	[ -d "$play" ] && rm -rf $play
+	info_msg --no-tag "done!\n"
+	return $test
+}
+
+find_slak()
+{
+	# trimmed-down version of find_slack
+	local root=$1
+	local name=`find_slackname $root`
+	local vers=`find_slackvers $root`
+	[ -z "$name" -o -z "$vers" ] && return
+	local tree=`find_slacktree $name-$vers`
+	local slak="$tree/$name"
+	[ -d "$slak" ] && echo -n $slak
+}
+
+# finds slackware package
+
+pack_find_spkg()
+{
+	local func="pack_find_spkg()"
+	local info=$1
+	# info should already been validated
+	local spkg=$2 # listed slackware package (entry in lists)
+	local slak=$3 # output of find_slak
+	local from=`dirname $info`
+	# get listed package info
+	local ware=`echo $spkg | cut -d! -f1`
+	local name=`echo $spkg | cut -d! -f2`
+	local path=`echo $spkg | cut -d! -f3`
+	# find it
+	local base file full
+	if [ "$ware" = "z" ] ; then # not in official tree
+		[ -z "$path" ] && path=$from # default path is dist
+		# expand if relative path given
+		[ "${path:0:1}" != "/" ] &&
+			path=`cd $from ; [ -d $path ] && cd $path ; pwd`
+		[ ! -d "$path" ] &&
+			warn_msg "$func: Invalid '$path' for '$name'!\n" && return 1
+		info_msg "-- Looking for '$name' in '$path'... "
+		full=`get_packfind $path $name`
+		[ ! -f "$full" ] && warn_msg --no-tag " not found!\n" && return 1
+		info_msg --no-tag "found.\n"
+		file=`basename $full`
+		base=`echo $file | sed 's/\.t[xg]z//'`
+	else
+		local that=`find_package_latest $name $slak`
+		local temp=`echo $that | cut -d' ' -f6`
+		base=`echo $that | cut -d' ' -f1`
+		file=`echo $that | cut -d' ' -f2`
+		path=`echo $that | cut -d' ' -f3`
+		full="$path/$file"
+		[ ! -f "$full" ] &&
+			warn_msg "Package '$name' not in '$slak'!\n" && return 1
+		[ "$temp" == "PATCH" ] && info_msg "-- $name found in patches\n"
+	fi
+	# must declare find to use this info!
+	[ -z "${find+x}" ] && find=$full
+}
+
+pack_install_spkg()
+{
+	local info=$1
+	# info should already been validated
+	local spkg=$2
+	local slak=$3
+	local path=`dirname $info`
+	local root="$path/root"
+	local find
+	pack_find_spkg $info $spkg $slak
+	[ -z "$find" ] && return 1
+	installpkg --terse --root $root $find
+	return $?
+}
+
+pack_name_pack()
+{
+	local info=$1
+	# info should already been validated
+	local pack=$2 # assumed ok!
+	local name=`pack_read_param $info name`
+	local vers=`pack_read_param $info vers`
+	local arch=`pack_read_param $info arch`
+	echo -n "${name}_${pack}-${vers}-${arch}.sxz"
+}
+
+tool_make_dist()
+{
+	local path=$1 ; shift
+	[ -z "$path" ] && error_exit "Target name NOT given!\n\n"
+	local test=`basename $path`
+	[ "$test" != "$path" ] && error_exit "Invalid target '$path'!\n\n"
+	[ -d "$path" ] && error_exit "Target '$path' exists!\n\n"
+	local info name vers arch mark
+	while [ "$1" != "" ]; do
+		case "$1" in
+			--path) shift ; path=$1 ;;
+			--info) shift ; info=$1 ;;
+			--name) shift ; name=$1 ;;
+			--vers) shift ; vers=$1 ;;
+			--arch) shift ; arch=$1 ;;
+			--mark) shift ; mark=$1 ;;
+			*) echo "Unknown parameter '$1'!" ;;
+		esac
+		shift
+	done
+	[ -z "$info" ] && info=$TOOL_INFO
+	[ -z "$name" ] && name=$TOOL_CALL
+	[ -z "$vers" ] && vers=`find_slackvers`
+	[ -z "$arch" ] && arch=`uname -m`
+	[ -z "$mark" ] && mark=`echo $name | tr [a-z] [A-Z]`
+	local opts="$name $vers $arch $mark"
+	info_msg "-- Creating info '$info' at '$path'... "
+	pack_make_dist $info $path $opts
+	info_msg --no-tag "done.\n"
+	fix_path_owner $path --all
+}
+
+tool_show_dist()
+{
+	local text
+	pack_read_info $1
+	local info=`echo $text | cut -d',' -f1`
+	local temp=`echo $text | cut -d',' -f2`
+	local name=`echo $text | cut -d',' -f3`
+	local vers=`echo $text | cut -d',' -f4`
+	local arch=`echo $text | cut -d',' -f5`
+	local mark=`echo $text | cut -d',' -f6`
+	local dist=`echo $text | cut -d',' -f7`
+	local base=`echo $text | cut -d',' -f8`
+	local path=`dirname $info`
+	info_msg "-- Info:$temp\n"
+	info_msg "-- Path:$path\n"
+	info_msg "Dist:$dist\n"
+	info_msg "Name:$name\n"
+	info_msg "Vers:$vers\n"
+	info_msg "Arch:$arch\n"
+	info_msg "Mark:$mark\n"
+	info_msg "Base:$base\n"
+}
+
+tool_list_pack()
+{
+	local info ; pack_validate_info $1
+	local pack ; pack_validate_pack $info $2
+	local path=`dirname $info`
+	local that="$path/$pack"
+	must_have_path $that
+	info_msg "-- Pack:$that\n"
+	local logs="${that}/var/log/packages"
+	must_have_path $logs
+	local pkgs=`ls $logs`
+	for what in $pkgs ; do
+		#local full=`get_pkg_info $what`
+		info_msg "Package: $what\n"
+	done
+}
+
+# installs a list in dist
+
+tool_install_pack()
+{
+	local func="tool_install_pack()"
+	local info ; pack_validate_info $1
+	local pack ; pack_validate_pack $info $2
+	local path=`dirname $info`
+	local list="${path}/${pack}.list"
+	[ ! -f $list ] && error_exit "$func: List '$list' not found!\n\n"
+	# check if already in dist
+	pack_base_check $info $pack
+	local test=$?
+	[ $test -ne 0 ] && error_exit "$func: '$pack' already installed?! ($test)\n\n"
+	local name=`pack_read_param $info name`
+	local mark=`pack_read_param $info mark`
+	local that="$path/$pack"
+	# prepare paths
+	info_msg "Preparing '$pack' {$name:$mark}\n"
+	pack_mark $that --init --name $name --mark $mark
+	# mount overlayfs
+	pack_base_mount $info $pack
+	# prepare relative path for custom packages
+	local slak=`find_slak`
+	[ ! -d "$slak" ] && error_exit "$func: Slak '$slak' not found?!\n\n"
+	# install to mounted overlay (=> module path)
+	info_msg "Installing '$pack' ($list)\n"
+	for pick in `cat $list |grep -v -E '^ *#|^$'` ; do
+		pack_install_spkg $info $pick $slak
+	done
+	# do this externally?
+	# modify_setup $root $that
+	# remove_stuff $root $that # hold this!
+	pack_base_unmount $info
+}
+
+tool_verify_pack()
+{
+	local func="tool_verify_pack()"
+	local info
+	pack_validate_info $1
+	local pack=$2
+	[ -z "$pack" ] && error_exit "$func: No pack given!\n\n"
+	local temp=`basename $pack`
+	[ "$temp" != "$pack" ] && error_exit "$func: Invalid pack '$pack'\n\n"
+	local path=`dirname $info`
+	local list="${path}/${pack}.list"
+	[ ! -f "$list" ] && error_exit "$func: List '$list' not found!\n\n"
+	# check path
+	local that="$path/$pack"
+	local name=`pack_read_param $info name`
+	local mark=`pack_read_param $info mark`
+	local test="$that/$mark"
+	[ ! -f "$test" ] && error_exit "$func: Cannot find $test!\n\n"
+	info_msg "Path: '$that' => " ; cat $test
+	info_msg "Verifying '$pack' ($list)\n"
+	for pick in `cat $list |grep -v -E '^ *#|^$'` ; do
+		local temp=`echo $pick | cut -d'!' -f2`
+		info_msg "-- Looking for $temp... "
+		local what=`find_install_ng $temp $that`
+		[ "$what" = "" ] && warn_msg --no-tag "missing!\n" ||
+			info_msg --no-tag "found.\n"
+	done
+	info_msg "Done checking '$pack'\n"
+}
+
+tool_insert_pack()
+{
+	local func="tool_insert_pack()"
+	local info ; pack_validate_info $1
+	local pack ; pack_validate_pack $info $2
+	pack_base_check $info $pack
+	[ $? -ne 0 ] && error_exit "$func: '$pack' is already in $info!\n\n"
+	local path=`dirname $info`
+	local that="$path/$pack"
+	must_have_path $that
+	local dist=`pack_read_param $info dist`
+	info_msg "-- Inserting $pack into $dist... "
+	pack_base_insert $info $pack
+	info_msg --no-tag "done.\n"
+}
+
+tool_make_module()
+{
+	local func="tool_make_module()"
+	local info ; pack_validate_info $1
+	local pack ; pack_validate_pack $info $2
+	local path=`dirname $info`
+	local that="$path/$pack"
+	[ ! -d "$that" ] && error_exit "$func: Cannot find $that!\n\n"
+	local dest=$3
+	[ ! -d "$dest" ] && error_exit "$func: Invalid destination '$dest'!\n\n"
+	dest=`cd $dest ; pwd`
+	local opts=$4
+	[ -z "$opts" ] && opts="-noappend -comp xz -b 1M"
+	local name=`pack_name_pack $info $pack`
+	local full="$dest/$name"
+	[ -f "$full" ] && info_msg "-- File '$full' found.\n" && return
+	info_msg "Module name:'$name'\n"
+	info_msg "Target path:'$dest'\n"
+	info_msg "-- Squashing '$that' ($opts)..."
+	mksquashfs $that $full $opts >/dev/null 2>&1
+	[ $? -ne 0 ] && error_exit "$func: Error making module '$name'\n\n"
+	info_msg --no-tag "done.\n"
+	fix_path_owner $full
+}
+
+TOOL_TASK=$1 ; shift
+[ -z "$TOOL_TASK" ] &&
+	info_msg "No task given for $TOOL_NAME\n" && exit 0
+
+case $TOOL_TASK in
+	make) tool_make_dist $@ ;;
+	show) tool_show_dist $@ ;;
+	list) tool_list_pack $@ ;;
+	insert) tool_insert_pack $@ ;;
+	create) must_be_root ; tool_install_pack $@ ;;
+	verify) tool_verify_pack $@ ;;
+	module) must_be_root ; tool_make_module $@ ;;
+	mount) must_be_root ; pack_base_mount $@ ;;
+	unmount) must_be_root ; pack_base_unmount $@ ;;
+	*) error_exit "Unknown task '$TOOL_TASK'!\n\n" ;;
+esac
+
+exit $?
