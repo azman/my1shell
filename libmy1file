@@ -65,7 +65,7 @@ get_path_owner()
 	echo -n "$chk_user:$chk_grpn"
 }
 
-fix_path_owner_this()
+fix_path_owner()
 {
 	local path=$1
 	[ ! -f "$path" -a ! -d "$path" ] && error_exit "Invalid path '$path'!\n\n"
@@ -90,11 +90,6 @@ fix_path_owner_this()
 			info_msg --no-tag "done.\n"
 		fi
 	fi
-}
-
-fix_path_owner()
-{
-	fix_path_owner_this $1 --all
 }
 
 prompt_to_continue()
