@@ -179,7 +179,7 @@ pack_modify_keyvalue()
 pack_base_list()
 {
 	local func="pack_base_list()"
-	local info
+	local info that
 	pack_validate_info $1
 	[ ! -z "${base+x}" ] && error_exit "$func: Var 'base' NOT defined!\n\n"
 	local data=$2
@@ -462,22 +462,25 @@ tool_install_pack()
 	local name=`pack_read_param $info name`
 	local mark=`pack_read_param $info mark`
 	local that="$path/$pack"
+	local init ; [ ! -d "$that" ] && init="--init"
 	# prepare paths
-	info_msg "Preparing '$pack' {$name:$mark}\n"
-	pack_mark $that --init --name $name --mark $mark
+	info_msg "Preparing '$that' {$init:$name:$mark}\n"
+	pack_mark $that $init --name $name --mark $mark
 	# mount overlayfs
 	pack_base_mount $info $pack
 	# prepare relative path for custom packages
-	local slak=`find_slak`
+	local pick slak=`find_slak`
 	[ ! -d "$slak" ] && error_exit "$func: Slak '$slak' not found?!\n\n"
 	# install to mounted overlay (=> module path)
 	info_msg "Installing '$pack' ($list)\n"
 	for pick in `cat $list |grep -v -E '^ *#|^$'` ; do
+		local temp=`echo $pick | cut -d'!' -f2`
+		local what=`find_install_ng $temp $that`
+		[ "$what" != "" ] &&
+			info_msg --no-tag "-- '$temp' already installed in $that!\n" &&
+			continue
 		pack_install_spkg $info $pick $slak
 	done
-	# do this externally?
-	# modify_setup $root $that
-	# remove_stuff $root $that # hold this!
 	pack_base_unmount $info
 }
 
