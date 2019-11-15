@@ -26,11 +26,6 @@ TOOL_TEMP="/tmp/$TOOL_USER/$TOOL_NAME"
 # x86 packages usually target specific arch - used in salix/rwork repos!
 [ -z "$ARCH_X86" ] && ARCH_X86="i486"
 case $SLACKARCH in x86|i*86) SLACKARCH=$ARCH_X86 ;; esac
-# default repo - alien stuffs!
-BOB_ROOT="http://bear.alienbase.nl"
-DEF_ROOT="${BOB_ROOT}/mirrors/people/alien/slackbuilds"
-DEF_REPO="alien"
-DEF_PACK="libreoffice libreoffice-dict-en openjdk"
 # tool options - allow config file to set these...
 OPT_CHECK=${OPT_CHECK:="YES"}
 OPT_CLEAN=${OPT_CLEAN:="NO"}
@@ -55,130 +50,95 @@ do_download()
 	echo -ne "\b\b\b\b DONE!\n"
 }
 
-go_loadsums()
+go_loadsums() #DONE
 {
-	local pkg_root=$1
-	local pkg_repo=$2
-	case "$pkg_repo" in
-		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-	esac
-	local pkg_temp="$TOOL_TEMP/$pkg_repo"
-	local pkg_sums="CHECKSUMS.md5"
+	local root=$1
+	local repo=$2
+	local sums=$3
+	[ -z "$sums" ] && sums="CHECKSUMS.md5"
 	# check clean option
 	if [ "$OPT_CLEAN" == "YES" ] ; then
 		rm -rf $TOOL_TEMP
 		[ $? -eq 0 ] && OPT_CLEAN="NO"
 	fi
 	# prepare temp
-	mkdir -p $pkg_temp ; cd $pkg_temp
+	local curr=`pwd`
+	local temp="$TOOL_TEMP/$repo"
+	mkdir -p $temp ; cd $temp
 	# if not found OR nothing modified last 120 minutes
-	if [ "$(find $pkg_sums -mmin -120 2>/dev/null)" == "" ]; then
-		rm -rf ${pkg_sums}* # just in case, delete old one
-		wget --spider $pkg_root/$pkg_sums.gz >/dev/null 2>&1
+	local test=`find $sums -mmin -120 2>/dev/null`
+	if [ "$test" == "" ]; then
+		rm -rf ${sums}* # just in case, delete old ones
+		local that="$root/$sums"
+		wget --spider ${that}.gz >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
-			do_download $pkg_root/$pkg_sums.gz $pkg_sums.gz
-			gzip -d $pkg_sums.gz
+			do_download ${that}.gz ${sums}.gz
+			gzip -d ${sums}.gz
 		else
-			do_download $pkg_root/$pkg_sums $pkg_sums
+			do_download $root/$sums $sums
 		fi
 		# we must have it!
-		[ ! -r "$pkg_sums" ] &&
-			echo "[ERROR] Cannot find $pkg_sums!" >&2 && exit 1
+		[ ! -r "$sums" ] && echo "Cannot find $sums!" >&2 && exit 1
 	fi
-	cd - >/dev/null
+	cd $curr
 }
 
-go_loadinfo()
+go_loadpkgt()
 {
-	local pkg_root=$1
-	local pkg_repo=$2
-	case "$pkg_repo" in
-		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-	esac
-	local pkg_temp="$TOOL_TEMP/$pkg_repo"
-	local pkg_sums="CHECKSUMS.md5"
-	local pkg_file="PACKAGES.TXT"
-	# obtain checksum
-	go_loadsums $pkg_root $pkg_repo
+	local func="go_loadpkgt()"
+	local root=$1
+	local repo=$2
+	local pack=$3
+	[ -z "$pack" ] && pack="PACKAGES.TXT"
+	local sums=$4
+	[ -z "$sums" ] && sums="CHECKSUMS.md5"
 	# prepare temp
-	mkdir -p $pkg_temp ; cd $pkg_temp
-	# if not found OR nothing modified last 24x60 minutes
-	if [ "$(find $pkg_file -mmin -1440 2>/dev/null)" == "" ]; then
-		rm -rf ${pkg_file}* # just in case, delete old one
-		wget --spider $pkg_root/$pkg_file.gz >/dev/null 2>&1
+	local curr=`pwd`
+	local temp="$TOOL_TEMP/$repo"
+	mkdir -p $temp ; cd $temp
+	# check if not found OR nothing modified last 24x60 minutes
+	local test=`find $pack -mmin -1440 2>/dev/null`
+	if [ "$test" == "" ]; then
+		rm -rf ${pack}* # just in case, delete old one
+		local that="$root/$pack"
+		wget --spider ${that}.gz >/dev/null 2>&1
 		if [ $? -eq 0 ] ; then
-			do_download $pkg_root/$pkg_file.gz $pkg_file.gz
-			gzip -d $pkg_file.gz
+			do_download ${that}.gz ${pack}.gz
+			gzip -d ${pack}.gz
 		else
-			do_download $pkg_root/$pkg_file $pkg_file
+			do_download $that $pack
 		fi
 		# we must have it!
-		[ ! -r "$pkg_file" ] &&
-			echo "[ERROR] Cannot find $pkg_file!" >&2 && exit 1
+		[ ! -r "$pack" ] && echo "$func: Cannot find $pack!" >&2 && exit 1
 		# check validity
-		cat $pkg_sums | grep -e " ./${pkg_file}$" >$pkg_file.md5
-		if [ -r "${pkg_file}.md5" -a "$(cat ${pkg_file}.md5)" != "" ]; then
-			md5sum --check $pkg_file.md5 >/dev/null 2>&1
-			[ $? -ne 0 ] && rm -f $pkg_file &&
-				echo "[ERROR] $pkg_file: Checksum failed!" >&2 && exit 1
+		cat $sums | grep -e " ./${pack}$" >$pack.md5
+		if [ -r "${pack}.md5" -a "$(cat ${pack}.md5)" != "" ]; then
+			md5sum --check ${pack}.md5 >/dev/null 2>&1
+			[ $? -ne 0 ] && rm -f $pack &&
+				echo "$func: [$pack] Checksum failed!" >&2 && exit 1
 		else
-			echo "[WARN] $pkg_file validity not checked! (no md5)"
+			echo "$func: $pack validity not checked! (no md5)"
 		fi
 	fi
-	cd - >/dev/null
+	cd $curr
 }
 
-go_findpack()
+go_loadinfo() #DONE
 {
-	local pkg_repo=$1
-	local pkg_name=$2
-	local pkg_arch=$3
-	local pkg_vers=$4
-	local pkg_temp=""
-	case "$pkg_repo" in
-		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+	local root=$1
+	local repo=$2
+	case "$repo" in
+		slack) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
 	esac
-	local pkgs_txt="$TOOL_TEMP/$pkg_repo/PACKAGES.TXT"
-	# info structure?
-	local pkg_file pkg_path
-	local pkg_temp="${pkg_name}-[^-]*-[^-]*-[^-]*.t[gx]z$"
-	local pkg_text="$(cat $pkgs_txt | grep -e "$pkg_temp" -A2 | tr '\n' ';')"
-	[ "$pkg_text" = "" ] && return
-	local ifs_save=$IFS
-	IFS=$'\n'
-	local pkg_list=($(echo "${pkg_text}" | sed 's/--/\n/g'))
-	IFS=$ifs_save
-	local loop
-	for (( loop=0;loop<${#pkg_list[@]};loop++ )); do
-		local pkg_test="$(echo ${pkg_list[$loop]} | sed 's/;/\n/g')"
-		# extract basic info
-		local chk_name="PACKAGE NAME:"
-		pkg_file=$(echo "$pkg_test" | grep "^$chk_name")
-		pkg_file="${pkg_file##${check_name}* }"
-		local tmp_arch=$pkg_arch
-		#[ "$pkg_arch" == "i486" ] && [ "$pkg_repo" == "salix" ] &&
-		#	tmp_arch="i686"
-		[ "$pkg_arch" == "i486" ] && tmp_arch="i[3456]86"
-		[ "$(echo $pkg_file|grep -e "$tmp_arch")" == "" ] &&
-			[ "$(echo $pkg_file|grep -e "noarch")" == "" ] && continue;
-		chk_name="PACKAGE LOCATION:"
-		pkg_path=$(echo "$pkg_test" | grep "^$chk_name")
-		pkg_path="${pkg_path##${check_name}* }"
-		pkg_path=$(echo $pkg_path|sed 's/^.\(.*\)$/\1/')
-		[ "$pkg_repo" == "alien" ] &&
-			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
-		[ "$pkg_repo" == "aliensec" ] &&
-			[ "$(echo $pkg_path|grep -e "$pkg_vers")" == "" ] && continue;
-		# first found - send and exit
-		echo "$pkg_file $pkg_path"
-		break;
-	done
+	# obtain checksum
+	local sums="CHECKSUMS.md5"
+	go_loadsums $root $repo $sums
+	# obtain package
+	local temp="$TOOL_TEMP/$repo"
+	local file="PACKAGES.TXT"
+	go_loadpkgt $root $repo $file $sums
 }
 
 go_loadpack()
@@ -260,112 +220,36 @@ go_loadpack()
 	cd - >/dev/null
 }
 
-do_readconf()
+go_loadrawl() #DONE
 {
-	# default repo
-	local pkg_root="$DEF_ROOT"
-	local pkg_repo="$DEF_REPO"
-	local pkg_rawp=""
-	# check parameters
-	while [ "$1" != "" ]; do
-		case "$1" in
-			--alien)
-				pkg_root="${BOB_ROOT}"
-				pkg_root="${pkg_root}/mirrors/people/alien/slackbuilds"
-				pkg_repo="alien"
-				pkg_rawp=""
-				;;
-			--aliensec)
-				pkg_root="${BOB_ROOT}"
-				pkg_root="${pkg_root}/mirrors/people/alien"
-				pkg_root="${pkg_root}/restricted_slackbuilds"
-				pkg_repo="aliensec"
-				pkg_rawp=""
-				;;
-			--slack)
-				pkg_root="http://mirrors.slackware.com"
-				pkg_root="${pkg_root}/slackware/$SLACKFULL"
-				pkg_repo="slack"
-				pkg_rawp=""
-				;;
-			--salix)
-				pkg_root="http://download.salixos.org"
-				pkg_root="${pkg_root}/$SLACKARCH/$SLACKVERS"
-				pkg_repo="salix"
-				pkg_rawp=""
-				;;
-			--rwork)
-				pkg_root="http://rlworkman.net"
-				pkg_root="${pkg_root}/pkgs/$SLACKVERS/$SLACKARCH"
-				pkg_repo="rwork"
-				pkg_rawp=",go_raw"
-				;;
-			-*) echo "Unknown repo '$1'!" >&2 && exit 1 ;;
-			*) echo "${pkg_root},${pkg_repo},$1${pkg_rawp}" ;;
-		esac
-		shift
-	done
-}
-
-go_loadrawl()
-{
-	local pkg_root=$1
-	local pkg_repo=$2
-	local pkg_arch=$3
-	case "$pkg_repo" in
-		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
+	local func="go_loadrawl()"
+	local root=$1
+	local repo=$2
+	local arch=$3
+	case "$repo" in
+		slack) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
 	esac
-	local pkg_temp="$TOOL_TEMP/$pkg_repo"
-	local pkg_list="index.html"
 	# check clean option
 	if [ "$OPT_CLEAN" == "YES" ] ; then
 		rm -rf $TOOL_TEMP
 		[ $? -eq 0 ] && OPT_CLEAN="NO"
 	fi
 	# prepare temp
-	mkdir -p $pkg_temp ; cd $pkg_temp
+	local temp="$TOOL_TEMP/$repo"
+	local curr=`pwd`
+	mkdir -p $temp ; cd $temp
+	local list="index.html"
+	local test=`find $list -mmin -120 2>/dev/null`
 	# if not found OR nothing modified last 120 minutes
-	if [ "$(find $pkg_list -mmin -120 2>/dev/null)" == "" ]; then
-		rm -rf $pkg_list # just in case, delete old one
-		wget --spider $pkg_root >/dev/null 2>&1
-		if [ $? -eq 0 ] ; then
-			do_download $pkg_root $pkg_list
-		fi
-		# we must have it!
-		[ ! -r "$pkg_list" ] &&
-			echo "[ERROR] Cannot get $pkg_list!" >&2 && exit 1
+	if [ "$test" == "" ]; then
+		rm -rf ${list}* # just in case, delete old one
+		wget --spider $root >/dev/null 2>&1
+		[ $? -eq 0 ]  do_download $root $list
+		[ ! -r "$list" ] && echo "$func: Cannot get $list!" >&2 && exit 1
 	fi
-	cd - >/dev/null
-}
-
-go_findrawl()
-{
-	local pkg_repo=$1
-	local pkg_name=$2
-	local pkg_arch=$3
-	local pkg_vers=$4
-	case "$pkg_repo" in
-		slack) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		salix) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-		rwork) pkg_repo="$pkg_repo$SLACKSUFX-$SLACKVERS" ;;
-	esac
-	local pkgs_txt="$TOOL_TEMP/$pkg_repo/index.html"
-	# info structure?
-	local pkg_temp="${pkg_name}-[^-]*-${pkg_arch}-[^-]*.t[gx]z "
-	local pkg_text="$(cat $pkgs_txt | sed -e :a -e 's/<[^>]*>//g;/</N;//ba')"
-	local pkg_test="$(echo "$pkg_text" | grep -e 't[gx]z\s' | grep $pkg_name)"
-	[ "$pkg_test" = "" ] && return
-	local pkg_file="$(echo ${pkg_test} | cut -d " " -f 1)"
-	[ "$pkg_file" = "" ] && return
-	# check for md5 file
-	pkg_temp="${pkg_name}-[^-]*-${pkg_arch}-[^-]*.t[gx]z.md5"
-	pkg_test="$(echo "$pkg_text" | grep -e "$pkg_temp" )"
-	local pkg_md5s="$(echo ${pkg_test} | cut -d " " -f 1)"
-	# send it out
-	[ "$pkg_md5s" != "" ] && pkg_md5s=",$pkg_md5s"
-	echo "${pkg_file}${pkg_md5s}"
+	cd $curr
 }
 
 go_packrawl()
@@ -436,91 +320,200 @@ go_packrawl()
 	cd - >/dev/null
 }
 
-do_execthis()
+go_findrawl() #DONE
 {
-	local pkg_root pkg_repo pkg_name pkg_this pkg_rawp
-	local pkg_file pkg_rsrc pkg_path=$SLACKPATH
-	local pkg_arch=$SLACKARCH
-	local pkg_vers=$SLACKVERS
-	local ifs_save=$IFS
-	IFS=$'\n'
-	local pkg_list=($(echo "$@"))
-	IFS=$ifs_save
-	echo "Package Path: ${pkg_path}"
-	echo "Package Count: ${#pkg_list[@]}"
-	local loop
-	for (( loop=0;loop<${#pkg_list[@]};loop++ )); do
-		IFS=$'\n'
-		local pkg_test=($(echo "${pkg_list[$loop]}" | sed 's/,/\n/g'))
-		IFS=$ifs_save
-		pkg_root="${pkg_test[0]}"
-		pkg_repo="${pkg_test[1]}"
-		pkg_name="${pkg_test[2]}"
-		pkg_rawp="${pkg_test[3]}"
-		pkg_file=""
-		#echo "[DEBUG] '$pkg_root','$pkg_repo','$pkg_name','$pkg_rawp'"
-		if [ "$pkg_rawp" == "go_raw" ]; then
-			go_loadrawl $pkg_root $pkg_repo $pkg_arch
-			echo -n "{$pkg_repo} '$pkg_name': "
-			pkg_this="$(go_findrawl $pkg_repo $pkg_name $pkg_arch $pkg_vers)"
-			if [ "$pkg_this" != "" ]; then
-				if [ "${pkg_this//,/;}" != "${pkg_this}" ]; then
-					pkg_rsrc="$(echo ${pkg_this//,/;} | cut -d ";" -f 2)"
-					pkg_file="${pkg_this//,${pkg_rsrc}/}"
-				else
-					pkg_rsrc=""
-					pkg_file=${pkg_this}
-				fi
-				go_packrawl $pkg_root $pkg_repo $pkg_path $pkg_file $pkg_rsrc
-			else
-				echo "not found!"
-			fi
-		else
-			go_loadinfo $pkg_root $pkg_repo
-			echo -n "{$pkg_repo} '$pkg_name': "
-			pkg_this=($(go_findpack $pkg_repo $pkg_name $pkg_arch $pkg_vers))
-			if [ "$pkg_this" != "" ]; then
-				pkg_file=${pkg_this[0]}
-				pkg_rsrc=${pkg_this[1]}
-				go_loadpack $pkg_root $pkg_rsrc $pkg_repo $pkg_path $pkg_file
-			else
-				echo "not found!"
-			fi
-		fi
-	done
+	local func="go_findrawl()"
+	[ ! -z "${pack+x}" ] && echo "$func: Var 'pack' NOT defined!" && exit 1
+	local repo=$1
+	local name=$2
+	local arch=$3
+	local vers=$4
+	case "$repo" in
+		slack) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+	esac
+	local info="$TOOL_TEMP/$repo/index.html"
+	# info structure?
+	local temp="${name}-[^-]*-${arch}-[^-]*.t[gx]z "
+	local text="$(cat $info | sed -e :a -e 's/<[^>]*>//g;/</N;//ba')"
+	local test="$(echo "$text" | grep -e 't[gx]z\s' | grep $name)"
+	[ "$test" = "" ] && return
+	local file=`echo ${test} | cut -d' ' -f1`
+	[ "$file" = "" ] && return
+	# check for md5 file
+	temp="${name}-[^-]*-${arch}-[^-]*.t[gx]z.md5"
+	test="$(echo "$text" | grep -e "$temp" )"
+	local md5s=`echo ${test} | cut -d' ' -f1`
+	# assign!
+	pack="$file:$md5s"
 }
 
-chk_param()
+go_findpack() #DONE
 {
-	local chk_valid="--$DEF_REPO"
-	local opt_xfburn="--rwork xfburn libburn libisofs"
-	# check parameters
+	local func="go_findpack()"
+	[ ! -z "${pack+x}" ] && echo "$func: Var 'pack' NOT defined!" && exit 1
+	local repo=$1
+	local name=$2
+	local arch=$3
+	local vers=$4
+	case "$repo" in
+		slack) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+		salix) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+		rwork) repo="$repo$SLACKSUFX-$SLACKVERS" ;;
+	esac
+	local info="$TOOL_TEMP/$repo/PACKAGES.TXT"
+	[ ! -f "$info" ] && echo "Cannot find '$info'!" && exit 1
+	# info structure?
+	local temp=" ${name}-[^-]*-[^-]*-[^-]*.t[gx]z$"
+	local text=`cat $info | grep -e "$temp" -A3`
+	[ "$text" = "" ] && return
+	# filter arch
+	temp=$arch
+	#[ "$arch" == "i486" ] && [ "$repo" == "salix" ] && temp="i686"
+	[ "$arch" == "i486" ] && temp="i[3456]86"
+	local test=`echo "$text" | grep -E "$temp" -A3`
+	[ "$test" == "" ] && test=`echo "$text" | grep -E "noarch" -A3`
+	[ "$test" == "" ] && return
+	text="$test"
+	# filter version
+	if [ "$repo" == "alien" -o "$repo" == "alien-res" ] ; then
+		temp=pkg$SLACKSUFX/$vers
+		test=`echo "$text" | grep -e "$temp" -A2 -B1`
+		[ "$test" == "" ] && return;
+		text="$test"
+	fi
+	# get package name
+	local labs="PACKAGE NAME:"
+	local file=`echo "$text" | grep "^$labs"`
+	file=`echo "$file" | sed "s/$labs[[:space:]]*//"`
+	# get location
+	labs="PACKAGE LOCATION:"
+	local path=`echo "$text" | grep "^$labs"`
+	path=`echo "$path" | sed "s/$labs[[:space:]]*//"`
+	path=`echo "$path" | sed 's/^.\(.*\)$/\1/'`
+	# assign!
+	pack="$file:$path"
+}
+
+do_findthat() #DONE
+{
+	local path=$1
+	local item=$2
+	local repo=`echo $item | cut -d':' -f1`
+	local name=`echo $item | cut -d':' -f2`
+	# default repo - alien_bob's stuffs!
+	local site_bob="http://bear.alienbase.nl"
+	local root_bob="${site_bob}/mirrors/people/alien/slackbuilds"
+	# alien_bob's restricted builds
+	local root_res="${site_bob}/mirrors/people/alien/restricted_slackbuilds"
+	# official slackware packages
+	local root_slk="http://mirrors.slackware.com/slackware/$SLACKFULL"
+	# salix packages
+	local root_slx="http://download.salixos.org/$SLACKARCH/$SLACKVERS"
+	# rlworkman's packages
+	local root_rlw="http://rlworkman.net/pkgs/$SLACKVERS/$SLACKARCH"
+	# find url
+	local root rawp=0
+	case "$repo" in
+		alien) root="$root_bob" ;;
+		alien-res) root="$root_res" ;;
+		slack) root="$root_slk" ;;
+		salix) root="$root_slx" ;;
+		rwork) root="$root_rlw" ; rawp=1 ;;
+		*) echo "Unknown repo '$repo'!" && exit 1 ;;
+	esac
+	#echo "[DEBUG] |$root|$repo|$name|$rawp|"
+	local file rsrc
+	local arch=$SLACKARCH
+	local vers=$SLACKVERS
+	if [ $rawp -eq 0 ]; then
+		go_loadinfo $root $repo
+		echo -n "{$repo} '$name': "
+		local pack ; go_findpack $repo $name $arch $vers
+		if [ "$pack" != "" ]; then
+			file=`echo $pack | cut -d':' -f1`
+			rsrc=`echo $pack | cut -d':' -f2`
+			go_loadpack $root $rsrc $repo $path $file
+		else
+			echo "not found!"
+		fi
+	else
+		go_loadrawl $root $repo $arch
+		echo -n "{$repo} '$name': "
+		local pack ; go_findrawl $repo $name $arch $vers
+		if [ "$pack" != "" ]; then
+			file=`echo $pack | cut -d':' -f1`
+			rsrc=`echo $pack | cut -d':' -f2`
+			go_packrawl $root $repo $path $file $rsrc
+		else
+			echo "not found!"
+		fi
+	fi
+}
+
+create_list() #DONE
+{
+	local func="create_list()"
+	[ ! -z "${list+x}" ] && echo "$func: Var 'list' NOT defined!" && exit 1
+	# set default
+	local rawp that repo="alien"
+	# process param and create expanded list
 	while [ "$1" != "" ]; do
 		case "$1" in
-			--alien) chk_valid="$1" ;;
-			--aliensec) chk_valid="$1" ;;
-			--slack) chk_valid="$1" ;;
-			--salix) chk_valid="$1" ;;
-			--rwork) chk_valid="$1" ;;
-			--reset) THIS_CONF="" ;;
-			--check) OPT_CHECK="YES" ;;
-			--default) THIS_CONF="${THIS_CONF} --$DEF_REPO $DEF_PACK" ;;
-			--xfburn) THIS_CONF="${THIS_CONF} $opt_xfburn" ;;
-			--exec) OPT_CHECK="NO" ;;
-			--clean) OPT_CLEAN="YES" ;;
-			--sweep) OPT_SWEEP="YES" ;;
-			--path) shift
-				[ ! -d "$1" ] && echo "Invalid path '$1'!" && exit 1
-				SLACKPATH=`cd $1; pwd` ;;
-			-*) echo "[ERROR] Unknown option '$1'!" ; exit 1 ;;
-			*) THIS_CONF="${THIS_CONF} ${chk_valid} $1 " ;;
+			--alien) repo="alien" ;;
+			--alien-res) repo="alien-res" ;;
+			--slack) repo="slack" ;;
+			--salix) repo="salix" ;;
+			--rwork) repo="rwork" ;;
+			-*) echo "Unknown repo '$1'!" && exit 1 ;;
+			*) [ -z "$list" ] && list="$repo:$1" || list="$list;$repo:$1" ;;
 		esac
 		shift
 	done
 }
 
-chk_param $@
-do_execthis "$(do_readconf $THIS_CONF)"
-# look for duplicate and delete old???
+do_execthat() #DONE
+{
+	local func="do_execthat()"
+	local path
+	local repo="alien" # default repo
+	local temp="$THIS_CONF"
+	local pick_xfburn="--rwork xfburn libburn libisofs"
+	local pick_office="--alien libreoffice libreoffice-dict-en openjdk"
+	# create list from parameters
+	while [ "$1" != "" ]; do
+		case "$1" in
+			--alien) repo="$1" ;;
+			--alien-res) repo="$1" ;;
+			--slack) repo="$1" ;;
+			--salix) repo="$1" ;;
+			--rwork) repo="$1" ;;
+			--reset) temp="" ;;
+			--office) temp="$temp $pick_office" ;;
+			--xfburn) temp="$temp $pick_xfburn" ;;
+			--exec) OPT_CHECK="NO" ;; # default is YES (check only)
+			--check) OPT_CHECK="YES" ;; # in case need to override config
+			--clean) OPT_CLEAN="YES" ;;
+			--sweep) OPT_SWEEP="YES" ;;
+			--path) shift ; path=$1 ;;
+			-*) echo "$func: Unknown option '$1'!" ; exit 1 ;;
+			*) temp="${temp} ${repo} $1" ;;
+		esac
+		shift
+	done
+	[ -z "$path" ] && path=$SLACKPATH
+	[ ! -d "$path" ] && echo "$func: Creating '$path'" && mkdir -p $path
+	path=`cd $path ; pwd`
+	[ -z "$temp" ] && echo "$func: Empty pack list!" && exit 1
+	local list ; create_list $temp
+	local size=0 step
+	temp=`echo $list | tr ';' ' '`
+	for step in $temp ; do size=$((size+1)) ; done
+	echo "Package Path: $path"
+	echo "Package Count: $size"
+	for step in $temp ; do do_findthat $path $step ; done
+}
 
-exit 0
+# just do it!
+do_execthat $@ ; exit 0
