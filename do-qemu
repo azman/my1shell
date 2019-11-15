@@ -3,9 +3,6 @@
 QEMU_BIN=${QEMU_BIN:="qemu-system-i386"}
 QEMU_MEM=${QEMU_MEM:="1536M"} # 1.5G RAM!
 
-QEMU_CHK=`which $QEMU_BIN 2>/dev/null`
-[ $? -ne 0 ] && echo "Cannot find '$QEMU_BIN'! Aborting!" && exit 1
-
 CHK_THIS=`basename $0 | sed 's|do-||'`
 CHK_PATH=`pwd`
 CHK_CONF="$CHK_PATH/.$CHK_THIS"
@@ -70,6 +67,9 @@ while [ "$1" != "" ] ; do
 	esac
 	shift
 done
+
+QEMU_CHK=`which $QEMU_BIN 2>/dev/null`
+[ $? -ne 0 ] && echo "Cannot find '$QEMU_BIN'! Aborting!" && exit 1
 
 QEMU_OPT="${QEMU_OPT} -boot order=c -hda $HDD_FILE"
 QEMU_OPT="${QEMU_OPT} -m ${QEMU_MEM}"
