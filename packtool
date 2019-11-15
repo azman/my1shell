@@ -455,10 +455,6 @@ tool_install_pack()
 	local path=`dirname $info`
 	local list="${path}/${pack}.list"
 	[ ! -f $list ] && error_exit "$func: List '$list' not found!\n\n"
-	# check if already in dist
-	pack_base_check $info $pack
-	local test=$?
-	[ $test -ne 0 ] && error_exit "$func: '$pack' already installed?! ($test)\n\n"
 	local name=`pack_read_param $info name`
 	local mark=`pack_read_param $info mark`
 	local that="$path/$pack"

@@ -246,7 +246,7 @@ go_loadrawl() #DONE
 	if [ "$test" == "" ]; then
 		rm -rf ${list}* # just in case, delete old one
 		wget --spider $root >/dev/null 2>&1
-		[ $? -eq 0 ]  do_download $root $list
+		[ $? -eq 0 ] && do_download $root $list
 		[ ! -r "$list" ] && echo "$func: Cannot get $list!" >&2 && exit 1
 	fi
 	cd $curr
@@ -477,7 +477,7 @@ do_execthat() #DONE
 {
 	local func="do_execthat()"
 	local path
-	local repo="alien" # default repo
+	local repo="--alien" # default repo
 	local temp="$THIS_CONF"
 	local pick_xfburn="--rwork xfburn libburn libisofs"
 	local pick_office="--alien libreoffice libreoffice-dict-en openjdk"
