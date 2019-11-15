@@ -36,7 +36,14 @@ create_link()
 CURR=`pwd`
 cd /boot
 echo "Path:{"`pwd`"}"
-create_link $BOOT $PICK $VERS
-create_link $CONF $PICK $VERS$EXTD
-create_link $SMAP $PICK $VERS
+if [ $UID -ne 0 ] ; then
+	echo "Not root. Showing current boot:"
+	ls -l $BOOT | grep "$BOOT"
+	ls -l $CONF | grep "$CONF"
+	ls -l $SMAP | grep "$SMAP"
+else
+	create_link $BOOT $PICK $VERS
+	create_link $CONF $PICK $VERS$EXTD
+	create_link $SMAP $PICK $VERS
+fi
 cd $CURR
