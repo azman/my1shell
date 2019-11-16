@@ -10,12 +10,13 @@ CHK_CONF="$CHK_PATH/.$CHK_THIS"
 
 HDD_PATH=${HDD_PATH:="$CHK_PATH"}
 HDD_FILE=${HDD_FILE:="$HDD_PATH/disk.qcow2"}
+HDD_MORE=${HDD_MORE:=""}
 ISO_PATH=${ISO_PATH:="$CHK_PATH"}
 ISO_LOAD=${ISO_LOAD:=""}
 
-QEMU_OPT="${QEMU_OPT} -enable-kvm"
-QEMU_OPT="${QEMU_OPT} -net nic -net user,hostfwd=tcp::2222-:22"
-QEMU_OPT="${QEMU_OPT} -rtc base=localtime"
+MAIN_OPT="${MAIN_OPT} -enable-kvm"
+MAIN_OPT="${MAIN_OPT} -net nic -net user,hostfwd=tcp::2222-:22"
+MAIN_OPT="${MAIN_OPT} -rtc base=localtime"
 
 must_have_file()
 {
@@ -34,6 +35,9 @@ must_have_exec()
 	[ $? -ne 0 ] && echo "Cannot exec '$1'!" && exit 1
 }
 
+CHK_BOOT="-boot order=c"
+CHK_SNAP=""
+VGA_MAIN=""
 while [ "$1" != "" ] ; do
 	case $1 in
 		--path2iso) shift ; must_have_path $1 ; ISO_PATH=`cd $1;pwd` ;;
@@ -42,9 +46,12 @@ while [ "$1" != "" ] ; do
 		--config) shift ; must_have_file $1 ; . $1 ;;
 		--disk) shift ; HDD_FILE="$HDD_PATH/$1" ; must_have_file $HDD_FILE ;;
 		--cdrom) shift ; ISO_LOAD="$ISO_PATH/$1" ; must_have_file $ISO_LOAD ;;
-		--vga) QEMU_OPT="${QEMU_OPT} -vga cirrus" ;;
-		--sound) QEMU_OPT="${QEMU_OPT} -soundhw ac97" ;;
+		--boot-cd) CHK_BOOT="$CHK_BOOT,once=d" ;;
+		--vga-res) VGA_MAIN="-device virtio-vga,xres=640,yres=480" ;;
+		--vga) MAIN_OPT="${MAIN_OPT} -vga cirrus" ;;
+		--sound) MAIN_OPT="${MAIN_OPT} -soundhw ac97" ;;
 		--amd64) QEMU_BIN="qemu-system-x86_64" ;;
+		--snapshot) CHK_SNAP="-snapshot" ;;
 		-* ) echo "Unknown option? ($1)" ; exit 1 ;;
 		* ) echo "Unknown parameter? ($1)" ; exit 1 ;;
 	esac
@@ -54,8 +61,18 @@ done
 must_have_file $HDD_FILE
 must_have_exec $QEMU_BIN
 
-QEMU_OPT="${QEMU_OPT} -boot order=c -hda $HDD_FILE"
-QEMU_OPT="${QEMU_OPT} -m ${QEMU_MEM}"
-[ -f "$ISO_LOAD" ] && QEMU_OPT="${QEMU_OPT} -cdrom ${ISO_LOAD}"
+#CHK_DISK="-hda $HDD_FILE"
+CHK_DISK="-drive file=$HDD_FILE,index=0,format=qcow2"
+CHK_MORE=
+[ "$HDD_MORE" != "" ] && HDD_MORE="$HDD_PATH/$HDD_MORE"
+[ -f "$HDD_MORE" ] && CHK_MORE="-drive file=$HDD_MORE,index=1,format=qcow2"
+[ "$CHK_MORE" != "" ] && CHK_DISK="$CHK_DISK $CHK_MORE"
 
+[ "$CHK_SNAP" != "" ] && CHK_DISK="$CHK_DISK $CHK_SNAP"
+[ "$VGA_MAIN" != "" ] && MAIN_OPT="$MAIN_OPT $VGA_MAIN"
+
+QEMU_OPT="-m $QEMU_MEM $MAIN_OPT $CHK_BOOT $CHK_DISK"
+[ -f "$ISO_LOAD" ] && QEMU_OPT="$QEMU_OPT -cdrom $ISO_LOAD"
+
+echo "[DEBUG] Running '$QEMU_BIN $QEMU_OPT'"
 $QEMU_BIN $QEMU_OPT

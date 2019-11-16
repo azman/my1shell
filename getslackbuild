@@ -263,6 +263,7 @@ go_fetch_ball() #DONE
 	local temp="$TOOL_TEMP"
 	local pack=$2
 	local curr=`pwd`
+	[ ! -d "$TOOL_TEMP" ] && mkdir -p "$TOOL_TEMP"
 	cd $temp
 	wget --spider $site >/dev/null 2>&1
 	[ $? -ne 0 ] && error_exit "Cannot wget $site!\n\n"
@@ -388,6 +389,7 @@ go_build() #DONE
 	must_be_root "Must run as root! ($name-$vers)"
 	# start build?
 	local logs=$TOOL_TEMP/${name}.buildlog
+	[ ! -d "$TOOL_TEMP" ] && mkdir -p "$TOOL_TEMP"
 	cd $path
 	info_msg "Building '$name' ... "
 	sh ${name}.SlackBuild >$logs 2>&1
