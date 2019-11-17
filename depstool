@@ -1,0 +1,212 @@
+#!/bin/bash
+
+# depstool
+# - written by azman@my1matrix.org
+# - slackware tool to help find dependencies of specific binary and/or package
+# - based on info gathered from the internet - kudos to the original source
+
+TOOL_NAME=`basename $0`
+TOOL_PATH=`dirname $0`
+TOOL_PATH=`cd $TOOL_PATH;pwd`
+
+find_exec_fullpath()
+{
+	local func="get_exec_fullpath()"
+	[ ! -z "${exec+x}" ] && echo "$func: Var 'exec' NOT defined!" && exit 1
+	local pick=$1
+	local full=`which $pick 2>/dev/null`
+	[ ! -x "$full" ] && echo "$func: Cannot find executable '$pick'!" && exit 1
+	# check if a link
+	if [ -L "$full" ] ; then
+		full=`readlink -f $full`
+		echo "Executable '$pick' is a link to '$full'!"
+	fi
+	# must be a binary
+	local test=`file -b $full | cut -d' ' -f1`
+	[ "$test" != "ELF" ] && echo "$func: $full is NOT in ELF format!" && exit 1
+	exec=$full
+}
+
+exec_is_static()
+{
+	local exec=$1
+	local test=`file -b $exec | grep "statically linked"`
+	[ "$test" = "" ] && return 1 || return 0
+}
+
+find_package_file()
+{
+	local test find pack full=$1
+	for pack in /var/log/packages/* ; do
+		test=`cat $pack | grep "$full"`
+		[ "$test" != "" ] && find=`basename $pack` && break
+	done
+	echo -n "$find"
+}
+
+# shows package for exec
+show_pack_for()
+{
+	local pick=$1
+	local exec ; find_exec_fullpath $pick
+	local test=`echo $exec | sed 's|^/\(.*\)$|\1|'`
+	echo -n "Looking for package containing '$pick' ($test)... "
+	local that=`find_package_file $test`
+	[ "$that" = "" ] && echo "not found!" && exit 1
+	echo "done."
+	echo "Binary: '$pick' ($exec)"
+	echo "Package: $that"
+}
+
+show_waiting()
+{
+	[ -z "$wait" ] && return
+	if [ $wait -eq 1 ] ; then echo -ne "\b|" ; wait=2
+	elif [ $wait -eq 2 ] ; then echo -ne "\b/" ; wait=3
+	elif [ $wait -eq 3 ] ; then echo -ne "\b-" ; wait=4
+	elif [ $wait -eq 4 ] ; then echo -ne "\b\\" ; wait=1
+	else echo -ne "\b done.\n" ; fi
+}
+
+find_deps_package()
+{
+	local exec=$1
+	local tlib pack libz
+	local wait=1
+	for tlib in `ldd $exec 2>/dev/null | awk '{print $1}'` ; do
+		show_waiting
+		pack=`find_package_file $tlib`
+		[ "$pack" = "" ] && continue
+		#pack="$pack{$tlib}" # for debugging
+		[ "$libz" = "" ] && libz="$pack" || libz="${libz} $pack"
+	done
+	wait=0 ; show_waiting
+	[ "$libz" = "" ] && return
+	# sorted and unique!
+	[ -z "${libs+x}" ] &&
+		libs=`echo $libz | tr ' ' '\n' | sort -u | tr '\n' ' '`
+}
+
+# shows package for exec, and all package deps
+show_deps_for()
+{
+	local pick=$1
+	local exec ; find_exec_fullpath $pick
+	local test=`echo $exec | sed 's|^/\(.*\)$|\1|'`
+	echo -n "Looking for package containing '$pick' ($test)... "
+	local that=`find_package_file $test`
+	[ "$that" = "" ] && echo "not found!" && exit 1
+	echo "done."
+	echo -n "Looking for package(s) '$pick' depends on... "
+	local libs ; find_deps_package $full
+	echo "Binary: '$pick' ($exec)"
+	echo "Package: $that"
+	echo -n "Dependencies: "
+	[ -z "$libs" ] && echo "None" && return
+	local pack
+	for pack in $libs ; do echo -ne "\n  $pack" ; done ; echo
+}
+
+# shows deps for single exec
+show_exec_deps()
+{
+	local func="show_exec_deps()"
+	local pick=$1
+	[ ! -f "$pick" ] && echo "$func: Cannot find $pick!" && exit 1
+	local base=`basename $pick`
+	local path=`dirname $pick`
+	path=`cd $path;pwd`
+	local full=$path/$base
+	# must be a binary
+	local test=`file -b $full | cut -d' ' -f1`
+	[ "$test" != "ELF" ] && echo "$func: $pick is NOT in ELF format!" && exit 1
+	exec_is_static $full &&  echo "$pick ($full) is a static binary!" && return
+	echo -n "Looking for package(s) '$pick' depends on... "
+	local libs ; find_deps_package $full
+	echo "Binary: '$pick' ($full)"
+	echo -n "Dependencies: "
+	[ -z "$libs" ] && echo "None" && return
+	local pack
+	for pack in $libs ; do echo -ne "\n  $pack" ; done ; echo
+}
+
+find_install_name()
+{
+	local name=$1
+	local temp=" ${name}-[^-]*-[^-]*-[^-]*$"
+	local logs="/var/log/packages"
+	local base=`ls $logs | grep -e "$temp"`
+	echo -n "$base"
+}
+
+list_package_exec()
+{
+	local base=$1 # e.g. aaa_base-14.2-x86_64-2
+	local info="/var/log/packages/$base"
+	[ ! -f "$info" ] && return
+	local tbin temp type full wait=1
+	for tbin in `cat $info | sed -e '1,/FILE LIST/d'` ; do
+		show_waiting
+		[ "$tbin" = "./" ] && continue
+		temp="/$tbin"
+		[ ! -x "$temp" ] && continue
+		type=`file -b $temp | cut -d' ' -f1`
+		[ "$type" != "ELF" ] && continue
+		[ "$full" = "" ] && full=$temp || full="$full $temp"
+	done
+	wait=0 ; show_waiting
+	[ -z "${list+x}" ] && list=$full
+}
+
+# show all binaries in a package
+show_pack_bins()
+{
+	local pick=$1
+	local base=`find_install_name $pick`
+	[ "$base" = "" ] && echo "Cannot find package '$pick'!" && exit 1
+	echo -n "Looking for binaries in '$base'... "
+	local list ; list_package_exec $base
+	list=`echo $list | tr ' ' '\n' | sort -u | tr '\n' ' '`
+	local that
+	for that in $list ; do echo "  Binary: $that" ; done
+}
+
+# show deps for a package
+show_pack_deps()
+{
+	local func="show_pack_deps()"
+	local pick=$1
+	local base=`find_install_name $pick`
+	[ "$base" = "" ] && echo "Cannot find package '$pick'!" && exit 1
+	echo -n "Looking for binaries in '$base'... "
+	local list ; list_package_exec $base
+	[ "$libs" != "" ] &&
+		echo "Looking for dependencies of all binaries in '$base'."
+	local that libz
+	for that in "$list" ; do
+		echo "Looking for packages '$that' depends on... "
+		local libs ; find_deps_package $that
+		[ "$libs" = "" ] && continue
+		[ "$libz" = "" ] && libz="$libs" || libz="$libz $libs"
+		libz=`echo $libz | tr ' ' '\n' | sort -u | tr '\n' ' '`
+	done
+	echo "Package: $base ($pick)"
+	echo -n "Dependencies: "
+	[ -z "$libz" ] && echo "None" && exit 0
+	local pack
+	for pack in $libz ; do echo -ne "\n  $pack" ; done ; echo
+}
+
+THAT_TASK=$1 ; shift
+THAT_PICK=$1 ; shift
+
+case "$THAT_TASK" in
+	pack4exec) show_pack_for $THAT_PICK ;;
+	deps4exec) show_deps_for $THAT_PICK ;;
+	deps4bin) show_exec_deps $THAT_PICK ;;
+	bins4pack) show_pack_bins $THAT_PICK ;;
+	deps4pack) show_pack_deps $THAT_PICK ;;
+	*) [ "$THAT_TASK" != "" ] && echo "Unknown task '$THAT_TASK'!" ;;
+esac
+
+exit 0
