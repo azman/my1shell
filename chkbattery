@@ -8,9 +8,6 @@ INFO_PATH="/sys/class/power_supply"
 BATT_MISS="YES"
 BATT_PATH=""
 BATT_NAME=""
-VOLT_CURR=""
-VOLT_DMIN=""
-VOLT_TEMP=""
 
 if [ -d ${INFO_PATH} ] ; then
 	BATT_PATH=`find ${INFO_PATH} -name "BAT*" -maxdepth 1`
@@ -68,6 +65,8 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	else
 		CHK_STATE="$CURR_PCTG%??"
 	fi
+	SUM_VBATT="VBAT=${VOLT_TEMP}%"
+	CHK_VBATT="$SUM_VBATT {${VOLT_CURR}mV/${VOLT_DMIN}mV}"
 else
 	CURR_BATT="0"
 	FULL_BATT="0"
@@ -76,12 +75,22 @@ else
 	CURR_PCTG="100"
 	_CHARGING="No battery!"
 	CHK_STATE="AC"
+	CHK_VBATT="AC"
 fi
 
-[ "$1" == "--state" ] && echo "$CHK_STATE" && exit 0
+MAIN_INFO="$CURR_PCTG% <$_CHARGING>"
+CHK_BASIC="$MAIN_INFO"
+[ ! -z "$SUM_VBATT" ] && CHK_BASIC="$CHK_BASIC $SUM_VBATT"
+CHK_BASIC="$CHK_BASIC [${BATT_NAME}]"
+RATE_INFO="RATE=$RATE_BATT {$CURR_BATT/$FULL_BATT@$PREV_BATT}"
+BATT_FULL="$MAIN_INFO $RATE_INFO"
+[ ! -z "$CHK_VBATT" ] && BATT_FULL="$BATT_FULL $CHK_VBATT"
+BATT_FULL="$BATT_FULL [${BATT_NAME}]"
 
-echo "$CURR_PCTG% <$_CHARGING> [${BATT_NAME}]"
-echo "-- Curr=$CURR_BATT Rate=$RATE_BATT Full=$FULL_BATT Prev=$PREV_BATT"
-echo "-- Vmin=${VOLT_DMIN}mV Vcur=${VOLT_CURR}mV Vpct=${VOLT_TEMP}%"
+case "$1" in
+	--basic) echo "$CHK_BASIC" ;;
+	--state) echo "$CHK_STATE" ;;
+	*) echo "$BATT_FULL" ;;
+esac
 
 exit 0
