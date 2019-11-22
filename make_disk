@@ -2,15 +2,16 @@
 
 source_libmy1slack()
 {
-	local name="libmy1slack"
+	local libs="libmy1echo libmy1file libmy1slack"
 	local find=`which slacktest 2>/dev/null`
-	[ ! -f "$find" ] &&
-		echo -ne "\nCannot execute slacktest! Aborting!\n\n" && exit 1
+	[ ! -f "$find" ] && echo -ne "\nCannot find slacktest!\n\n" && exit 1
 	local path=`dirname $find`
-	local full=$path/$name
-	[ ! -f "$full" ] &&
-		echo -ne "\nCannot find $full! Aborting!\n\n" && exit 1
-	. $full
+	local full
+	for that in $libs ; do
+		full=$path/$that
+		[ ! -f "$full" ] && echo -ne "\nCannot find $full!\n\n" && exit 1
+		. $full
+	done
 }
 source_libmy1slack
 

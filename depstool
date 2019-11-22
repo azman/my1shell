@@ -9,11 +9,31 @@ TOOL_NAME=`basename $0`
 TOOL_PATH=`dirname $0`
 TOOL_PATH=`cd $TOOL_PATH;pwd`
 
+list_package_file()
+{
+	local info=$1
+	[ ! -f "$info" ] && return
+	cat $info | sed -e '1,/FILE LIST/d'
+}
+
+# list all files in a package
+show_file_list()
+{
+	local pick=$1
+	local temp="${pick}-[^-]*-[^-]*-[^-]*$"
+	local logs="/var/log/packages"
+	local info=`find $logs -type f | grep -e "/$temp"`
+	[ ! -f "$info" ] && echo "Cannot find package '$pick'! ($info)" && exit 1
+	local base=`basename $info`
+	echo "Listing all files in for package '$base'"
+	list_package_file $info
+}
+
 find_package_file()
 {
 	local test find pack full=$1
 	for pack in /var/log/packages/* ; do
-		test=`cat $pack | grep "$full"`
+		test=`cat $pack | sed -e '1,/FILE LIST/d' | grep "$full"`
 		[ "$test" != "" ] && find=`basename $pack` && break
 	done
 	echo -n "$find"
@@ -171,23 +191,6 @@ show_file_deps()
 	for pack in $libs ; do echo -ne "\n  $pack" ; done ; echo
 }
 
-find_install_name()
-{
-	local name=$1
-	local temp="${name}-[^-]*-[^-]*-[^-]*$"
-	local logs="/var/log/packages"
-	local base=`ls $logs | grep -e "$temp"`
-	echo -n "$base"
-}
-
-show_pack_full()
-{
-	local name=$1
-	[ -z "$name" ] && echo "No package name given!" && exit 1
-	local full=`find_install_name $name`
-	echo "Package: '$name' => '$full'"
-}
-
 list_package_shared()
 {
 	local base=$1 # e.g. aaa_base-14.2-x86_64-2
@@ -203,11 +206,19 @@ list_package_shared()
 	[ -z "${list+x}" ] && list=$full
 }
 
+find_install_name()
+{
+	local name=$1
+	local temp="${name}-[^-]*-[^-]*-[^-]*$"
+	local logs="/var/log/packages"
+	local base=`ls $logs | grep -e "$temp"`
+	echo -n "$base"
+}
+
 show_find_raw()
 {
 	local pick=$1 # can be any name to look for
-
-
+	# WORK IN PROGRESS... NOT WORKING
 	local name=$1
 	[ -z "$name" ] && echo "No package name given!" && exit 1
 	local full=`find_install_name $name`
@@ -288,8 +299,8 @@ case "$THAT_TASK" in
 	deps4file) show_file_deps $THAT_PICK ;;
 	bins4pack) show_pack_bins $THAT_PICK ;;
 	deps4pack) show_pack_deps $THAT_PICK ;;
-	packfull) show_pack_full $THAT_PICK ;;
 	raw_find) show_find_raw $THAT_PICK ;;
+	list_pack) show_file_list $THAT_PICK ;;
 	*) [ "$THAT_TASK" != "" ] && echo "Unknown task '$THAT_TASK'!" ;;
 esac
 
