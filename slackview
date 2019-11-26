@@ -215,6 +215,7 @@ file_remove_dups()
 		fi
 	done
 	[ -z "$pkg_test" ] && echo "No duplicates in $pkg_file & $dup_file!"
+	return 0
 }
 
 file_option_package()
