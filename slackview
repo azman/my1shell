@@ -34,13 +34,14 @@ Commands:
          > --alien    : Find & list alien package(s)
          > {pkg_name} : Find & display package info
   file   : Manage File for package list
-         > --insert   : Insert package to list
-         > --delete   : Delete package from list
-         > --update   : Update packages on list
-         > --sort     : Sort packages on list
-         > --name <>  : Specify filename
-         > --dups <>  : Remove duplicates from filename
-         > --pack <>  : Select official software set
+         > --insert    : Insert package to list
+         > --delete    : Delete package from list
+         > --update    : Update packages on list
+         > --sort      : Sort packages on list
+         > --name <>   : Specify filename
+         > --dups <>   : Remove duplicates from filename
+         > --pack <>   : Select official software set
+         > --installed : Select ALL installed packages
   help   : Show this help message
 Mirror Source:
   $SLACKTREE
@@ -146,7 +147,7 @@ file_pack_part()
 
 file_insert_package()
 {
-	local pkg_temp pkg_test pkg_pack pkg_what
+	local pkg_temp pkg_test pkg_pack pkg_what pkg_that
 	local pkg_file=$1
 	local pkg_name=$2
 	local pkg_list=`cat $pkg_file | grep "$pkg_name"`
@@ -157,17 +158,16 @@ file_insert_package()
 	done
 	pkg_temp=`file_pack_part $pkg_name`
 	if [ -z "$pkg_test" ]; then
-		pkg_test=`find_package $pkg_name $SLACKPACK`
-		[ "$pkg_test" == "" ] &&
-			echo "PACKAGE: [INSERT] => $pkg_name (FAILED!)" && return 0
-		# insert if package is valid
+		pkg_what=`echo $pkg_temp | cut -d'!' -f1`
+		[ "$pkg_what" = 'z' ] && pkg_what="(Unknown Package)" || pkg_what=
 		echo "$pkg_temp" >>$pkg_file
-		echo "PACKAGE: [INSERT] => $pkg_temp ($pkg_test)"
+		echo "PACKAGE: [INSERT] => $pkg_temp $pkg_what"
 		return 1
 	else
+		pkg_that=${pkg_test//!/}
 		pkg_pack=`echo $pkg_test | cut -d'!' -f1`
 		pkg_what=`echo $pkg_temp | cut -d'!' -f1`
-		if [ "$pkg_what" != "$pkg_pack" ] ; then
+		if [ "$pkg_that" = "$pkg_test" -o "$pkg_what" != "$pkg_pack" ] ; then
 			sed -i -e "\|^$pkg_test\$|c\\$pkg_temp" $pkg_file
 			[ $? -ne 0 ] && pkg_test="$FAILED!"
 			echo "PACKAGE: [UPDATE] => $pkg_temp ($pkg_test)"
@@ -296,13 +296,23 @@ file_update_packages()
 
 view_file_list_pack()
 {
-	local pkg_temp=`get_pathsoft $SLACKPACK $1` ; shift
-	local pkg_list=$@
-	for pkg in $pkg_temp ; do
-		local pkg_name=`get_pkg_info $pkg | cut -d' ' -f1`
-		pkg_list="${pkg_list}${pkg_name} "
+	local temp=`get_pathsoft $SLACKPACK $1` ; shift
+	local list=$@ tpkg
+	for tpkg in $temp ; do
+		local name=`get_pkg_info $tpkg | cut -d' ' -f1`
+		[ -z "$list" ] && list="$name" || list="$list $name"
 	done
-	echo -n "$pkg_list"
+	echo -n "$list"
+}
+
+view_file_list_install()
+{
+	local temp=`ls /var/log/packages | sed 's/^\(.*\)-[^-]*-[^-]*-[^-]*$/\1/g'`
+	local list=$@ tpkg
+	for tpkg in $temp ; do
+		[ -z "$list" ] && list="$tpkg" || list="$list $tpkg"
+	done
+	echo -n "$list"
 }
 
 view_file_package()
@@ -319,6 +329,7 @@ view_file_package()
 			--dups) shift ; dup_file="$1" ; do_select="DUP" ;;
 			--name) shift ; pkg_file="$1" ;;
 			--pack) shift ; pkg_list=`view_file_list_pack $1 $pkg_list` ;;
+			--installed) pkg_list=`view_file_list_install $pkg_list` ;;
 			-*) error_exit "Unknown option '$1'! Aborting!\n\n" ;;
 			*)
 				pkg_temp=`find_package $1 $SLACKPACK`
