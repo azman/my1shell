@@ -26,8 +26,10 @@ LOCALURL=${LOCALURL:="."}
 [ "$RSYNC" == "" ] && echo "Cannot find rsync!" && exit 1
 
 # first parameter CAN be a path to server URL
-[ -d "$1" ] && RSYNCURL="$(cd $1;pwd)/" && LOCALURL="." &&
-	INCLUDES="$INCLUDES --include=/" && shift
+TEST_URL=$1
+# if not an option, we assume that this IS a URL!
+[ "${TEST_URL:0:1}" != "-" ] && RSYNCURL="$TEST_URL/" && LOCALURL="." &&
+	INCLUDES="--include=/" && EXCLUDES="--exclude=/.*" && shift
 
 # enforce this!
 [ "$RSYNCURL" == "" ] && echo "Remote URL not specified!" && exit 1
