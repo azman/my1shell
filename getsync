@@ -83,11 +83,11 @@ while  [ "$1" != "" ]; do
 	esac
 	shift
 done
-RSYNCOPT="-e ${SSH_EXEC} ${RSYNCOPT} ${INCLUDES} ${EXCLUDES}"
+RSYNCOPT="${RSYNCOPT} ${INCLUDES} ${EXCLUDES}"
 
 # start actual mirroring process
 echo "*** From ${RSYNCSRC} To ${RSYNCTGT} ***"
-$RSYNC ${RSYNCOPT} ${RSYNCSRC} ${RSYNCTGT}
+$RSYNC -e "${SSH_EXEC}" ${RSYNCOPT} ${RSYNCSRC} ${RSYNCTGT}
 echo "$(date) [$$]: Done mirroring (exit code $?)."
 
 exit 0
