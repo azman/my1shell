@@ -4,45 +4,45 @@
 # - written by azman@my1matrix.org
 # - a getslack-like script to sync personal documents ('wrapper' for rsync)
 
-MY1TOOL="$(basename $0 .sh)"
-MY1PATH="$(dirname $0)"
-CURPATH="$(pwd)"
-CFGFILE="$CURPATH/.$MY1TOOL"
+TOOL_NAME="$(basename $0)"
+WORK_PATH="$(pwd)"
+CONF_FILE="$WORK_PATH/.$TOOL_NAME"
 
 # look for config file
-[ -f "$CFGFILE" ] && source $CFGFILE
+[ -f "$CONF_FILE" ] && . $CONF_FILE
+
+# make sure rsync is available!
+RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
+[ ! -x "$RSYNC" ] && echo "Cannot find rsync!" && exit 1
 
 # tool & env setup
 SSH_PORT=${SSH_PORT:="22"}
 SSH_EXEC=${SSH_EXEC:="ssh"}
 [ "$SSH_PORT" -ne 22 ] && SSH_EXEC="ssh -p $SSH_PORT"
-RSYNC=${RSYNC:="$(which rsync 2>/dev/null)"}
 RSYNCOPT=${RSYNCOPT:="-rpltD --partial --progress --dry-run"}
-# RSYNCURL="user@server:/path/to/home/"
+#RSYNCURL="user@server:/path/to/home/"
 RSYNCURL=${RSYNCURL:=""}
 LOCALURL=${LOCALURL:="."}
 
-# make sure rsync is available!
-[ "$RSYNC" == "" ] && echo "Cannot find rsync!" && exit 1
-
 # first parameter CAN be a path to server URL
 TEST_URL=$1
-# if not an option, we assume that this IS a URL!
-[ "${TEST_URL:0:1}" != "-" ] && RSYNCURL="$TEST_URL/" && LOCALURL="." &&
-	INCLUDES="--include=/" && EXCLUDES="--exclude=/.*" && shift
+# if not an option, we assume that this IS a URL! override!
+[ "$TEST_URL" != "" -a "${TEST_URL:0:1}" != "-" ] &&
+	RSYNCURL="$TEST_URL" && shift
 
 # enforce this!
 [ "$RSYNCURL" == "" ] && echo "Remote URL not specified!" && exit 1
+[ "${RSYNCURL: -1}" != "/" ] && RSYNCURL="$RSYNCURL/"
 
-# check target & source
+# target & source may swap
 RSYNCSRC="${RSYNCURL}"
 RSYNCTGT="${LOCALURL}"
 
-# customized sync list
-EXCLUDES=${EXCLUDES:=""}
-INCLUDES=${INCLUDES:=""}
-[ -r "$EXCLUDEFILE" ] && EXCLUDES="--exclude-from=$EXCLUDEFILE"
-[ -r "$INCLUDEFILE" ] && INCLUDES="--include-from=$INCLUDEFILE"
+# customized sync list - by default include all but hidden stuffs
+EXCLUDES=${EXCLUDES:="--exclude=/.*"}
+INCLUDES=${INCLUDES:="--include=/"}
+[ -r "$EXCLUDEFILE" ] && EXCLUDES="$EXCLUDES --exclude-from=$EXCLUDEFILE"
+[ -r "$INCLUDEFILE" ] && INCLUDES="$INCLUDES --include-from=$INCLUDEFILE"
 
 # check parameters
 while  [ "$1" != "" ]; do
@@ -63,52 +63,31 @@ while  [ "$1" != "" ]; do
 			echo "  --timestamp       Update timestamps only (special case)"
 			echo "  --exclude=/path/  Specify additional exclude path"
 			echo "  --include=/path/  Specify additional include path"
-			exit
+			exit 0
 			;;
 		--upload)
 			RSYNCTMP="${RSYNCSRC}"
 			RSYNCSRC="${RSYNCTGT}"
 			RSYNCTGT="${RSYNCTMP}"
 			;;
-		--reload)
-			RSYNCOPT="${RSYNCOPT} --delete-excluded"
-			;;
-		--delete|--update)
-			RSYNCOPT="${RSYNCOPT} $1"
-			;;
-		--no-delete)
-			RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --delete//'`
-			;;
-		--no-update)
-			RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --update//'`
-			;;
-		--dolink)
-			RSYNCOPT="${RSYNCOPT} --copy-links --keep-dirlinks"
-			;;
-		--exec)
-			RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --dry-run//'`
-			;;
-		--timestamp)
-			RSYNCOPT="${RSYNCOPT} --size-only"
-			;;
-		--exclude*)
-			EXCLUDES="$EXCLUDES $1"
-			;;
-		--include*)
-			INCLUDES="$INCLUDES $1"
-			;;
-		*)
-			echo "Unknown parameter '$1'"
-			exit 1
-			;;
+		--reload) RSYNCOPT="${RSYNCOPT} --delete-excluded" ;;
+		--delete|--update) RSYNCOPT="${RSYNCOPT} $1" ;;
+		--no-delete) RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --delete//'` ;;
+		--no-update) RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --update//'` ;;
+		--dolink) RSYNCOPT="${RSYNCOPT} --copy-links --keep-dirlinks" ;;
+		--exec) RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --dry-run//'` ;;
+		--timestamp) RSYNCOPT="${RSYNCOPT} --size-only" ;;
+		--exclude*) EXCLUDES="$EXCLUDES $1" ;;
+		--include*) INCLUDES="$INCLUDES $1" ;;
+		*) echo "Unknown parameter '$1'" && exit 1 ;;
 	esac
 	shift
 done
-RSYNCOPT="${RSYNCOPT} ${INCLUDES} ${EXCLUDES}"
+RSYNCOPT="-e ${SSH_EXEC} ${RSYNCOPT} ${INCLUDES} ${EXCLUDES}"
 
 # start actual mirroring process
 echo "*** From ${RSYNCSRC} To ${RSYNCTGT} ***"
-$RSYNC -e "$SSH_EXEC" ${RSYNCOPT} ${RSYNCSRC} ${RSYNCTGT}
+$RSYNC ${RSYNCOPT} ${RSYNCSRC} ${RSYNCTGT}
 echo "$(date) [$$]: Done mirroring (exit code $?)."
 
 exit 0
