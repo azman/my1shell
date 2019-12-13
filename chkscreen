@@ -7,106 +7,123 @@
 # example using xrandr tool
 # xrandr --output LVDS1 --auto --output VGA1 --mode 1024x768 --right-of LVDS1
 
-if echo "$@" | grep -q -e "--fix" ; then
-	# this is a hack... for now...
-	PATH2="/sys/class/drm/card0-DP-2"
-	STAT2="$PATH2/status"
-	# only root can do this! :(
-	WHAT2=`cat $STAT2 | grep disconnected`
-	if [ "$WHAT2" != "" ] ; then
-		echo "Must be root to write to $STAT2!"
-		su - -c "echo 'on-digital' > $STAT2"
+FIX_THAT="NO"
+FIX_NAME="DP-2"
+FIX_MODE="1280x1024"
+CHK_MODE="NO"
+CHK_TASK=""
+CHK_DISP=`xrandr -q | grep " connected" | sed 's/ .*$//g'`
+CNT_DISP=`echo $CHK_DISP | wc -w`
+
+fix_display()
+{
+	local base="/sys/class/drm"
+	local name=$1
+	local path="$base/card0-$name"
+	local stat="$path/status"
+	[ ! -r "$stat" ] && echo "Cannot read $stat!" && exit 1
+	local what=`cat $stat | grep disconnected`
+	if [ "$what" != "" ] ; then
+		# only root can do this! :(
+		echo "Must be root to write to $stat!"
+		su - -c "echo 'on-digital' > $stat"
 	fi
-	# set it up
-	SHOW1=${SHOW1:="DP-1"}
-	MODE1=${MODE1:="--auto"}
-	SHOW2=${SHOW2:="DP-2"}
-	MODE2=${MODE2:="1280x1024"}
-	SHOW3=${SHOW3:="VGA-1"}
-	MODE3=${MODE3:="--auto"}
-	# check which one needed
-	[ "$MODE1" != "--auto" ] && echo "Add mode $MODE1 for $SHOW1" &&
-		xrandr --addmode $SHOW1 $MODE1 && MODE1="--mode $MODE1"
-	[ "$MODE2" != "--auto" ] && echo "Add mode $MODE2 for $SHOW2" &&
-		xrandr --addmode $SHOW2 $MODE2 && MODE2="--mode $MODE2"
-	[ "$MODE3" != "--auto" ] && echo "Add mode $MODE3 for $SHOW3" &&
-		xrandr --addmode $SHOW3 $MODE3 && MODE3="--mode $MODE3"
-	# stop and ask to re-run without --fix
-	echo "Done. Re-run this script without '--fix'!"
 	exit 0
-fi
+}
 
-ifs_save=$IFS
-IFS=$'\n'
-DISP_STATS=($(xrandr -q | grep " connected"))
-IFS=$ifs_save
+fix_resolution()
+{
+	local name=$1
+	local mode=$2
+	echo -n "Adding mode $mode for $name... "
+	xrandr --addmode $name $mode
+	echo "done!"
+	exit 0
+}
 
-echo -n "We have ${#DISP_STATS[@]} connected display(s) ==>"
-for (( a=0;a<${#DISP_STATS[@]};a++ )); do
-	DISP_NAME[$a]=${DISP_STATS[$a]%% *}
-	DISP_TEMP=${DISP_STATS[$a]#${DISP_NAME[$a]} }
-	DISP_STAT[$a]=${DISP_TEMP%% *}
-	echo -n " [${DISP_NAME[$a]}]"
+echo -n "We have $CNT_DISP connected display(s) ==>"
+for DISP in $CHK_DISP ; do
+	echo -n " [$DISP]"
 done
 echo "."
+#DISP0=`echo "$CHK_DISP" | sed -n 1p`
+#DISP1=`echo "$CHK_DISP" | sed -n 2p`
+#DISP2=`echo "$CHK_DISP" | sed -n 3p`
+#echo "-- Displays:{$DISP0,$DISP1,$DISP2}"
 
-[ "$1" == "" ] && exit 0
+while [ "$1" != "" ]; do
+	case $1 in
+		--fix) FIX_THAT="YES" ;;
+		--res) shift ; FIX_MODE=$1 ; CHK_MODE="YES" ;;
+		--name) shift ; FIX_NAME=$1 ;;
+		-*) echo "Unknown option '$1'!" ; exit 1 ;;
+		*) CHK_TASK=$1 ;;
+	esac
+	shift
+done
 
-if [ ${#DISP_STATS[@]} -gt 1 ] ; then
-	DISP1="--output ${DISP_NAME[1]} --auto"
-	DISP0="--output ${DISP_NAME[0]} --auto"
-	PLACE="--same-as"
-	if [ "$1" == "dual" ] ; then
-		case "$2" in
-			left)
-				PLACE="--left-of"
-				;;
-			right)
-				PLACE="--right-of"
-				;;
-			*)
-				PLACE="--left-of" # default placement
-				[[ "$2" != "" ]] && echo "Unknown option '$2'!" && exit 1
-		esac
-		echo -n "Applying dual-head configuration..."
-		xrandr $DISP1 $DISP0 $PLACE ${DISP_NAME[1]}
-		echo "done."
-	elif [ "$1" == "multi" ] ; then
-		echo -n "Applying multi-view configuration..."
-		for (( a=1;a<${#DISP_NAME[@]};a++ )); do
-			DISP1="${DISP_NAME[(($a-1))]}"
-			DISP0="$DISP0 --output ${DISP_NAME[$a]} --auto --right-of $DISP1"
+[ "$FIX_THAT" = "YES" ] && fix_display $FIX_NAME
+[ "$CHK_MODE" = "YES" ] && fix_resolution $FIX_NAME $FIX_MODE
+[ "$CHK_TASK" == "" ] && exit 0
+
+if [ ${CNT_DISP} -gt 1 ] ; then
+	if [ "$CHK_TASK" == "multi" -o "$CHK_TASK" == "dual" ] ; then
+		echo -n "Applying multi-head configuration..."
+		FULL0=
+		for DISP in $CHK_DISP ; do
+			if [ -z "$FULL0" ] ; then
+				FULL0="--output $DISP --auto"
+			else
+				FULL0="$FULL0 --output $DISP --auto --right-of $DISP0"
+			fi
+			DISP0=$DISP
 		done
-		xrandr $DISP0
+		xrandr $FULL0
 		echo "done."
-	elif [ "$1" == "twin" ] ; then
+	elif [ "$CHK_TASK" == "twin" ] ; then
 		echo -n "Applying twin-view configuration..."
-		xrandr $DISP1 $DISP0 $PLACE ${DISP_NAME[1]}
-		echo "done."
-	elif [ "$1" == "single" ] ; then
-		# set only for the first one on?
-		for (( a=0;a<${#DISP_STATS[@]};a++ )); do
-			DISP1="--off"
-			[[ "$2" -eq $a ]] && DISP1="--auto"
-			DISP0="--output ${DISP_NAME[$a]} $DISP1 $DISP0"
+		FULL0=
+		for DISP in $CHK_DISP ; do
+			if [ -z "$FULL0" ] ; then
+				FULL0="--output $DISP --auto"
+			else
+				FULL0="$FULL0 --output $DISP --auto --same-as $DISP0"
+			fi
+			DISP0=$DISP
 		done
-		echo -n "Aplying single view configuration..."
-		xrandr $DISP0
+		xrandr $FULL0
+		echo "done."
+	elif [ "$CHK_TASK" == "single" ] ; then
+		echo -n "Applying single-view configuration..."
+		FULL0=
+		for DISP in $CHK_DISP ; do
+			if [ -z "$FULL0" ] ; then
+				FULL0="--output $DISP --auto"
+			else
+				FULL0="$FULL0 --output $DISP --off"
+			fi
+			DISP0=$DISP
+		done
+		xrandr $FULL0
 		echo "done."
 	else
-		echo "Command '$1' unknown!"
+		echo "Command '$CHK_TASK' unknown!"
 		exit 1
 	fi
-elif [ "$1" == "hres" ] ; then
+elif [ "$CHK_TASK" == "hres" ] ; then
+	DISP=`echo "$CHK_DISP" | sed -n 1p`
 	MODE="1280x1024@75"
 	VCTO="138.75 1280 1368 1504 1728 1024 1027 1034 1072 -hsync +vsync"
 	if [ "$(xrandr | grep "1280x1024@75   74.9*")" == "" ] ; then
 		xrandr --newmode ${MODE} ${VCTO}
-		xrandr --addmode ${DISP_NAME[0]} ${MODE}
+		xrandr --addmode ${DISP} ${MODE}
 	fi
 	if [ "$(xrandr | grep "connected ${MODE}")" == "" ] ; then
-		xrandr --output ${DISP_NAME[0]} --mode ${MODE}
+		xrandr --output ${DISP} --mode ${MODE}
 	fi
+else
+	echo "Command '$CHK_TASK' unknown!"
+	exit 1
 fi
 
 exit 0
