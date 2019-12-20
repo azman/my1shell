@@ -546,6 +546,8 @@ tool_make_module()
 	local name=`pack_name_pack $info $pack`
 	local full="$dest/$name"
 	if [ -f "$full" ] ; then
+		local list="${path}/${pack}.list"
+		[ "$list" -nt "$full" ] && flag=1
 		[ $flag -eq 0 ] && info_msg "-- File '$full' found.\n" && return
 		info_msg "-- Removing existing module '$full'... "
 		rm -rf $full
