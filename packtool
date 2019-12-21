@@ -304,53 +304,9 @@ find_slak()
 	[ -d "$slak" ] && echo -n $slak
 }
 
-# finds slackware package - will deprecate this!
-
-pack_find_spkg()
-{
-	local func="pack_find_spkg()"
-	local info=$1
-	# info should already been validated
-	local spkg=$2 # listed slackware package (entry in lists)
-	local slak=$3 # output of find_slak
-	local from=`dirname $info`
-	# get listed package info
-	local ware=`echo $spkg | cut -d! -f1`
-	local name=`echo $spkg | cut -d! -f2`
-	local path=`echo $spkg | cut -d! -f3`
-	# find it
-	local base file full
-	if [ "$ware" = "z" ] ; then # not in official tree
-		[ -z "$path" ] && path=$from # default path is dist
-		# expand if relative path given
-		[ "${path:0:1}" != "/" ] &&
-			path=`cd $from ; [ -d $path ] && cd $path ; pwd`
-		[ ! -d "$path" ] &&
-			warn_msg "$func: Invalid '$path' for '$name'!\n" && return 1
-		info_msg "-- Looking for '$name' in '$path'... "
-		full=`get_packfind $path $name`
-		[ ! -f "$full" ] && warn_msg --no-tag " not found!\n" && return 1
-		info_msg --no-tag "found.\n"
-		file=`basename $full`
-		base=`echo $file | sed 's/\.t[xg]z//'`
-	else
-		local that=`find_package_latest $name $slak`
-		local temp=`echo $that | cut -d' ' -f6`
-		base=`echo $that | cut -d' ' -f1`
-		file=`echo $that | cut -d' ' -f2`
-		path=`echo $that | cut -d' ' -f3`
-		full="$path/$file"
-		[ ! -f "$full" ] &&
-			warn_msg "Package '$name' not in '$slak'!\n" && return 1
-		[ "$temp" == "PATCH" ] && info_msg "-- $name found in patches\n"
-	fi
-	# must declare find to use this info!
-	[ -z "${find+x}" ] && find=$full
-}
-
 # finds slackware package
 
-pack_find_spkg_new()
+pack_find_spkg()
 {
 	local info=$1 # validated info
 	local spkg=$2 # entry in lists
@@ -384,7 +340,7 @@ pack_install_spkg()
 	local info=$1 # validated info
 	local spkg=$2 # entry in lists
 	local slak=$3 # find_slak
-	local find=`pack_find_spkg_new $info $spkg $slak`
+	local find=`pack_find_spkg $info $spkg $slak`
 	local that=`echo $find | cut -d: -f1`
 	local full=`echo $find | cut -d: -f2`
 	local flag=`echo $find | cut -d: -f3`
@@ -398,6 +354,38 @@ pack_install_spkg()
 	local root="$path/root"
 	installpkg --terse --root $root $full
 	return $?
+}
+
+pack_upgrade_spkg()
+{
+	local info=$1 # validated info
+	local spkg=$2 # entry in lists
+	local slak=$3 # find_slak
+	local what=$4 # installed pkg
+	local tell=$5
+	local find=`pack_find_spkg $info $spkg $slak`
+	local that=`echo $find | cut -d: -f1`
+	local full=`echo $find | cut -d: -f2`
+	local flag=`echo $find | cut -d: -f3`
+	local name=`echo $spkg | cut -d! -f2`
+	# check
+	[ ! -d "$that" ] && warn_msg "Invalid '$that' for '$name'!\n" && return 1
+	[ ! -f "$full" ] && warn_msg "Package '$name' not in '$that'!\n" && return 1
+	local base=`basename $full`
+	if [ "$base" = "$what" ] ; then
+		[ "$tell" = "yes" ] &&
+			info_msg --no-tag "-- '$temp' already installed in $that!\n"
+		return 0
+	fi
+	[ "$flag" == "PATCH" ] && info_msg "-- $name found in patches\n"
+	# do upgrade
+	local path=`dirname $info`
+	local root="$path/root"
+	info_msg --no-tag "-- Upgrading $what -> $base... "
+	ROOT=$root upgradepkg $full >/dev/null 2>&1
+	local test=$?
+	info_msg --no-tag "done ($test)\n"
+	return $test
 }
 
 pack_name_pack()
@@ -514,11 +502,11 @@ tool_install_pack()
 		local temp=`echo $pick | cut -d'!' -f2`
 		local what=`find_install_ng $temp $that`
 		if [ "$what" != "" ] ; then
-			[ "$tell" = "yes" ] &&
-				info_msg --no-tag "-- '$temp' already installed in $that!\n"
-			continue
+			what=`echo $what | cut -d' ' -f2`
+			pack_upgrade_spkg $info $pick $slak $what $tell
+		else
+			pack_install_spkg $info $pick $slak
 		fi
-		pack_install_spkg $info $pick $slak
 	done
 	pack_base_unmount $info $tell
 	[ $? -ne 0 ] && error_exit "$func: Unmount failed!\n\n"
