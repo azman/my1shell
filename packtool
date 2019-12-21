@@ -570,7 +570,12 @@ tool_make_module()
 	[ ! -d "$dest" ] && error_exit "$func: Invalid destination '$dest'!\n\n"
 	dest=`cd $dest ; pwd`
 	local tell=$1 # verbose mode
-	[ -z "$tell" -o "$tell" != "--quiet" ] && tell="yes" || tell="no"
+	if [ ! -z "$tell" ] ; then
+		shift
+		[ "$tell" = "--quiet" ] && tell="no" || tell="yes"
+	else
+		tell="yes"
+	fi
 	local flag=$1
 	case "$flag" in
 		-f|--force) flag=1 ;;
