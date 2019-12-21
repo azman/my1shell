@@ -231,9 +231,9 @@ pack_base_insert()
 pack_base_mount()
 {
 	local func="pack_base_mount()"
-	local info
-	pack_validate_info $1 # full pathname
+	local info; pack_validate_info $1 # full pathname
 	local pick=$2 # base pathname in dist
+	local tell=$3
 	local path=`dirname $info`
 	local data
 	if [ ! -z "$pick" ] ; then
@@ -254,12 +254,12 @@ pack_base_mount()
 	local over="-t overlay"
 	over="$over -o lowerdir=$base,upperdir=$data,workdir=$work overlay"
 	# debug message... keeping this for now!
-	check_msg --no-tag "[OVER] $over\n"
+	[ "$tell" != "no" ] && check_msg --no-tag "[OVER] $over\n"
 	# mount it!
-	info_msg "-- Mounting overlayfs on '$root'... "
+	[ "$tell" != "no" ] && info_msg "-- Mounting overlayfs on '$root'... "
 	mount $over $root 2>/dev/null
 	local test=$?
-	info_msg --no-tag "done!($test)\n"
+	[ "$tell" != "no" ] && info_msg --no-tag "done!($test)\n"
 	return $test
 }
 
@@ -270,16 +270,17 @@ pack_base_unmount()
 	local func="pack_base_unmount()"
 	local info
 	pack_validate_info $1 # full pathname
+	local tell=$2
 	local path=`dirname $info`
 	local root=$path/root
-	info_msg "-- Syncing disks... "
+	[ "$tell" != "no" ] && info_msg "-- Syncing disks... "
 	sync ; sync ; sync
-	info_msg --no-tag "done.\n"
-	info_msg "-- Unmounting overlayfs on '$root'... "
+	[ "$tell" != "no" ] && info_msg --no-tag "done.\n"
+	[ "$tell" != "no" ] && info_msg "-- Unmounting overlayfs on '$root'... "
 	umount $root 2>/dev/null
 	local test=$?
-	info_msg --no-tag "done!($test)\n"
-	info_msg "-- Cleaning up... "
+	[ "$tell" != "no" ] && info_msg --no-tag "done!($test)\n"
+	[ "$tell" != "no" ] && info_msg "-- Cleaning up... "
 	rm -rf $root
 	local work=$path/temp
 	rm -rf $work
@@ -287,7 +288,7 @@ pack_base_unmount()
 	[ -d "$base" ] && rm -rf $base
 	local play=$path/play
 	[ -d "$play" ] && rm -rf $play
-	info_msg --no-tag "done!\n"
+	[ "$tell" != "no" ] && info_msg --no-tag "done!\n"
 	return $test
 }
 
@@ -303,7 +304,7 @@ find_slak()
 	[ -d "$slak" ] && echo -n $slak
 }
 
-# finds slackware package
+# finds slackware package - will deprecate this!
 
 pack_find_spkg()
 {
@@ -347,18 +348,55 @@ pack_find_spkg()
 	[ -z "${find+x}" ] && find=$full
 }
 
+# finds slackware package
+
+pack_find_spkg_new()
+{
+	local info=$1 # validated info
+	local spkg=$2 # entry in lists
+	local slak=$3 # find_slak
+	local ware=`echo $spkg | cut -d! -f1`
+	local name=`echo $spkg | cut -d! -f2`
+	local path=`echo $spkg | cut -d! -f3`
+	local full flag
+	if [ "$ware" = "z" ] ; then # not in official tree
+		local from=`dirname $info`
+		# expand if relative path given
+		[ "${path:0:1}" != "/" ] &&
+			path=`cd $from ; [ -d $path ] && cd $path ; pwd`
+		[ -d "$path" ] && full=`get_packfind $path $name`
+	else
+		local that=`find_package_latest $name $slak`
+		if [ "$that" != "" ] ; then
+			local file=`echo $that | cut -d' ' -f2`
+			local path=`echo $that | cut -d' ' -f3`
+			local temp=`echo $that | cut -d' ' -f6`
+			full="$path/$file"
+			[ "$temp" == "PATCH" ] && flag="PATCH"
+		fi
+		path=$slak
+	fi
+	echo -n "$path:$full:$flag"
+}
+
 pack_install_spkg()
 {
-	local info=$1
-	# info should already been validated
-	local spkg=$2
-	local slak=$3
+	local info=$1 # validated info
+	local spkg=$2 # entry in lists
+	local slak=$3 # find_slak
+	local find=`pack_find_spkg_new $info $spkg $slak`
+	local that=`echo $find | cut -d: -f1`
+	local full=`echo $find | cut -d: -f2`
+	local flag=`echo $find | cut -d: -f3`
+	local name=`echo $spkg | cut -d! -f2`
+	# check
+	[ ! -d "$that" ] && warn_msg "Invalid '$that' for '$name'!\n" && return 1
+	[ ! -f "$full" ] && warn_msg "Package '$name' not in '$that'!\n" && return 1
+	[ "$flag" == "PATCH" ] && info_msg "-- $name found in patches\n"
+	# do install
 	local path=`dirname $info`
 	local root="$path/root"
-	local find
-	pack_find_spkg $info $spkg $slak
-	[ -z "$find" ] && return 1
-	installpkg --terse --root $root $find
+	installpkg --terse --root $root $full
 	return $?
 }
 
@@ -450,8 +488,10 @@ tool_list_pack()
 tool_install_pack()
 {
 	local func="tool_install_pack()"
-	local info ; pack_validate_info $1
-	local pack ; pack_validate_pack $info $2
+	local info ; pack_validate_info $1 ; shift
+	local pack ; pack_validate_pack $info $1 ; shift
+	local tell=$1 # verbose mode
+	[ -z "$tell" -o "$tell" != "--quiet" ] && tell="yes" || tell="no"
 	local path=`dirname $info`
 	local list="${path}/${pack}.list"
 	[ ! -f $list ] && error_exit "$func: List '$list' not found!\n\n"
@@ -460,24 +500,28 @@ tool_install_pack()
 	local that="$path/$pack"
 	local init ; [ ! -d "$that" ] && init="--init"
 	# prepare paths
-	info_msg "Preparing '$that' {$init:$name:$mark}\n"
+	[ "$tell" = "yes" ] && info_msg "Preparing '$that' {$init:$name:$mark}\n"
 	pack_mark $that $init --name $name --mark $mark
 	# mount overlayfs
-	pack_base_mount $info $pack
+	pack_base_mount $info $pack $tell
+	[ $? -ne 0 ] && error_exit "$func: Mount failed!\n\n"
 	# prepare relative path for custom packages
 	local pick slak=`find_slak`
 	[ ! -d "$slak" ] && error_exit "$func: Slak '$slak' not found?!\n\n"
 	# install to mounted overlay (=> module path)
-	info_msg "Installing '$pack' ($list)\n"
+	info_msg "Processing '$pack' ($list)\n"
 	for pick in `cat $list |grep -v -E '^ *#|^$'` ; do
 		local temp=`echo $pick | cut -d'!' -f2`
 		local what=`find_install_ng $temp $that`
-		[ "$what" != "" ] &&
-			info_msg --no-tag "-- '$temp' already installed in $that!\n" &&
+		if [ "$what" != "" ] ; then
+			[ "$tell" = "yes" ] &&
+				info_msg --no-tag "-- '$temp' already installed in $that!\n"
 			continue
+		fi
 		pack_install_spkg $info $pick $slak
 	done
-	pack_base_unmount $info
+	pack_base_unmount $info $tell
+	[ $? -ne 0 ] && error_exit "$func: Unmount failed!\n\n"
 }
 
 tool_verify_pack()
@@ -537,6 +581,8 @@ tool_make_module()
 	local dest=$1 ; shift
 	[ ! -d "$dest" ] && error_exit "$func: Invalid destination '$dest'!\n\n"
 	dest=`cd $dest ; pwd`
+	local tell=$1 # verbose mode
+	[ -z "$tell" -o "$tell" != "--quiet" ] && tell="yes" || tell="no"
 	local flag=$1
 	case "$flag" in
 		-f|--force) flag=1 ;;
@@ -548,7 +594,10 @@ tool_make_module()
 	if [ -f "$full" ] ; then
 		local list="${path}/${pack}.list"
 		[ "$list" -nt "$full" ] && flag=1
-		[ $flag -eq 0 ] && info_msg "-- File '$full' found.\n" && return
+		if [ $flag -eq 0 ] ; then
+			[ $tell = "yes" ] && info_msg "-- File '$full' found.\n"
+			return
+		fi
 		info_msg "-- Removing existing module '$full'... "
 		rm -rf $full
 		info_msg --no-tag "done.\n"
@@ -563,8 +612,7 @@ tool_make_module()
 }
 
 TOOL_TASK=$1 ; shift
-[ -z "$TOOL_TASK" ] &&
-	info_msg "No task given for $TOOL_NAME\n" && exit 0
+[ -z "$TOOL_TASK" ] && info_msg "No task given for $TOOL_NAME\n" && exit 0
 
 case $TOOL_TASK in
 	make) tool_make_dist $@ ;;
