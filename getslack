@@ -16,8 +16,7 @@ done
 [ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64" || SLACKSUFX=
 [ -z "$SLACKNAME" ] && SLACKNAME="slackware$SLACKSUFX"
 [ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
-[ -z "$SLACKVERS" ] && [ ! -f /etc/slackware-version ] && SLACKVERS="current" ||
-	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+[ -z "$SLACKVERS" ] && SLACKVERS="current"
 SLACKFULL=$SLACKNAME-$SLACKVERS
 SLACKTREE=$SLACKROOT/$SLACKFULL
 # setup rsync stuffs
@@ -26,6 +25,8 @@ RSYNC_BIN=`which rsync 2>/dev/null`
 [ -z "$RSYNCURLROOT" ] && RSYNCURLROOT="slackware.mirrors.tds.net::slackware/"
 RSYNC_URL="$RSYNCURLROOT$SLACKFULL/"
 RSYNC_OPT="--delete --delete-excluded --partial -rlptD --progress"
+[ -z "$EXCLUDES" ] && EXCLUDES="--exclude=pasture/ --exclude=testing/" &&
+	EXCLUDES="$EXCLUDES --exclude=extra/ --exclude=source/"
 # start actual mirroring process - reduced version of alien_bob's script
 echo -e "#\n# Checking and changing to $SLACKTREE ...\n#"
 [ ! -d $SLACKTREE ] && mkdir -pv $SLACKTREE ; cd $SLACKTREE
