@@ -34,12 +34,14 @@ TOOL_HELP=`cat <<SETHELPMSG
 Usage:
   $TOOL_NAME [task] [options]
 Task:
-  help   : Show this help message
-  list   : List all local scripts
-  update : Updates package list in work path
-  fetch  : Fetch a package (and optionally all deps)
-  build  : Build a package (and optionally all deps)
-  fresh  : Update all local scripts
+  help      : Show this help message
+  list      : List all local scripts
+  update    : Updates package list in work path
+  fetch     : Fetch a package (and optionally all deps)
+  build     : Build a package (and optionally all deps)
+  fresh     : Update all local scripts
+  check     : Check installed package version against list
+  check-rev : Check reverse dependencies
 Options:
   --path | -p </path/to/slackbuilds>
   --pack | -g </sub/path/to/package/group>
@@ -49,7 +51,7 @@ Options:
   --buildup | -b : Force build even already installed
   --verbose | -v : Show more information (for --check-installed)
   --new          : Force fresh download of everything
-  (*)            : First options without '-' is considered a pacakge name
+  (*)            : First option without '-' is considered a package name
 SETHELPMSG`
 TOOL_PDIR=`dirname $TOOL_PATH`
 WORK_PATH="$TOOL_PDIR/slackbuilds" # default slackbuilds path
@@ -321,8 +323,9 @@ do_fetch_build() #DONE
 	local name=$1 ; shift
 	local pack=$1 ; shift
 	local opts=$@
+	local deps=`find_opts --depbuild $opts`
 	# update list
-	do_list_update $work ; echo
+	[ "$deps" = "" ] && do_list_update $work && echo
 	# go for it...
 	go_fetch $work $name $pack
 	# check!
@@ -340,7 +343,7 @@ do_fetch_build() #DONE
 		[ "$deps" = "%README%" ] && warn_msg "Deps info in README!" && deps=""
 		deps=`echo $deps | tr ',' ' '`
 		for that in $deps ; do
-			do_fetch_build $work $that $pack $opts
+			do_fetch_build $work $that $pack $opts --depbuild
 		done
 	fi
 }
@@ -478,6 +481,7 @@ do_check_installed() #DONE
 	local opts=$@
 	local list=`list_build $work`
 	[ -z "$list" ] && info_msg --no-tag "No scripts found!\n\n" && return
+	local find=0 done=0
 	for that in $list ; do
 		local temp info
 		info_build $that
@@ -489,17 +493,18 @@ do_check_installed() #DONE
 		pack=`echo $pack | sed "s|$work||"`
 		# look for installed
 		local base=`find_install $name`
-		[ "$base" == "" ] && continue;
+		[ "$base" == "" ] && continue; find=1
 		local test=`get_pkg_info $base`
 		local what=`echo "$test" | cut -d' ' -f2`
 		local verb=`find_opts --verbose $opts`
 		# check version
-		[ "$vers" == "$what" -a "$verb" = "" ] && continue;
+		[ "$vers" == "$what" -a "$verb" = "" ] && continue; done=1
 		# show if not the same version
 		head_msg "Installed: {$base}, Build: $name ($what)"
 		[ "$pack" != "" ] && info_msg --no-tag " [Pack: $pack]"
 		echo
 	done
+	[ $find -ne 0 -a $done -eq 0 ] && info_msg "Installed is up-to-date.\n"
 }
 
 do_check_reversedeps()
