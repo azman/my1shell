@@ -4,7 +4,6 @@
 # - written by azman@my1matrix.org
 # - manage slackware installation layers
 #   = using overlayfs
-# **TODO** update function
 
 TOOL_NAME=`basename $0`
 TOOL_PATH=`dirname $0`
@@ -375,7 +374,7 @@ pack_upgrade_spkg()
 	if [ "$base" = "$what" ] ; then
 		[ "$tell" = "yes" ] &&
 			info_msg --no-tag "-- '$temp' already installed in $that!\n"
-		return 0
+		return 1
 	fi
 	[ "$flag" == "PATCH" ] && info_msg "-- $name found in patches\n"
 	# do upgrade
@@ -485,29 +484,36 @@ tool_install_pack()
 	[ ! -f $list ] && error_exit "$func: List '$list' not found!\n\n"
 	local name=`pack_read_param $info name`
 	local mark=`pack_read_param $info mark`
-	local that="$path/$pack"
-	local init ; [ ! -d "$that" ] && init="--init"
-	# prepare paths
-	[ "$tell" = "yes" ] && info_msg "Preparing '$that' {$init:$name:$mark}\n"
-	pack_mark $that $init --name $name --mark $mark
+	local init=0 that="$path/$pack"
+	if [ ! -d "$that" ] ; then
+		info_msg "Preparing '$that' {$name:$mark}\n"
+		pack_mark $that --init --name $name --mark $mark
+		init=1
+	fi
 	# mount overlayfs
 	pack_base_mount $info $pack $tell
 	[ $? -ne 0 ] && error_exit "$func: Mount failed!\n\n"
 	# prepare relative path for custom packages
-	local pick slak=`find_slak`
+	local slak=`find_slak`
 	[ ! -d "$slak" ] && error_exit "$func: Slak '$slak' not found?!\n\n"
 	# install to mounted overlay (=> module path)
 	info_msg "Processing '$pack' ($list)\n"
+	local pick made=0
 	for pick in `cat $list |grep -v -E '^ *#|^$'` ; do
 		local temp=`echo $pick | cut -d'!' -f2`
 		local what=`find_install_ng $temp $that`
 		if [ "$what" != "" ] ; then
 			what=`echo $what | cut -d' ' -f2`
 			pack_upgrade_spkg $info $pick $slak $what $tell
+			[ $? -eq 0 ] && made=1
 		else
 			pack_install_spkg $info $pick $slak
 		fi
 	done
+	if [ $made -ne 0 -a $init -eq 0 ] ; then
+		info_msg "Marking '$that' {$name:$mark}\n"
+		pack_mark $that --name $name --mark $mark
+	fi
 	pack_base_unmount $info $tell
 	[ $? -ne 0 ] && error_exit "$func: Unmount failed!\n\n"
 }
@@ -576,7 +582,7 @@ tool_make_module()
 	else
 		tell="yes"
 	fi
-	local flag=$1
+	local show=0 flag=$1
 	case "$flag" in
 		-f|--force) flag=1 ;;
 		*) flag=0 ;;
@@ -587,16 +593,27 @@ tool_make_module()
 	if [ -f "$full" ] ; then
 		local list="${path}/${pack}.list"
 		[ "$list" -nt "$full" ] && flag=1
+		local mark=`pack_read_param $info mark`
+		mark=$that/$mark
+		[ -f "$mark" -a "$mark" -nt "$full" ] && flag=1
 		if [ $flag -eq 0 ] ; then
-			[ $tell = "yes" ] && info_msg "-- File '$full' found.\n"
+			if [ $tell = "yes" ] ; then
+				info_msg "Module name:'$name'\n"
+				info_msg "Target path:'$dest'\n"
+				info_msg "-- Target found.\n"
+			fi
 			return
 		fi
-		info_msg "-- Removing existing module '$full'... "
+		show=1
+		info_msg "Module name:'$name'\n"
+		info_msg "Target path:'$dest'\n"
+		info_msg "-- Removing existing target '$name'... "
 		rm -rf $full
 		info_msg --no-tag "done.\n"
 	fi
-	info_msg "Module name:'$name'\n"
-	info_msg "Target path:'$dest'\n"
+	[ $show -eq 0 ] &&
+		info_msg "Module name:'$name'\n" &&
+		info_msg "Target path:'$dest'\n"
 	info_msg "-- Squashing '$that' ($opts)..."
 	mksquashfs $that $full $opts >/dev/null 2>&1
 	[ $? -ne 0 ] && error_exit "$func: Error making module '$name'\n\n"
