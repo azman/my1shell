@@ -618,7 +618,7 @@ tool_make_module()
 	mksquashfs $that $full $opts >/dev/null 2>&1
 	[ $? -ne 0 ] && error_exit "$func: Error making module '$name'\n\n"
 	info_msg --no-tag "done.\n"
-	fix_path_owner $full
+	fix_path_owner $full --basename
 }
 
 TOOL_TASK=$1 ; shift
