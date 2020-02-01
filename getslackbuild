@@ -87,6 +87,7 @@ info_build() #DONE
 	# get download file name
 	local file=`echo "$desc" | grep DOWNLOAD=`
 	file=`echo "$file" | sed 's/^.*="\(.*\)".*$/\1/'`
+	file=`echo $file | tr ' ' ','`
 	# get download file name x86_64
 	local fil2=`echo "$desc" | grep DOWNLOAD_x86_64=`
 	fil2=`echo "$fil2" | sed 's/^.*="\(.*\)".*$/\1/'`
@@ -145,6 +146,7 @@ search_list() #DONE
 	vers=`echo "$vers" | sed 's/.*: \(.*\)$/\1/'`
 	local file=`echo "$text" | grep 'SLACKBUILD DOWNLOAD:'`
 	file=`echo "$file" | sed 's/.*: \(.*\)$/\1/'`
+	file=`echo $file | tr ' ' ','`
 	local fil2=`echo "$text" | grep 'SLACKBUILD DOWNLOAD_x86_64'`
 	fil2=`echo "$fil2" | sed 's/.*: \(.*\)$/\1/'`
 	local deps=`echo "$text" | grep 'SLACKBUILD REQUIRES'`
@@ -237,9 +239,10 @@ go_fetch_ware() #DONE
 	# check if tarball available?
 	local file=`echo "$info" | cut -d';' -f4`
 	local fil2=`echo "$info" | cut -d';' -f5`
-	if [ "$file" != "${file#* }" ] ; then # multiple files?
-		local temp
-		for that in $file ; do
+	if [ "$file" != "${file//,/}" ] ; then # multiple files?
+		local list=`echo $file | tr ',' ' '`
+		local temp that
+		for that in $list ; do
 			[ "$temp" = "" ] && temp=$that && continue
 			local what=`basename $that`
 			[ ! -f "${path}/${what}" ] && do_loadball $path $that
