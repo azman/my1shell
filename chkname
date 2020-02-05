@@ -45,10 +45,11 @@ function chk_name()
 
 function chk_file()
 {
+	local fpath=`pwd`
 	# check files
 	IFS_SAVE=$IFS
 	IFS=$'\n'
-	local files=($(find `pwd` -maxdepth 1 -type f | sort))
+	local files=($(find . -maxdepth 1 -type f | sed 's|\.\/||g' | sort))
 	IFS=$IFS_SAVE
 	local tfile tconv loop
 	for (( loop=0;loop<${#files[@]};loop++ )); do
@@ -56,7 +57,7 @@ function chk_file()
 		tconv=`chk_name "${tfile}"`
 		if [ "$tconv" != "$tfile" ] ; then
 			if [ "$DO_EXEC" == "YES" ]; then
-				mv "$tfile" "$tconv"
+				mv "$fpath/$tfile" "$fpath/$tconv"
 			else
 				echo "Candidate => '$tfile' to '$tconv'"
 			fi
@@ -77,13 +78,13 @@ function chk_path()
 		for (( loop=0;loop<${#paths[@]};loop++ )); do
 			tpath="${paths[$loop]}"
 			[ "$tpath" = "." ] && continue
-			tpath="${tcurr}${tpath:1}"
+			tpath="${tpath:2}"
 			tconv=`chk_name "${tpath}"`
 			#echo "  [CHECK] '$tpath' => '$tconv'"
 			if [ "$tconv" != "$tpath" ] ; then
 				if [ "$DO_EXEC" == "YES" ]; then
-					mv "$tpath" "$tconv"
-					tpath="$tconv"
+					mv "$tcurr/$tpath" "$tcurr/$tconv"
+					tpath="$tcurr/$tconv"
 				else
 					echo "Candidate => '$tpath' to '$tconv'"
 				fi
