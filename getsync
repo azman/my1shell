@@ -76,7 +76,7 @@ while  [ "$1" != "" ]; do
 		--no-update) RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --update//'` ;;
 		--dolink) RSYNCOPT="${RSYNCOPT} --copy-links --keep-dirlinks" ;;
 		--exec) RSYNCOPT=`echo "${RSYNCOPT}"|sed 's/ --dry-run//'` ;;
-		--timestamp) RSYNCOPT="${RSYNCOPT} --size-only" ;;
+		--timestamp) RSYNCOPT="${RSYNCOPT} --times --size-only" ;;
 		--exclude*) EXCLUDES="$EXCLUDES $1" ;;
 		--include*) INCLUDES="$INCLUDES $1" ;;
 		*) echo "Unknown parameter '$1'" && exit 1 ;;
