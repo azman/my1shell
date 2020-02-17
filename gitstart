@@ -7,6 +7,15 @@
 GIT_NAME=${GIT_NAME:="Azman M. Yusof"}
 GIT_MAIL=${GIT_MAIL:="azman@my1matrix.org"}
 
+while [ "$1" != "" ] ; do
+	case $1 in
+		--name) shift ; GIT_NAME=$1 ;;
+		--mail) shift ; GIT_MAIL=$1 ;;
+		-*|*) echo "Unknown option '$1'!" ;;
+	esac
+	shift
+done
+
 git config --global user.name "$GIT_NAME"
 git config --global user.email "$GIT_MAIL"
 git config --global color.diff auto
@@ -17,4 +26,5 @@ if [ -f /etc/slackware-version ]; then
 	# only on slackware?
 	git config --global core.pager "less -FXRS"
 fi
-
+# if on raspi, default editor is nano... i prefer vi/vim!
+# git config --global core.editor "vim"
