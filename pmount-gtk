@@ -14,6 +14,7 @@ if [ -f "$CHK_FILE" ] ; then
 fi
 echo $$ >$CHK_FILE
 rm -f $CHK_STAT
+CHK_TERM="st"
 
 WIN_EXEC="gtkdialog"
 WIN_TEST=`which $WIN_EXEC 2>/dev/null`
@@ -68,7 +69,7 @@ build_part()
 		open="true"
 	else
 		actl="Mount"
-		actd="pmount /dev/$name"
+		actd="$CHK_TERM -e pmount /dev/$name"
 		open="false"
 	fi
 WIN_PROG="$WIN_PROG
