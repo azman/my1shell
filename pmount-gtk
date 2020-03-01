@@ -14,7 +14,7 @@ if [ -f "$CHK_FILE" ] ; then
 fi
 echo $$ >$CHK_FILE
 rm -f $CHK_STAT
-CHK_TERM="st"
+CHK_TERM="xterm"
 
 WIN_EXEC="gtkdialog"
 WIN_TEST=`which $WIN_EXEC 2>/dev/null`
@@ -69,7 +69,8 @@ build_part()
 		open="true"
 	else
 		actl="Mount"
-		actd="$CHK_TERM -e pmount /dev/$name"
+		actd="pmount /dev/$name"
+		[ "$type" = "crypto_LUKS" ] && actd="$CHK_TERM -e $actd"
 		open="false"
 	fi
 WIN_PROG="$WIN_PROG
@@ -115,7 +116,7 @@ WIN_PROG="$WIN_PROG
 export WIN_PROG
 
 $WIN_EXEC -c -p WIN_PROG >$CHK_STAT 2>&1
-WIN_TEMP=`cat $CHK_STAT`
+WIN_TEMP=`cat $CHK_STAT | grep EXIT`
 eval "$WIN_TEMP"
 [ "$EXIT" = "next" ] && continue || break
 
