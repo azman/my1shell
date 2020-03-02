@@ -95,7 +95,7 @@ WIN_PROG="$WIN_PROG
 # main loop
 while true ; do
 
-WIN_PROG="<window title=\"$CHK_EXEC\" icon-name=\"gtk-directory\">
+WIN_PROG="<window title=\"$CHK_EXEC\" icon-name=\"gtk-harddisk\">
   <frame Mountable Partition/Disk><vbox>"
 
 LIST=`find_part`
