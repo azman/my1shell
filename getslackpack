@@ -16,8 +16,7 @@ done
 [ "$SLACKARCH" == "x86_64" ] && SLACKSUFX="64" || SLACKSUFX=
 [ -z "$SLACKNAME" ] && SLACKNAME="slackware$SLACKSUFX"
 [ -z "$SLACKVERS" ] && [ -n "$VERS" ] && SLACKVERS=$VERS
-[ -z "$SLACKVERS" ] && [ ! -f /etc/slackware-version ] && SLACKVERS="current" ||
-	SLACKVERS=`cat /etc/slackware-version | sed 's/Slackware //'`
+[ -z "$SLACKVERS" ] && SLACKVERS="current"
 SLACKFULL=$SLACKNAME-$SLACKVERS
 SLACKPATH=$SLACKROOT/slackpack$SLACKSUFX-$SLACKVERS
 # temporary path
