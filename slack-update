@@ -35,12 +35,6 @@ $TOOL_PATH/getslack
 $TOOL_PATH/getslackpack --sweep --exec
 $TOOL_PATH/getslackbuild fresh
 
-# in case we have 32-bit chroot
-if [ -d /opt/chroot32 ] ; then
-	ARCH=x86 $TOOL_PATH/getslack
-	ARCH=x86 $TOOL_PATH/getslackpack --sweep --exec
-fi
-
 do_notify()
 {
 	echo -ne  "\n-----------------"

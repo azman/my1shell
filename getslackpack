@@ -504,7 +504,7 @@ do_execthat() #DONE
 	[ -z "$path" ] && path=$SLACKPATH
 	[ ! -d "$path" ] && echo "$func: Creating '$path'" && mkdir -p $path
 	path=`cd $path ; pwd`
-	[ -z "$temp" ] && echo "$func: Empty pack list!" && exit 1
+	[ -z "$temp" ] && exit 1
 	local list ; create_list $temp
 	local size=0 step
 	temp=`echo $list | tr ';' ' '`
