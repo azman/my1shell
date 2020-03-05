@@ -5,6 +5,17 @@ BIND_THIS="proc sys home dev"
 
 [ $UID -ne 0 ] && echo "Must run as root!" && exit 1
 
+if [ "$1" == "--init" ] ; then
+	echo -n "Copying user/group info to '$ROOT_PATH'... "
+	# copy user/group info files
+	for that in passwd passwd- group group- shadow ; do
+		that="/etc/$that"
+		cp $that $ROOT_PATH/$that
+	done
+	echo "done."
+	exit 0
+fi
+
 # prepare this here... one-off!
 SSHD_CONF="/etc/ssh/sshd_config"
 [ ! -f "$SSHD_CONF" ]
@@ -21,6 +32,15 @@ SSHD_LINES`
 	echo -ne "\n$SSHD_WHAT\n\n" >> $SSHD_CONF
 fi
 
+# check if sshd is running... if it is not, run it!
+SSHD_TEST=`ps -ef | grep sshd | grep -v grep`
+if [ "$SSHD_TEST" = "" ] ; then
+	echo -n "Running ssh daemon... "
+	sh /etc/rc.d/rc.sshd start
+	echo "done."
+fi
+
+# mount stuffs
 for path in ${BIND_THIS} ; do
 	target=${ROOT_PATH}/$path
 	[ ! -d "$target" ] && echo "Cannot find $target! Ignored!" && continue

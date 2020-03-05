@@ -6,7 +6,7 @@
 #   = requires libmy1file
 
 MY1_LIBNAME="libmy1slack"
-MY1_LIBVERS="2019.11.00"
+MY1_LIBVERS="2020.03.00"
 MY1_LIBCALL=`basename $0 .sh`
 
 # slack info gathering
@@ -39,6 +39,8 @@ find_slackvers()
 	[ ! -f "${path}${file}" ] && echo -n "" && return
 	# get slackware version
 	local vers=`cat ${path}${file} | sed 's/Slackware //'`
+	vers="${vers//.0/}" # 13.37 has a .0 ! :p
+	[ "${vers//+/}" != "$vers" ] && vers="current"
 	echo -n $vers
 }
 
