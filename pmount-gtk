@@ -76,6 +76,7 @@ build_part()
 		[ "$type" = "crypto_LUKS" ] && actd="$CHK_TERM -e $actd"
 		open="false"
 	fi
+	local actm="rox /media/$name"
 WIN_PROG="$WIN_PROG
     <hbox>
     <text><label>$that ($what) {$type}</label></text>
@@ -85,9 +86,9 @@ WIN_PROG="$WIN_PROG
       <action type=\"exit\">next</action>
     </button>"
 WIN_PROG="$WIN_PROG
-    <button xalign=\"0\" tooltip-text=\"$that\">
+    <button xalign=\"0\" tooltip-text=\"$actm\">
       <label>Open</label>
-      <action>rox /media/$name</action>
+      <action>$actm</action>
       <action type=\"exit\">next</action>
       <sensitive>$open</sensitive>
     </button>"
