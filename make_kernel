@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# make_kernel
+# - written by azman@my1matrix.org
+# - make new kernel for slackware
+
+PICK_VERS=`uname -r`
+PICK_PATH=`pwd`
+PICK_EXEC=0
+PICK_CONF=0
+PICK_KEEP=0
+COPY_EXTD=`uname -m`
+[ "$COPY_EXTD" = "x86_64" ] && COPY_EXTD=".x64" || COPY_EXTD=
+COPY_VERS=`uname -r`
+COPY_CONF="/boot/config-generic-${COPY_VERS}$COPY_EXTD"
+
+verify_path()
+{
+	[ ! -d $1 ] && echo "Invalid path '$1'!" && exit 1
+}
+
+while [ ! -z "$1" ] ; do
+	case $1 in
+		-x|--exec) PICK_EXEC=1 ;;
+		-c|--conf) PICK_CONF=1 ;;
+		-k|--keep) PICK_KEEP=1 ;;
+		-p|--path) verify_path $1 ; PICK_PATH=`cd $1 ; pwd` ;;
+		-*) echo "Unknown option $1!" && exit 1 ;;
+		[0-9]*) PICK_VERS=$1 ;;
+		*) echo "Unknown param $1!" && exit 1
+	esac
+	shift
+done
+
+[ $UID -ne 0 ] && echo "Must be root!" && exit 1
+PICK_FILE="linux-${PICK_VERS}.tar.xz"
+PICK_FULL="$PICK_PATH/${PICK_FILE}"
+[ ! -f "$PICK_FULL" ] && echo "Cannot find file '${PICK_FULL}'!" && exit 1
+PICK_BASE=`basename $PICK_FULL .tar.xz`
+cd /usr/src
+if [ $PICK_KEEP -eq 0 ] ; then
+	[ -d "$PICK_BASE" ] && echo "Removing old $PICK_BASE!" && rm -rf $PICK_BASE
+	echo "-- Extracting $PICK_FILE to "`pwd`
+	tar xf $PICK_FULL
+	[ $? -ne 0 ] && echo "Something went wrong... aborting!" && exit 1
+	[ ! -d "$PICK_BASE" ] && echo "Cannot find $PICK_BASE!" && exit 1
+	cd $PICK_BASE
+	PICK_MAIN=`pwd`
+	[ ! -f "$COPY_CONF" ] && echo "Cannot find $COPY_CONF!" && exit 1
+	cp $COPY_CONF .config
+	echo "-- Running make olddefconfig..."
+	make olddefconfig
+else
+	[ ! -d "$PICK_BASE" ] && echo "Cannot find $PICK_BASE!" && exit 1
+	cd $PICK_BASE
+	PICK_MAIN=`pwd`
+fi
+# if required, run another make config to customize
+[ $PICK_CONF -ne 0 ] && make menuconfig
+# build kernel AND modules
+make bzImage modules
+[ $? -ne 0 ] && echo "Something went wrong???" && exit 1
+
+echo "Kernel $PICK_BASE ready!"
+
+exit 0

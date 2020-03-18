@@ -5,7 +5,7 @@
 # - simple script to install kernel from (built/made) linux kernel tree
 
 CURR=`pwd`
-VERS=`basename $CURR | cut -d'-' -f2`
+FROM="/usr/src"
 NAME="my1"
 BOOT="vmlinuz"
 CONF="config"
@@ -14,15 +14,29 @@ EXTD=`uname -m`
 [ "$EXTD" = "x86_64" ] && EXTD=".x64" || EXTD=
 EXEC=0
 
+verify_path()
+{
+	[ ! -d $1 ] && echo "Invalid path '$1'!" && exit 1
+}
+
 while [ ! -z "$1" ] ; do
 	case $1 in
 		-x|--exec) EXEC=1 ;;
 		-n|--name) NAME=$1 ;;
+		-p|--path) verify_path $1 ; FROM=`cd $1 ; pwd` ;;
 		-*) echo "Unknown option $1!" && exit 1 ;;
+		[0-9]*) VERS=$1 ;;
 		*) echo "Unknown param $1!" && exit 1 ;;
 	esac
 	shift
 done
+
+[ "$VERS" = "" ] && echo "No kernel version given!" && exit 1
+FULL="linux-$VERS"
+MAIN="$FROM/$FULL"
+[ ! -d "$MAIN" ] && echo "Cannot find kernel path '$MAIN'!" && exit 1
+cd $MAIN
+MODS="/lib/modules/$VERS"
 
 BOOT_SRC="arch/x86/boot/bzImage"
 CONF_SRC=".$CONF"
@@ -31,7 +45,7 @@ BOOT_TGT="$BOOT-$NAME-$VERS"
 CONF_TGT="$CONF-$NAME-$VERS$EXTD"
 SMAP_TGT="$SMAP-$NAME-$VERS"
 
-echo "Path:{$CURR} Version:{$VERS}"
+echo "Path:{$MAIN} Version:{$VERS}"
 
 if [ $UID -ne 0 ] ; then
 	echo "Must be root!"
@@ -60,13 +74,14 @@ check_target()
 check_target /boot $BOOT_TGT
 check_target /boot $CONF_TGT
 check_target /boot $SMAP_TGT
+[ -d "$MODS" ] && echo "Modules path '$MODS' detected! Aborting!" && exit 1
 
 if [ $EXEC -ne 0 ] ; then
 	echo -n "Install kernel... "
 	# copy stuffs to /boot
-	cp $BOOT_SRC $BOOT_TGT
-	cp $CONF_SRC $CONF_TGT
-	cp $SMAP_SRC $SMAP_TGT
+	cp $BOOT_SRC /boot/$BOOT_TGT
+	cp $CONF_SRC /boot/$CONF_TGT
+	cp $SMAP_SRC /boot/$SMAP_TGT
 	# also install modules
 	echo "done."
 	echo -h "Install modules... "
