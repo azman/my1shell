@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# install_kernel
+# - written by azman@my1matrix.org
+# - simple script to install kernel from (built/made) linux kernel tree
+
+CURR=`pwd`
+VERS=`basename $CURR | cut -d'-' -f2`
+NAME="my1"
+BOOT="vmlinuz"
+CONF="config"
+SMAP="System.map"
+EXTD=`uname -m`
+[ "$EXTD" = "x86_64" ] && EXTD=".x64" || EXTD=
+EXEC=0
+
+while [ ! -z "$1" ] ; do
+	case $1 in
+		-x|--exec) EXEC=1 ;;
+		-n|--name) NAME=$1 ;;
+		-*) echo "Unknown option $1!" && exit 1 ;;
+		*) echo "Unknown param $1!" && exit 1 ;;
+	esac
+	shift
+done
+
+BOOT_SRC="arch/x86/boot/bzImage"
+CONF_SRC=".$CONF"
+SMAP_SRC="$SMAP"
+BOOT_TGT="$BOOT-$NAME-$VERS"
+CONF_TGT="$CONF-$NAME-$VERS$EXTD"
+SMAP_TGT="$SMAP-$NAME-$VERS"
+
+echo "Path:{$CURR} Version:{$VERS}"
+
+if [ $UID -ne 0 ] ; then
+	echo "Must be root!"
+	echo "-- $BOOT_SRC => $BOOT_TGT"
+	echo "-- $CONF_SRC => $CONF_TGT"
+	echo "-- $SMAP_SRC => $SMAP_TGT"
+	exit 1
+fi
+
+check_source()
+{
+	local file=$1
+	[ ! -f "$file" ] && echo "Cannot find '$file'! Aborting!" && exit 1
+}
+check_source $BOOT_SRC
+check_source $CONF_SRC
+check_source $SMAP_SRC
+
+check_target()
+{
+	local path=$1
+	local file=$2
+	local full=$path/$file
+	[ -f "$full" ] && echo "Target exists '$full'! Aborting!" && exit 1
+}
+check_target /boot $BOOT_TGT
+check_target /boot $CONF_TGT
+check_target /boot $SMAP_TGT
+
+if [ $EXEC -ne 0 ] ; then
+	echo -n "Install kernel... "
+	# copy stuffs to /boot
+	cp $BOOT_SRC $BOOT_TGT
+	cp $CONF_SRC $CONF_TGT
+	cp $SMAP_SRC $SMAP_TGT
+	# also install modules
+	echo "done."
+	echo -h "Install modules... "
+	make modules_install
+	echo "done."
+fi
