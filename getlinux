@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# getlinux
+# - written by azman@my1matrix.org
+
+TOOL_NAME=`basename $0 .sh`
+PICK_VERS="5.4.25"
+PICK_EXEC=0
+
+while [ ! -z "$1" ] ; do
+	case $1 in
+		-x|--exec) PICK_EXEC=1 ;;
+		-*) echo "Unknown option $1!" && exit 1 ;;
+		[0-9]*) PICK_VERS=$1 ;;
+		*) echo "Unknown param $1!" && exit 1
+	esac
+	shift
+done
+
+get_latest_longterm()
+{
+	local test=`curl -s -L http://www.kernel.org | grep longterm -A2 -m1`
+	[ -z "$test" ] && return
+	local vers=`echo "$test" | sed -n 2p | sed -e 's/^[ \t]*//'`
+	vers=`echo $vers | sed -e 's|^[^>]*>[^>]*>\([^<]*\)<.*$|\1|'`
+	local when=`echo "$test" | sed -n 3p | sed -e 's/^[ \t]*//'`
+	when=`echo $when | sed -e 's|^[^>]*>\([^<]*\)<.*$|\1|'`
+	echo -n "$vers:$when"
+}
+
+show_latest_longterm()
+{
+	local that=`get_latest_longterm`
+	[ -z "$that" ] && echo "Cannot get info - offline?" && return
+	local vers=`echo $that | cut -d':' -f1`
+	local when=`echo $that | cut -d':' -f2`
+	echo "-- Latest longterm version: $vers ($when)"
+}
+show_latest_longterm
+
+check_kernel_version()
+{
+	local vers=$1
+	local http="https://www.kernel.org/pub/"
+	local that="${http}linux/kernel/"
+	local pick=`echo $vers | cut -d'.' -f1`
+	local path="${that}v${pick}.x/"
+	local file="linux-${vers}.tar.xz"
+	local full="${path}${file}"
+	local test_url="http://www.google.com"
+	# check if we are online!
+	wget --spider $test_url >/dev/null 2>&1
+	[ $? -ne 0 ] && echo "offline;$full" && return
+	# check path
+	wget --spider $path >/dev/null 2>&1
+	[ $? -ne 0 ] && echo -n "ko-path;$full" && return
+	# check file
+	wget --spider $full >/dev/null 2>&1
+	[ $? -ne 0 ] && echo -n "ko-file;$full" || echo -n "ok;$full"
+}
+
+PICK_THAT=`check_kernel_version $PICK_VERS`
+PICK_TEST=`echo $PICK_THAT | cut -d';' -f1`
+PICK_FULL=`echo $PICK_THAT | cut -d';' -f2`
+PICK_PATH=`dirname $PICK_FULL`
+PICK_FILE=`basename $PICK_FULL`
+case $PICK_TEST in
+	offline) echo "[ERROR] Are we offline? Aborting!" ; exit 1 ;;
+	ko-path) echo "[ERROR] Invalid pick? ($PICK_PATH)" ; exit 1 ;;
+	ko-file) echo "[ERROR] Not found? ($PICK_FULL)" ; exit 1 ;;
+	ok) echo "-- Requested kernel: $PICK_FILE" ;;
+	*) echo "[ERROR] Unknown response? $PICK_THAT" ; exit 1 ;;
+esac
+
+get_kernel()
+{
+	local full=$1
+	local file=`basename $full`
+	local name=`basename $file .tar.xz`
+	echo -ne "\nDownloading $name:     "
+	local opts="--continue --no-use-server-timestamps --progress=dot"
+	wget $opts $full 2>&1 | \
+		grep --line-buffered "%" | sed -u -e "s,\.,,g" | \
+		awk '{printf("\b\b\b\b%4s", $2)}'
+	[ ! -r "$file" ] &&
+		echo -e "\nCannot download source $file!\n" ||
+		echo -e "\b\b\b\b DONE!\n"
+}
+[ $PICK_EXEC -ne 0 ] && get_kernel $PICK_FULL
+
+exit 0
