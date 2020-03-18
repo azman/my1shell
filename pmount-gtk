@@ -16,6 +16,11 @@ echo $$ >$CHK_FILE
 rm -f $CHK_STAT
 CHK_TERM="xterm"
 
+POS_OPTS="-G +0-0"
+[ "$1" == "--center" ] && POS_OPTS="-c"
+
+WIN_OPTS="--class pmount-gtk"
+WIN_OPTS="$WIN_OPTS $POS_OPTS"
 WIN_EXEC="gtkdialog"
 WIN_TEST=`which $WIN_EXEC 2>/dev/null`
 [ ! -x "$WIN_TEST" ] && echo "Cannot find $WIN_EXEC! Aborting!" && exit 1
@@ -123,7 +128,7 @@ WIN_PROG="$WIN_PROG
 </window>"
 export WIN_PROG
 
-$WIN_EXEC -c -p WIN_PROG >$CHK_STAT 2>&1
+$WIN_EXEC $WIN_OPTS -p WIN_PROG >$CHK_STAT 2>&1
 WIN_TEMP=`cat $CHK_STAT | grep EXIT`
 eval "$WIN_TEMP"
 [ "$EXIT" = "next" ] && continue || break
