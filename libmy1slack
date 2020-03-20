@@ -34,9 +34,9 @@ find_slackvers()
 	local file="/etc/slackware-version"
 	# make sure path is valid
 	[ "$path" == "/" ] && path=""
-	[ "$path" != "" -a ! -d "$path" ] && echo -n "" && return
+	[ "$path" != "" -a ! -d "$path" ] && return
 	# make sure file is valid
-	[ ! -f "${path}${file}" ] && echo -n "" && return
+	[ ! -f "${path}${file}" ] && return
 	# get slackware version
 	local vers=`cat ${path}${file} | sed 's/Slackware //'`
 	vers="${vers//.0/}" # 13.37 has a .0 ! :p
@@ -44,16 +44,28 @@ find_slackvers()
 	echo -n $vers
 }
 
+find_slackfull()
+{
+	local root=$1 # full path name!
+	local name=`find_slackname $root`
+	local vers=`find_slackvers $root`
+	[ "$name" = "" -o "$vers" = "" ] && return
+	echo -n "$name-$vers"
+}
+
 find_slacktree()
 {
-	local full=$1
+	local full=$1 # e.g. `find_slackfull [root]`
 	local path=$2
-	[ -z "$full" ] && return
+	[ -z "$full" ] && full=`find_slackfull`
+	[ "$full" = "" ] && return
 	[ -z "$path" ] && path="/home" # default path to look for
 	[ ! -d "$path" ] && return
 	path=`cd $path ; pwd`
 	local opts="-maxdepth 3 -name $full -type d"
 	local tree=`find $path $opts 2>/dev/null`
+	# should return single result here! => $full is unique?
+	[ ! -d "$tree" ] && return
 	echo -n $tree
 }
 
@@ -64,33 +76,13 @@ find_slack()
 {
 	local root=$1 # full path name!
 	local home=$2
-	local name=`find_slackname $root`
-	local vers=`find_slackvers $root`
-	[ "$name" = "" -o "$vers" = "" ] && return 1
-	local full="$name-$vers"
+	local full=`find_slackfull $root`
+	[ "$full" = "" ] && return 1
+	local name=`echo $full | cut -d'-' -f1`
 	local tree=`find_slacktree $full $home`
 	local logs=$root/var/log/packages
 	[ ! -d $logs ] && logs=""
 	echo -n "$full:$root:$logs:$tree:$tree/$name"
-	return 0
-}
-
-# find current system info [DEPRECATED]
-# - sets SLACK{NAME,VERS,FULL,TREE,ROOT,PACK,LOGS} variables
-
-call_setup()
-{
-	local sys_root=$1
-	local pkg_home=$2
-	[ -z "$SLACKNAME" ] && SLACKNAME=`find_slackname $sys_root`
-	[ -z "$SLACKVERS" ] && SLACKVERS=`find_slackvers $sys_root`
-	[ "$SLACKNAME" = "" -o "$SLACKVERS" = "" ] && return 1
-	SLACKFULL="$SLACKNAME-$SLACKVERS"
-	SLACKTREE=`find_slacktree $SLACKFULL $pkg_home`
-	[ ! -d "$SLACKTREE" ] && return 2
-	SLACKROOT=`dirname $SLACKTREE`
-	SLACKPACK="$SLACKTREE/$SLACKNAME"
-	SLACKLOGS="$sys_root/var/log/packages"
 	return 0
 }
 
