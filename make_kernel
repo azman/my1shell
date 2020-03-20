@@ -24,7 +24,6 @@ while [ ! -z "$1" ] ; do
 	shift
 done
 
-[ $UID -ne 0 ] && echo "Must be root!" && exit 1
 echo "Making kernel '$PICK_VERS' in '$PICK_CURR'"
 
 if [ $PICK_INIT -ne 0 ] ; then
