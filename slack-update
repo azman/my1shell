@@ -26,7 +26,7 @@ source_lib()
 source_lib libmy1slack
 
 # make sure we are in correct path
-call_setup
+SLACKTREE=`find_slack | cut -d':' -f4`
 [ ! -d "$SLACKTREE" ] && echo "Cannot find slack @'$SLACKTREE'!" && exit 1
 cd `dirname $SLACKTREE`
 
