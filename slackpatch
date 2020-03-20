@@ -203,14 +203,18 @@ process_command()
 		root=`cd $root ; pwd`
 		opts="--root $root $opts"
 	fi
-	call_setup $root
-	[ ! -d "$SLACKTREE" ] &&
+	local find=`find_slack $root`
+	local full=`echo $find | cut -d':' -f1`
+	local slak=`echo $find | cut -d':' -f2`
+	local tree=`echo $find | cut -d':' -f4`
+	local pack=`echo $find | cut -d':' -f5`
+	[ ! -d "$tree" ] &&
 		error_exit "Cannot get info for slack in '$root'!\n\n"
-	local pick
+	local pick that
 	# process discrete package list
 	if [ ! -z "$temp" ] ; then
 		for that in $temp ; do
-			that=`find_install $that $SLACKPACK`
+			that=`find_install $that $pack`
 			[ "$that" == "" ] && error_exit "Unknown package '$that'!\n\n"
 			pick=`get_pkg_info $that | cut -d' ' -f1`
 		done
@@ -218,7 +222,7 @@ process_command()
 	# process extra package paths
 	local more
 	if [ $pure -eq 0 ] ; then
-		temp=${SLACKROOT}/${SLACKFULL//ware/pack}
+		temp=${slak}/${full//ware/pack}
 		[ -d $temp ] && more="--more $temp"
 		if [ ! -z "$path" ] ; then
 			for that in $path ; do
@@ -234,13 +238,11 @@ process_command()
 		local show
 		[ "$root" != "" ] && show="@$root"
 		echo -e "\n$TOOL_NAME - $TOOL_DESC ($TOOL_VERS)\n"
-		echo "[$SLACKFULL$show]"
+		echo "[$full$show]"
 		echo -n "Looking for patches... "
 	fi
 	# find patches
-	local tree="--tree $SLACKTREE"
-	local skip="$PKG_IGNORED"
-	local list=`list_patches $tree $more $skip`
+	local list=`list_patches --tree $tree $more $PKG_IGNORED`
 	[ "$task" == "quiet" ] && check_patch $list
 	echo -e "done!\n"
 	[ "$task" != "patch" ] && display_patches $task $what $list

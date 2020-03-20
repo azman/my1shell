@@ -23,10 +23,8 @@ source_lib libmy1slack
 source_lib libmy1echo
 source_lib libmy1file
 
-# get slackware tree info
-call_setup
 # prepare help message
-MSG_THISHELP=`cat <<SETHELPMSG
+HELP_MESG=`cat <<SETHELPMSG
 Usage:
   $TOOL_NAME <command> [options]
 Commands:
@@ -43,14 +41,12 @@ Commands:
          > --pack <>   : Select official software set
          > --installed : Select ALL installed packages
   help   : Show this help message
-Mirror Source:
-  $SLACKTREE
 SETHELPMSG`
 
 view_alien_pkgs()
 {
 	local do_echo="YES"
-	local log_path="/var/log/packages"
+	local log_path="$SLACKLOGS"
 	# find installed
 	for pkg_base in `ls $log_path` ; do
 		local pkg_name=`get_pkg_info $pkg_base | cut -d' ' -f1`
@@ -308,7 +304,7 @@ view_file_list_pack()
 
 view_file_list_install()
 {
-	local temp=`ls /var/log/packages | sed 's/^\(.*\)-[^-]*-[^-]*-[^-]*$/\1/g'`
+	local temp=`ls $SLACKLOGS | sed 's/^\(.*\)-[^-]*-[^-]*-[^-]*$/\1/g'`
 	local list=$@ tpkg
 	for tpkg in $temp ; do
 		[ -z "$list" ] && list="$tpkg" || list="$list $tpkg"
@@ -365,18 +361,30 @@ view_file_package()
 	done
 }
 
+show_help()
+{
+	echo "$HELP_MESG"
+	echo -ne "Mirror Source:\n  $SLACKTREE\n"
+	echo -ne "Packages Path:\n  $SLACKLOGS\n"
+}
+
 process_command()
 {
-	local tool_cmd
-	local pkgs_txt=$SLACKTREE/PACKAGES.TXT
-	local log_path=$SLACKLOGS
-	must_have_file $pkgs_txt
-	must_have_path $log_path
-	tool_cmd=$1; shift
-	case "$tool_cmd" in
+	local root path=$1
+	[ -d "$path" ] && root=`cd $path;pwd` && shift
+	# get slackware tree info
+	SLACKTEST=`find_slack $root`
+	SLACKLOGS=`echo $SLACKTEST | cut -d':' -f3`
+	SLACKTREE=`echo $SLACKTEST | cut -d':' -f4`
+	SLACKPACK=`echo $SLACKTEST | cut -d':' -f5`
+	must_have_path $SLACKLOGS
+	must_have_file $SLACKTREE/PACKAGES.TXT
+	# process the rest
+	local task=$1; shift
+	case "$task" in
 		find) view_find_package "$@" ;;
 		file) view_file_package "$@" ;;
-		*) echo -e "$MSG_THISHELP\n" ;;
+		*) [ "$task" = "" ] && show_help || echo "Invalid task! ($task)" ;;
 	esac
 }
 
