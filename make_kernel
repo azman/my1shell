@@ -35,10 +35,10 @@ done
 [ $UID -ne 0 ] && echo "Must be root!" && exit 1
 PICK_FILE="linux-${PICK_VERS}.tar.xz"
 PICK_FULL="$PICK_PATH/${PICK_FILE}"
-[ ! -f "$PICK_FULL" ] && echo "Cannot find file '${PICK_FULL}'!" && exit 1
 PICK_BASE=`basename $PICK_FULL .tar.xz`
 cd /usr/src
 if [ $PICK_KEEP -eq 0 ] ; then
+	[ ! -f "$PICK_FULL" ] && echo "Cannot find file '${PICK_FULL}'!" && exit 1
 	[ -d "$PICK_BASE" ] && echo "Removing old $PICK_BASE!" && rm -rf $PICK_BASE
 	echo "-- Extracting $PICK_FILE to "`pwd`
 	tar xf $PICK_FULL
