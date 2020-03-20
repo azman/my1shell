@@ -9,51 +9,52 @@ TOOL_NAME=`basename $0`
 TOOL_PATH=`dirname $0`
 TOOL_PATH=`cd $TOOL_PATH ; pwd`
 
-source_lib()
-{
-	local name=$1
-	local full=$TOOL_PATH/$name
-	[ ! -f "$full" ] && echo "Cannot find $full!" && exit 1
-	. $full
-}
+SLACKTREE="$1"
+[ ! -d "$SLACKTREE" ] && echo "Invalid tree '$SLACKTREE'!" && exit 1
+SLACKTREE=`cd $SLACKTREE ; pwd`
 
-source_lib libmy1slack
-call_setup
+IMAGEPATH="$2"
+[ "$IMAGEPATH" = "" ] && IMAGEPATH="$HOME/temp"
+[ ! -d "$IMAGEPATH" ] && echo "Invalid iso path '$IMAGEPATH'!" && exit 1
+IMAGEPATH=`cd $IMAGEPATH ; pwd`
 
-[ ! -d $SLACKTREE ] && echo "Cannot find Slackware in $SLACKTREE" && exit 1
-[ -d "$1" ] && ISOPATH=`cd $1 ; pwd`
-ISOPATH=${ISOPATH:="$HOME/temp"}
-ISONAME=${ISONAME:="${SLACKFULL}-install.iso"}
-ISOFILE=$ISOPATH/$ISONAME
+SLACKFULL=`basename $SLACKTREE`
+SLACKNAME=`echo $SLACKFULL | cut -d'-' -f1`
+SLACKVERS=`echo $SLACKFULL | cut -d'-' -f2`
+[ "${SLACKNAME//slackware/}" = "$SLACKNAME" ] &&
+	echo "Not a slackware tree? ($SLACKNAME)" && exit 1
+[ ! -d "$SLACKTREE/isolinux" ] &&
+	echo "Cannot find isolinux files in '$SLACKTREE'!" && exit 1
+
+IMAGENAME=${IMAGENAME:="${SLACKFULL}-install.iso"}
+IMAGEFILE=$IMAGEPATH/$IMAGENAME
 
 # make sure we have the tool
 MKISOFS=`which mkisofs 2>/dev/null`
 [ "$MKISOFS" == "" ] && echo "Cannot find mkisofs! Aborting!" && exit 1
 
 # check target path
-[ ! -d "$ISOPATH" ] &&
-	echo "Creating target ISO path '$ISOPATH'... " && mkdir -p $ISOPATH
-[ -f "$ISOFILE" ] &&
-	echo "Removing ISO '$ISOFILE'... " && rm -rf $ISOFILE
+[ -f "$IMAGEFILE" ] &&
+	echo "Removing ISO '$IMAGEFILE'... " && rm -rf $IMAGEFILE
 
 cd $SLACKTREE
-echo -n "Creating ISO in '$ISOPATH' from '$SLACKTREE'... "
-$MKISOFS -o $ISOFILE \
+echo -n "Creating ISO in '$IMAGEPATH' from '$SLACKTREE'... "
+$MKISOFS -o $IMAGEFILE \
 	-V "${SLACKFULL} Install DVD" \
 	-A "${SLACKFULL} Install DVD (build $(date +%Y%m%d))" \
 	-R -J -hide-rr-moved -hide-joliet-trans-tbl -d -N -v \
 	-sort isolinux/iso.sort \
 	-b isolinux/isolinux.bin -c isolinux/isolinux.boot \
 	-no-emul-boot -boot-load-size 4 -boot-info-table \
-	. >$ISOPATH/${SLACKFULL}-install_build.log 2>&1
+	. >$IMAGEPATH/${SLACKFULL}-install_build.log 2>&1
 echo "done!"
 cd - >/dev/null
 
 ISOHYBRID=`which isohybrid 2>/dev/null`
 if [ -x "$ISOHYBRID" ] ; then
-	cd $ISOPATH
-	echo -n "Making $ISONAME in '$ISOPATH' an isohybrid... "
-	$ISOHYBRID $ISONAME >>$ISOPATH/${SLACKFULL}-install_build.log 2>&1
+	cd $IMAGEPATH
+	echo -n "Making $IMAGENAME in '$IMAGEPATH' an isohybrid... "
+	$ISOHYBRID $IMAGENAME >>$IMAGEPATH/${SLACKFULL}-install_build.log 2>&1
 	[ $? -ne 0 ] && echo "error??" || echo "done!"
 	cd - >/dev/null
 fi
