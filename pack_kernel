@@ -1,0 +1,233 @@
+#!/bin/sh
+
+PACK_CURR=`pwd`
+PACK_BASE=`basename $PACK_CURR`
+PACK_TEST=`echo $PACK_BASE | cut -d'-' -f1`
+[ "$PACK_TEST" != "linux" ] && echo "Not a linux tree? ($PACK_CURR)" && exit 1
+PACK_VERS=`echo $PACK_BASE | cut -d'-' -f2`
+PACK_ARCH=`uname -m`
+PACK_MINE="my1"
+PACK_NAME="my1kernel"
+PACK_LOGS=`basename $0`".log"
+
+PACK_BOOT=0
+PACK_HEAD=0
+PACK_MODS=0
+CHK_CLEAN=0
+
+PACK_PATH=${PACK_PATH:="$HOME/temp"}
+WORK_PATH=${WORK_PATH:="$PACK_PATH/work"}
+
+while [ ! -z "$1" ] ; do
+	case $1 in
+		--boot) PACK_BOOT=1 ;; # pack boot stuff
+		--head) PACK_HEAD=1 ;; # pack header
+		--mods) PACK_MODS=1 ;; # pack modules
+		--all) PACK_BOOT=1 ; PACK_HEAD=1 ; PACK_MODS=1 ;;
+		--num) shift ; PACK_MINE=$1 ;; # tarball number?
+		--work) shift ; WORK_PATH=$1 ;;
+		--pack) shift ; PACK_PATH=$1 ;;
+		--arch) shift ; PACK_ARCH=$1 ;;
+		--clean) CHK_CLEAN=1 ;;
+		-*) echo "Unknown option $1!" && exit 1 ;;
+		*) echo "Unknown param $1!" && exit 1
+	esac
+	shift
+done
+
+# verify PACK_ARCH
+case "$PACK_ARCH" in
+	i?86) PACK_ARCH="i686" ;;
+	*) [ "$PACK_ARCH" != "x86_64" ] && PACK_ARCH="i386"
+esac
+PACK_FILE="$PACK_VERS-$PACK_ARCH-$PACK_MINE.txz"
+
+get_perm()
+{
+	local chk_this=$1
+	local chk_path
+	local chk_user chk_grpn
+	[ "$chk_this" == "." ] && chk_this=$(pwd)
+	[ "$chk_this" == ".." ] && chk_this=$(cd .. ;pwd)
+	[ ! -r "$chk_this" ] && echo -e "Cannot read '$chk_this'!" 1>&2 && return
+	chk_path=$(cd $(dirname $chk_this);pwd)
+	chk_this=$(basename $chk_this)
+	chk_user=$(ls -l "${chk_path}/" | grep -e "${chk_this}$")
+	set -- $chk_user
+	chk_user=$3
+	chk_grpn=$4
+	echo -n "$chk_user:$chk_grpn"
+}
+
+fix_perm()
+{
+	local this=$1
+	local that=$2
+	local chk1=`get_perm $this`
+	local chk2=`get_perm $that`
+	if [ "$chk1" != "$chk2" ] ; then
+		echo -n "Fixing permission for '$this' ($chk1=>$chk2)"
+		chown $chk2 $this
+		[ $? -ne 0 ] && echo "done." || echo "error?"
+	fi
+}
+
+prepare_work()
+{
+	if [ ! -d "$WORK_PATH" ] ; then
+		echo -n "Creating work path '$WORK_PATH'... "
+		mkdir -p $WORK_PATH
+		[ $? -eq 0 ] && echo "done." || echo "error?"
+		fix_perm $WORK_PATH `dirname $WORK_PATH`
+	fi
+	local root=$WORK_PATH/root
+	if [ ! -d "$root" ] ; then
+		echo -n "Creating root path '$root'... "
+		mkdir -p $root
+		[ $? -eq 0 ] && echo "done." || echo "error?"
+		fix_perm $root $WORK_PATH
+	else
+		echo -n "Removing stuffs in in '$root'... "
+		rm -rf $root/*
+		[ $? -eq 0 ] && echo "done." || echo "error?"
+	fi
+
+}
+
+cleanup_work()
+{
+	if [ -d "$WORK_PATH" ] ; then
+		echo -n "Removing '$WORK_PATH'... "
+		rm -rf $WORK_PATH
+		[ $? -eq 0 ] && echo "done." || echo "error?"
+	fi
+}
+
+make_slackpkg()
+{
+	local root=$1 # path to package root
+	[ ! -d "$root" ] && echo "Cannot find root '$root'!" && exit 1
+	local ball=$2 # full package file name
+	local path=`dirname $ball`
+	local name=`basename $ball`
+	[ -f "$ball" ] && echo "Existing package '$ball'!" && exit 1
+	[ ! -d "$path" ] && mkdir -pv $path && fix_perm $path `dirname $path`
+	local curr=`pwd`
+	echo "-- Making slack package '$name' from '$root'"
+	cd $root
+	# all should be owned by root?
+	chown -R root:root *
+	/sbin/makepkg -l y -c n $ball >>$logs 2>&1
+	cd $curr
+	fix_perm $ball $path
+}
+
+pack_module()
+{
+	local logs=$WORK_PATH/$PACK_LOGS
+	local ball="$PACK_NAME-modules-$PACK_FILE"
+	echo "-- Preparing to make $ball"
+	prepare_work
+	local path=$WORK_PATH/root
+	# install modules
+	echo -n "Installing kernel modules in '$path'... "
+	make INSTALL_MOD_PATH=$path modules_install >>$logs 2>&1
+	echo "done."
+	# duh!
+	local vers=$PACK_VERS
+	echo -n "-- Running 'depmod -b $path -a $vers'... "
+	depmod -b $path -a $vers
+	echo "done."
+	# make slack package
+	make_slackpkg $path $PACK_PATH/$ball
+}
+
+pack_header()
+{
+	local logs=$WORK_PATH/$PACK_LOGS
+	local ball="$PACK_NAME-headers-$PACK_FILE"
+	echo "-- Preparing to make $ball"
+	prepare_work
+	local path=$WORK_PATH/root
+	local arch=$PACK_ARCH
+	# install headers
+	echo -n "Installing kernel headers ($arch) in '$path'... "
+	make headers_install ARCH=$arch INSTALL_HDR_PATH=$path/usr >>$logs 2>&1
+	[ $? -eq 0 ] && echo "done." || echo "error?"
+	# trim? from slackware...
+	if [ -d "$path/usr/include" ] ; then
+		echo -n "-- Doing stuffs... "
+		local curr=`pwd`
+		cd $path/usr/include
+		rm -rf drm
+		mv asm asm-${arch}
+		ln -sf asm-${arch} asm
+		find . -name ".??*" -exec rm -f {} \+
+		cd $curr
+		echo "done."
+	fi
+	# make slack package
+	make_slackpkg $path $PACK_PATH/$ball
+}
+
+check_source()
+{
+	local file=$1
+	[ ! -f "$file" ] && echo "Cannot find '$file'! Aborting!" && exit 1
+}
+
+copy2_target()
+{
+	local file=$1
+	local dest=$2
+	local path=`dirname $dest`
+	[ ! -d "$path" ] && mkdir -p $path
+	cp $file $dest
+}
+
+pack_kernel()
+{
+	local logs=$WORK_PATH/$PACK_LOGS
+	local ball="$PACK_NAME-$PACK_FILE"
+	echo "-- Preparing to make $ball"
+	# kernel-related
+	local boot="vmlinuz"
+	local conf="config"
+	local smap="System.map"
+	# check sources
+	local boot_src="arch/x86/boot/bzImage"
+	local conf_src=".$conf"
+	local smap_src="$smap"
+	check_source $boot_src
+	check_source $conf_src
+	check_source $smap_src
+	# target names
+	local extd=`uname -m`
+	[ "$extd" = "x86_64" ] && extd=".x64" || extd=
+	local boot_tgt="$boot-$PACK_MINE-$PACK_VERS"
+	local conf_tgt="$conf-$PACK_MINE-$PACK_VERS$extd"
+	local smap_tgt="$smap-$PACK_MINE-$PACK_VERS"
+	prepare_work
+	local path=$WORK_PATH/root
+	local boot_chk="$path/boot/$boot_tgt"
+	local conf_chk="$path/boot/$conf_tgt"
+	local smap_chk="$path/boot/$smap_tgt"
+	# copy kernel files
+	echo -n "Copying kernel files... "
+	copy2_target $boot_src $boot_chk
+	copy2_target $conf_src $conf_chk
+	copy2_target $smap_src $smap_chk
+	echo "done."
+	# make slack package
+	make_slackpkg $path $PACK_PATH/$ball
+}
+
+echo "-- Current path:$PACK_CURR"
+echo "-- Kernel version:$PACK_VERS"
+echo "-- Package path:$PACK_PATH"
+echo "-- Work path:$WORK_PATH"
+
+[ $PACK_BOOT -ne 0 ] && pack_kernel
+[ $PACK_HEAD -ne 0 ] && pack_header
+[ $PACK_MODS -ne 0 ] && pack_module
+[ $CHK_CLEAN -ne 0 ] && cleanup_work
