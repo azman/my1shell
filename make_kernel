@@ -3,6 +3,8 @@
 # make_kernel
 # - written by azman@my1matrix.org
 # - make new kernel for slackware
+# - should extract kernel source in /usr/src
+#   = matters when creating link to source when installing!
 
 PICK_CURR=`pwd`
 PICK_BASE=`basename $PICK_CURR`
