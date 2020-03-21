@@ -14,6 +14,7 @@ PICK_VERS=`echo $PICK_BASE | cut -d'-' -f2`
 PICK_INIT=0
 PICK_EXEC=0
 PICK_CONF=0
+PICK_JOBS=4
 
 while [ ! -z "$1" ] ; do
 	case $1 in
@@ -46,7 +47,7 @@ fi
 # build kernel AND modules
 if [ $PICK_EXEC -ne 0 ] ; then
 	echo "-- Making kernel..."
-	make bzImage modules
+	make -j$PICK_JOBS bzImage modules
 	[ $? -ne 0 ] && echo "Something went wrong???" && exit 1
 	echo "-- Kernel $PICK_BASE ready!"
 fi

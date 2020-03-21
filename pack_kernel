@@ -227,6 +227,7 @@ echo "-- Kernel version:$PACK_VERS"
 echo "-- Package path:$PACK_PATH"
 echo "-- Work path:$WORK_PATH"
 
+[ $UID -ne 0 ] && echo "Must be root to package this!" && exit 1
 [ $PACK_BOOT -ne 0 ] && pack_kernel
 [ $PACK_HEAD -ne 0 ] && pack_header
 [ $PACK_MODS -ne 0 ] && pack_module
