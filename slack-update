@@ -34,6 +34,7 @@ cd `dirname $SLACKTREE`
 $TOOL_PATH/getslack
 $TOOL_PATH/getslackpack --sweep --exec
 $TOOL_PATH/getslackbuild fresh
+$TOOL_PATH/getslackbuild check | grep PATCH
 
 do_notify()
 {

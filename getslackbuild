@@ -503,6 +503,7 @@ do_check_installed() #DONE
 		# check version
 		[ "$vers" == "$what" -a "$verb" = "" ] && continue; done=1
 		# show if not the same version
+		head_msg --tag "[PATCH]"
 		head_msg "Installed: {$base}, Build: $name ($vers)"
 		[ "$pack" != "" ] && info_msg --no-tag " [Pack: $pack]"
 		echo
