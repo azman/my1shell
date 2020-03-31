@@ -16,7 +16,7 @@ echo $$ >$CHK_FILE
 rm -f $CHK_STAT
 CHK_TERM="xterm"
 
-POS_OPTS="-G +0-0"
+POS_OPTS="-G +0+0"
 [ "$1" == "--center" ] && POS_OPTS="-c"
 
 WIN_OPTS="--class pmount-gtk"
