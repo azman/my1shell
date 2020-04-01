@@ -414,7 +414,7 @@ go_build() #DONE
 			qver=`echo "$temp" | cut -d' ' -f2`
 			[ "$qver" == "$vers" ] && flag="--reinstall"
 			# go upgrade!
-			info_msg "Upgrading '$ball' ($bver -> $qver)... "
+			info_msg "Upgrading '$ball' ($bver -> $vers)... "
 			upgradepkg $flag $ball >>$logs 2>&1
 			[ $? -ne 0 ] && error_exit "Error upgrading '$ball'!\n\n"
 			info_msg --no-tag "done!\n"
