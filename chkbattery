@@ -10,7 +10,7 @@ BATT_PATH=""
 BATT_NAME=""
 
 if [ -d ${INFO_PATH} ] ; then
-	BATT_PATH=`find ${INFO_PATH} -name "BAT*" -maxdepth 1`
+	BATT_PATH=`find ${INFO_PATH} -maxdepth 1 -name "BAT*"`
 	# filter in case multiple battery?
 	BATT_PATH=`echo ${BATT_PATH} | sed 's/\([^\s]*\)\s.*/\1/'`
 	# check if really BAT entry? must have present?
