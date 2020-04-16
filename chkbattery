@@ -67,6 +67,7 @@ if [ "$BATT_MISS" == "NO" ] ; then
 	fi
 	SUM_VBATT="VBAT=${VOLT_TEMP}%"
 	CHK_VBATT="$SUM_VBATT {${VOLT_CURR}mV/${VOLT_DMIN}mV}"
+	MIN_VBATT="{V:${VOLT_TEMP}%}"
 else
 	CURR_BATT="0"
 	FULL_BATT="0"
@@ -76,6 +77,7 @@ else
 	_CHARGING="No battery!"
 	CHK_STATE="AC"
 	CHK_VBATT="AC"
+	MIN_VBATT="AC"
 fi
 
 MAIN_INFO="$CURR_PCTG% <$_CHARGING>"
@@ -90,6 +92,7 @@ BATT_FULL="$BATT_FULL [${BATT_NAME}]"
 case "$1" in
 	--basic) echo "$CHK_BASIC" ;;
 	--state) echo "$CHK_STATE" ;;
+	--vbatt) echo "$MIN_VBATT" ;;
 	*) echo "$BATT_FULL" ;;
 esac
 
