@@ -20,7 +20,7 @@ make_link()
 	here=`pwd`
 	echo "Creating links in '$here':"
 	local path name
-	for path in `find $that -maxdepth 1` ; do
+	for path in `find $that -mindepth 1 -maxdepth 1` ; do
 		[ "$path" = "$that" ] && continue
 		name=`basename $path`
 		echo -n "-- $name -> ($path) ... "
