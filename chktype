@@ -25,7 +25,8 @@ struct size_item_t sizelist[] =
 	{"long long",sizeof(long long)},
 	{"float",sizeof(float)},
 	{"double",sizeof(double)},
-	{"long double",sizeof(long double)}
+	{"long double",sizeof(long double)},
+	{"void*",sizeof(void*)}
 };
 int sizesize = sizeof(sizelist)/sizeof(struct size_item_t);
 int main(void)
