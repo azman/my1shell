@@ -66,8 +66,8 @@ if [ "$BATT_MISS" == "NO" ] ; then
 		CHK_STATE="$CURR_PCTG%??"
 	fi
 	SUM_VBATT="VBAT=${VOLT_TEMP}%"
-	CHK_VBATT="$SUM_VBATT {${VOLT_CURR}mV/${VOLT_DMIN}mV}"
-	MIN_VBATT="{V:${VOLT_TEMP}%}"
+	ALL_VBATT="$SUM_VBATT {${VOLT_CURR}mV/${VOLT_DMIN}mV}"
+	CHK_VBATT="$VOLT_TEMP"
 else
 	CURR_BATT="0"
 	FULL_BATT="0"
@@ -76,8 +76,8 @@ else
 	CURR_PCTG="100"
 	_CHARGING="No battery!"
 	CHK_STATE="AC"
-	CHK_VBATT="AC"
-	MIN_VBATT="AC"
+	ALL_VBATT="AC"
+	CHK_VBATT="100"
 fi
 
 MAIN_INFO="$CURR_PCTG% <$_CHARGING>"
@@ -86,13 +86,24 @@ CHK_BASIC="$MAIN_INFO"
 CHK_BASIC="$CHK_BASIC [${BATT_NAME}]"
 RATE_INFO="RATE=$RATE_BATT {$CURR_BATT/$FULL_BATT@$PREV_BATT}"
 BATT_FULL="$MAIN_INFO $RATE_INFO"
-[ ! -z "$CHK_VBATT" ] && BATT_FULL="$BATT_FULL $CHK_VBATT"
+[ ! -z "$ALL_VBATT" ] && BATT_FULL="$BATT_FULL $ALL_VBATT"
 BATT_FULL="$BATT_FULL [${BATT_NAME}]"
+
+# since xfce4 power manager CANNOT set critical level above 20%
+# - here, i use battery voltage level though!
+# - used with genmon plugin
+do_hibernate()
+{
+	local curr=$1
+	local test=$2
+	[ -z "$curr" -o -z "$test" ] && return
+	[ $curr -lt $test ] && xfce4-session-logout --hibernate
+}
 
 case "$1" in
 	--basic) echo "$CHK_BASIC" ;;
 	--state) echo "$CHK_STATE" ;;
-	--vbatt) echo "$MIN_VBATT" ;;
+	--vbatt) echo "${CHK_VBATT}%" ; do_hibernate $CHK_VBATT $2 ;;
 	*) echo "$BATT_FULL" ;;
 esac
 
