@@ -96,7 +96,13 @@ do_hibernate()
 {
 	local curr=$1
 	local test=$2
-	[ -z "$curr" -o -z "$test" ] && return
+	local info="Low Battery Voltage"
+	local mesg="[$curr] Please Recharge/Hibernate/Shutdown"
+	[ ! -z "$test" ] &&
+		mesg="$mesg (Will hibernate when level is below $test)"
+	[ $curr -lt 101 ] &&
+		notify-send "$info" "$mesg" -u critical --icon=battery
+	[ -z "$test" ] && return
 	[ $curr -lt $test ] && loginctl hibernate
 }
 
