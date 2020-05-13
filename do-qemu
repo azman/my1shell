@@ -17,6 +17,8 @@ ISO_LOAD=${ISO_LOAD:=""}
 MAIN_OPT="${MAIN_OPT} -enable-kvm"
 MAIN_OPT="${MAIN_OPT} -net nic -net user,hostfwd=tcp::2222-:22"
 MAIN_OPT="${MAIN_OPT} -rtc base=localtime"
+# for config files to override
+XTRA_OPT=${XTRA_OPT:=""}
 
 must_have_file()
 {
@@ -70,6 +72,7 @@ CHK_MORE=
 
 [ "$CHK_SNAP" != "" ] && CHK_DISK="$CHK_DISK $CHK_SNAP"
 [ "$VGA_MAIN" != "" ] && MAIN_OPT="$MAIN_OPT $VGA_MAIN"
+[ "$XTRA_OPT" != "" ] && MAIN_OPT="$MAIN_OPT $XTRA_OPT"
 
 QEMU_OPT="-m $QEMU_MEM $MAIN_OPT $CHK_BOOT $CHK_DISK"
 [ -f "$ISO_LOAD" ] && QEMU_OPT="$QEMU_OPT -cdrom $ISO_LOAD"
