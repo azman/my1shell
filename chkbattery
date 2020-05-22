@@ -96,20 +96,23 @@ do_hibernate()
 {
 	local curr=$1
 	local test=$2
-	local info="Low Battery Voltage (<100)"
-	local mesg="[$curr] Please Recharge/Hibernate/Shutdown"
-	[ ! -z "$test" ] &&
-		mesg="$mesg (Will hibernate when level is below $test)"
-	[ $curr -lt 100 ] &&
+	local exec="loginctl"
+	local that=`which $exec 2>/dev/null`
+	if [ $curr -lt 100 ] ; then
+		local info="Low Battery Voltage (<100)"
+		local mesg="[$curr] Please Recharge/Hibernate/Shutdown"
+		[ ! -z "$test" -a ! -z "$that"] &&
+			mesg="$mesg (Will hibernate when level is below $test)"
 		notify-send "$info" "$mesg" -u critical --icon=battery
-	[ -z "$test" ] && return
-	[ $curr -lt $test ] && loginctl hibernate
+	fi
+	[ -z "$test" -o -z "$that" ] && return
+	[ $curr -lt $test ] && $that hibernate
 }
 
 case "$1" in
 	--basic) echo "$CHK_BASIC" ;;
 	--state) echo "$CHK_STATE" ;;
-	--vbatt) echo "${CHK_VBATT}%" ; do_hibernate $CHK_VBATT $2 ;;
+	--vbatt) echo -e "Vbatt\n[${CHK_VBATT}%]" ; do_hibernate $CHK_VBATT $2 ;;
 	*) echo "$BATT_FULL" ;;
 esac
 
