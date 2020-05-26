@@ -48,9 +48,9 @@ case $WORK in
 	export PATH=$STAGE_PATH/bin:$PATH
 	exec env PS1="(ROBO-EXEC) \u@\h:\w$ " `which bash 2>/dev/null` --norc
 	;;
-	ALTERA) #now, intelFPGA
-	ALTERA_VERS=${ALTERA_VERS:="19.1"}
-	ALTERA_ROOT=${ALTERA_ROOT:="/home/share/appx/intel-fpga/${ALTERA_VERS}"}
+	ALTERA)
+	ALTERA_VERS=${ALTERA_VERS:="13.0sp1"}
+	ALTERA_ROOT=${ALTERA_ROOT:="/home/share/appx/altera/${ALTERA_VERS}"}
 	ALTERA_PATH=${ALTERA_ROOT}/quartus/bin
 	MODSIM_PATH=${ALTERA_ROOT}/modelsim_ase/bin
 	FLAG=0
@@ -61,7 +61,31 @@ case $WORK in
 	[ $FLAG -eq 0 ] && echo "No altera tools found ($ALTERA_ROOT)!" && exit 1
 	export ALTERA_VERS ALTERA_ROOT
 	# added to allow modelsim binary to run
-	LIB32_PATH="${ALTERA_ROOT}/lib32"
+	LIB32_PATH="${ALTERA_ROOT}/modelsim_ase/linux"
+	[ -d "$LIB32_PATH" ] && export LD_LIBRARY_PATH="$LIB32_PATH"
+	if [ "$1" == "" ] ; then
+		# start a shell
+		exec env PS1="(ALTERA-EXEC) \u@\h:\w$ " $(which bash)
+	else
+		target=$1 ; shift
+		[ "$target" == "sch" ] && quartus $@
+		[ "$target" == "sim" ] && vsim $@
+	fi
+	;;
+	INTELFPGA)
+	INTELFPGA_VERS=${INTELFPGA_VERS:="19.1"}
+	INTELFPGA_ROOT=${INTELFPGA_ROOT:="/home/share/appx/intel-fpga/${INTELFPGA_VERS}"}
+	INTELFPGA_PATH=${INTELFPGA_ROOT}/quartus/bin
+	MODSIM_PATH=${INTELFPGA_ROOT}/modelsim_ase/bin
+	FLAG=0
+	[ -d $MODSIM_PATH ] && echo "ModelSim:$MODSIM_PATH!" &&
+		export PATH=$MODSIM_PATH:$PATH && FLAG=1
+	[ -d $INTELFPGA_PATH ] && echo "Altera:$INTELFPGA_PATH!" &&
+		export PATH=$INTELFPGA_PATH:$PATH && FLAG=1
+	[ $FLAG -eq 0 ] && echo "No altera tools found ($INTELFPGA_ROOT)!" && exit 1
+	export INTELFPGA_VERS INTELFPGA_ROOT
+	# added to allow modelsim binary to run
+	LIB32_PATH="${INTELFPGA_ROOT}/lib32"
 	[ -d "$LIB32_PATH" ] && export LD_LIBRARY_PATH="$LIB32_PATH"
 	if [ "$1" == "" ] ; then
 		# start a shell
