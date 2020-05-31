@@ -91,12 +91,12 @@ BATT_FULL="$BATT_FULL [${BATT_NAME}]"
 
 # since xfce4 power manager CANNOT set critical level above 20%
 # - here, i use battery voltage level though!
-# - used with genmon plugin (and elogind's loginctl)
+# - used with genmon plugin on xfce4 desktop
 do_hibernate()
 {
 	local curr=$1
 	local test=$2
-	local exec="loginctl"
+	local exec="xfce4-session-logout"
 	local that=`which $exec 2>/dev/null`
 	if [ $curr -lt 100 ] ; then
 		local info="Low Battery Voltage (<100)"
@@ -106,7 +106,7 @@ do_hibernate()
 		notify-send "$info" "$mesg" -u critical --icon=battery
 	fi
 	[ -z "$test" -o -z "$that" ] && return
-	[ $curr -lt $test ] && $that hibernate
+	[ $curr -lt $test ] && $that --hibernate
 }
 
 case "$1" in
@@ -117,3 +117,4 @@ case "$1" in
 esac
 
 exit 0
+
