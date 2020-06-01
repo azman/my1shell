@@ -97,7 +97,7 @@ case $WORK in
 	fi
 	;;
 	XILINX)
-	XILINX_VERS=${XILINX_VERS:="12.1"}
+	XILINX_VERS=${XILINX_VERS:="10.1"}
 	XILINX_PATH=${XILINX_PATH:="/home/share/appx/xilinx-${XILINX_VERS}"}
 	ARCH_BITS="32"
 	BIN_TYPE=$(file -L /bin/bash)
