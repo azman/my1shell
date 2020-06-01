@@ -305,3 +305,11 @@ case "$THAT_TASK" in
 esac
 
 exit 0
+
+#To list dependencies:
+# echo ${BINARY_EXECS[@]} | xargs ldd 2>/dev/null | grep -vi "not found\|dynamic\|statically\|:$" \
+    | awk -F '=>' '{printf $NF"\n"}' | sed -e 's/^	//;s/^ //;s/\(0x\w.......\)//' \
+    | cut -f1 -d \ | sort | uniq
+
+#To list missing dependencies:
+# echo ${BINARY_EXECS[@]} | xargs ldd 2>/dev/null | grep -i "not found" | cut -f1 -d \ | cut -b 2- | sort | uniq

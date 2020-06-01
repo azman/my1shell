@@ -15,3 +15,8 @@ echo -n "Cloning '$file' timestamps to '$next'... "
 touch -a -d "`stat -c '%x' $file`" $next
 touch -m -d "`stat -c '%y' $file`" $next
 echo "done!"
+
+#To convert txz to tgz:
+#cat ${PKG}.txz | xz -cd | gzip >${PKG}.tgz
+#To convert tgz to txz:
+#gunzip -dc ${PKG}.tgz | xz -zc > ${PKG}.txz
