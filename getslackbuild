@@ -196,6 +196,26 @@ do_list_local() #DONE
 	done
 }
 
+do_find_list() #DONE
+{
+	local func="do_find_list()"
+	local work=$1
+	local name=$2
+	local temp
+	search_list $name $work
+	[ -z "$temp" ] &&
+		info_msg --no-tag "Package '$name' NOT found!\n\n" && return
+	local vers=`echo "$temp" | cut -d';' -f3`
+	local deps=`echo "$temp" | cut -d';' -f6`
+	local test=`echo "$temp" | cut -d';' -f1`
+	[ "$test" != "$name" ] && error_exit "Wrong name {'$name':'$test'}!\n\n"
+	local file=`find_build $work $name`
+	# show it!
+	head_msg "Package: $name ($vers)"
+	[ -f "$file" ] && head_msg ", Build: {"`basename $file`"}"
+	echo ; [ "$deps" != "" ] && warn_msg --no-tag "-- Requires: $deps\n"
+}
+
 do_list_update() #DONE
 {
 	local work=$1
@@ -583,6 +603,7 @@ process_command()
 	case "$task" in
 		help) echo "$TOOL_HELP" ;;
 		list) do_list_local $work ;;
+		find) do_find_list $work $name ;;
 		update) do_list_update $work $optf ;;
 		fetch) do_fetch_build $work $name $pack $optf ;;
 		build) do_run_build $work $name $opts ;;

@@ -11,7 +11,13 @@ MY1_BASH_PROFILE=$(cat <<SETVAR1
 # ~/.bash_profile - login shells
 
 umask 0022
-export PATH=$MY1PATH:\$PATH:/usr/sbin:/sbin:\$HOME/slackware/slackbin
+export PATH=\$PATH:/usr/sbin:/sbin
+
+DOPATH="/home/share/slackware/slackstuff"
+export PATH=\$DOPATH:\$PATH
+
+DOPATH="\$HOME/.local/bin"
+export PATH=\$DOPATH:\$PATH
 
 [ -f ~/.bashrc ] && source ~/.bashrc
 [ -n "\$SSH_CLIENT" ] && export PS1="(SSH) \$PS1"
