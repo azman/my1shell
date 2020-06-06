@@ -6,149 +6,165 @@
 
 WORK=`echo $1 | tr [a-z] [A-Z]` ; shift
 case $WORK in
+	LATEX)
+		ELBL=${ELBL:="LATEX"}
+		TL_VERS=${TL_VERS:="2020"}
+		TL_PATH=${TL_PATH:="/home/share/tool/texlive/${TL_VERS}"}
+		[ ! -d "$TL_PATH" ] && echo "** Path $TL_PATH not found!" && exit 1
+		export PATH=${TL_PATH}/bin/x86_64-linux:$PATH
+		export MANPATH=${TL_PATH}/texmf-dist/doc/man:$MANPATH
+		export INFOPATH=${TL_PATH}/texmf-dist/doc/info:$INFOPATH
+		exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		;;
 	ICESTORM)
-	ICEPATH=${ICEPATH:="/home/share/tool/icestorm"}
-	LIBPATH=$ICEPATH/lib
-	[ -d "$LIBPATH" ] && export LD_LIBRARY_PATH="$LIBPATH"
-	export PATH=$ICEPATH/bin:$PATH
-	exec env PS1="(ICESTORM-EXEC) \u@\h:\w$ " `which bash 2>/dev/null` --norc
-	;;
+		ELBL=${ELBL:="ICESTORM-EXEC"}
+		ICEPATH=${ICEPATH:="/home/share/tool/icestorm"}
+		[ ! -d "$ICEPATH" ] && echo "** Path $ICEPATH not found!" && exit 1
+		LIBPATH=$ICEPATH/lib
+		[ ! -d "$LIBPATH" ] && echo "** Path $LIBPATH not found!" && exit 1
+		export LD_LIBRARY_PATH="$LIBPATH"
+		export PATH=$ICEPATH/bin:$PATH
+		exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		;;
 	NODEJS)
-	export NDJS_PATH=${NDJS_PATH:="/home/share/tool/node-js"}
-	export NWJS_PATH=${NWJS_PATH:="/home/share/tool/nwjs-sdk"}
-	[ -d "$NDJS_PATH" ] &&
+		ELBL=${ELBL:="NODEJS-EXEC"}
+		export NDJS_PATH=${NDJS_PATH:="/home/share/tool/node-js"}
+		export NWJS_PATH=${NWJS_PATH:="/home/share/tool/nwjs-sdk"}
+		[ ! -d "$NDJS_PATH" ] && echo "** Path $NDJS_PATH not found!" && exit 1
 		export PATH=${NDJS_PATH}/bin:$PATH
-	[ -d "$NDJS_PATH" ] &&
 		export NODE_PATH=${NDJS_PATH}/lib/node_modules
-	[ -d "$NWJS_PATH" ] &&
-		export PATH=${NWJS_PATH}:$PATH
-	exec env PS1="(NODEJS-EXEC) \u@\h:\w$ " `which bash 2>/dev/null`
-	;;
+		[ -d "$NWJS_PATH" ] && export PATH=${NWJS_PATH}:$PATH
+		exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		;;
 	ANDROID-SDK)
-	GRADLE_VERSION=${GRADLE_VERSION:="5.4.1"}
-	export ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:="/home/share/tool/android-sdk"}
-	export ANDROID_HOME=${ANDROID_SDK_ROOT}
-	export SDK_PATH=${SDK_PATH:="$ANDROID_SDK_ROOT"}
-	export GRADLE_PATH=${GRADLE_PATH:="/home/share/tool/gradle-$GRADLE_VERSION"}
-	export PATH=$GRADLE_PATH/bin:$SDK_PATH/tools:$SDK_PATH/tools/bin:$PATH
-	exec env PS1="(ANDROID-SDK) \u@\h:\w$ " `which bash 2>/dev/null` --norc
-	;;
+		ELBL=${ELBL:="ANDROID-SDK"}
+		DO_PATH="/home/share/tool/android-sdk"
+		[ ! -d "$DO_PATH" ] && echo "** Path $DO_PATH not found!" && exit 1
+		GRADLE_VERSION=${GRADLE_VERSION:="5.4.1"}
+		GG_PATH="/home/share/tool/gradle-$GRADLE_VERSION"
+		[ ! -d "$GG_PATH" ] && echo "** Path $GG_PATH not found!" && exit 1
+		export ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:="$DO_PATH"}
+		export ANDROID_HOME=${ANDROID_SDK_ROOT}
+		export SDK_PATH=${SDK_PATH:="$ANDROID_SDK_ROOT"}
+		export GRADLE_PATH=${GRADLE_PATH:="$GG_PATH"}
+		export PATH=$GRADLE_PATH/bin:$SDK_PATH/tools:$SDK_PATH/tools/bin:$PATH
+		exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		;;
 	ROBO-STAGE)
-	export STAGE_PATH=${STAGE_PATH:="/home/share/tool/stage"}
-	ARCH_BITS=""
-	if [ "$(uname -m)" == "x86_64" ] ; then
-		ARCH_BITS="64"
-		# stage lib is without 64 when using my1ubuild?
-		[ ! -d ${STAGE_PATH}/lib${ARCH_BITS} ] && ARCH_BITS=""
-	fi
-	export STAGE_LIBPATH=${STAGE_PATH}/lib${ARCH_BITS}
-	export STAGEPATH=${STAGE_LIBPATH}:.
-	export LD_LIBRARY_PATH=${STAGEPATH}
-	export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${STAGE_LIBPATH}/pkgconfig
-	export PATH=$STAGE_PATH/bin:$PATH
-	exec env PS1="(ROBO-EXEC) \u@\h:\w$ " `which bash 2>/dev/null` --norc
-	;;
+		ELBL=${ELBL:="ROBO-EXEC"}
+		export STAGE_PATH=${STAGE_PATH:="/home/share/tool/stage"}
+		ARCH_BITS=""
+		if [ "$(uname -m)" == "x86_64" ] ; then
+			ARCH_BITS="64"
+			# stage lib is without 64 when using my1ubuild?
+			[ ! -d ${STAGE_PATH}/lib${ARCH_BITS} ] && ARCH_BITS=""
+		fi
+		export STAGE_LIBPATH=${STAGE_PATH}/lib${ARCH_BITS}
+		export STAGEPATH=${STAGE_LIBPATH}:.
+		export LD_LIBRARY_PATH=${STAGEPATH}
+		export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${STAGE_LIBPATH}/pkgconfig
+		export PATH=$STAGE_PATH/bin:$PATH
+		exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		;;
 	ALTERA)
-	ALTERA_VERS=${ALTERA_VERS:="13.0sp1"}
-	ALTERA_ROOT=${ALTERA_ROOT:="/home/share/appx/altera/${ALTERA_VERS}"}
-	ALTERA_PATH=${ALTERA_ROOT}/quartus/bin
-	MODSIM_PATH=${ALTERA_ROOT}/modelsim_ase/bin
-	FLAG=0
-	[ -d $MODSIM_PATH ] && echo "ModelSim:$MODSIM_PATH!" &&
-		export PATH=$MODSIM_PATH:$PATH && FLAG=1
-	[ -d $ALTERA_PATH ] && echo "Altera:$ALTERA_PATH!" &&
-		export PATH=$ALTERA_PATH:$PATH && FLAG=1
-	[ $FLAG -eq 0 ] && echo "No altera tools found ($ALTERA_ROOT)!" && exit 1
-	export ALTERA_VERS ALTERA_ROOT
-	# added to allow modelsim binary to run
-	LIB32_PATH="${ALTERA_ROOT}/modelsim_ase/linux"
-	[ -d "$LIB32_PATH" ] && export LD_LIBRARY_PATH="$LIB32_PATH"
-	if [ "$1" == "" ] ; then
-		# start a shell
-		exec env PS1="(ALTERA-EXEC) \u@\h:\w$ " $(which bash)
-	else
-		target=$1 ; shift
-		[ "$target" == "sch" ] && quartus $@
-		[ "$target" == "sim" ] && vsim $@
-	fi
-	;;
+		ELBL=${ELBL:="ALTERA-EXEC"}
+		ALTERA_VERS=${ALTERA_VERS:="13.0sp1"}
+		ALTERA_ROOT=${ALTERA_ROOT:="/home/share/appx/altera/${ALTERA_VERS}"}
+		ALTERA_PATH=${ALTERA_ROOT}/quartus/bin
+		MODSIM_PATH=${ALTERA_ROOT}/modelsim_ase/bin
+		FLAG=0
+		[ -d $MODSIM_PATH ] && echo "ModelSim:$MODSIM_PATH!" &&
+			export PATH=$MODSIM_PATH:$PATH && FLAG=1
+		[ -d $ALTERA_PATH ] && echo "Altera:$ALTERA_PATH!" &&
+			export PATH=$ALTERA_PATH:$PATH && FLAG=1
+		[ $FLAG -eq 0 ] &&
+			echo "No altera tools found ($ALTERA_ROOT)!" && exit 1
+		export ALTERA_VERS ALTERA_ROOT
+		# added to allow modelsim binary to run
+		LIB32_PATH="${ALTERA_ROOT}/modelsim_ase/linux"
+		[ -d "$LIB32_PATH" ] && export LD_LIBRARY_PATH="$LIB32_PATH"
+		if [ "$1" == "" ] ; then
+			# start a shell
+			exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		else
+			target=$1 ; shift
+			[ "$target" == "sch" ] && quartus $@
+			[ "$target" == "sim" ] && vsim $@
+		fi
+		;;
 	INTELFPGA)
-	INTELFPGA_VERS=${INTELFPGA_VERS:="19.1"}
-	INTELFPGA_ROOT=${INTELFPGA_ROOT:="/home/share/appx/intel-fpga/${INTELFPGA_VERS}"}
-	INTELFPGA_PATH=${INTELFPGA_ROOT}/quartus/bin
-	MODSIM_PATH=${INTELFPGA_ROOT}/modelsim_ase/bin
-	FLAG=0
-	[ -d $MODSIM_PATH ] && echo "ModelSim:$MODSIM_PATH!" &&
-		export PATH=$MODSIM_PATH:$PATH && FLAG=1
-	[ -d $INTELFPGA_PATH ] && echo "Altera:$INTELFPGA_PATH!" &&
-		export PATH=$INTELFPGA_PATH:$PATH && FLAG=1
-	[ $FLAG -eq 0 ] && echo "No altera tools found ($INTELFPGA_ROOT)!" && exit 1
-	export INTELFPGA_VERS INTELFPGA_ROOT
-	# added to allow modelsim binary to run
-	LIB32_PATH="${INTELFPGA_ROOT}/lib32"
-	[ -d "$LIB32_PATH" ] && export LD_LIBRARY_PATH="$LIB32_PATH"
-	if [ "$1" == "" ] ; then
-		# start a shell
-		exec env PS1="(ALTERA-EXEC) \u@\h:\w$ " $(which bash)
-	else
-		target=$1 ; shift
-		[ "$target" == "sch" ] && quartus $@
-		[ "$target" == "sim" ] && vsim $@
-	fi
-	;;
+		ELBL=${ELBL:="INTELFPGA"}
+		DO_VERS=${DO_VERS:="19.1"}
+		DO_ROOT=${DO_ROOT:="/home/share/appx/intel-fpga/${DO_VERS}"}
+		DO_PATH=${DO_ROOT}/quartus/bin
+		MS_PATH=${DO_ROOT}/modelsim_ase/bin
+		FLAG=0
+		[ -d $MS_PATH ] && echo "ModelSim:$MS_PATH!" &&
+			export PATH=$MS_PATH:$PATH && FLAG=1
+		[ -d $DO_PATH ] && echo "Altera:$DO_PATH!" &&
+			export PATH=$DO_PATH:$PATH && FLAG=1
+		[ $FLAG -eq 0 ] &&
+			echo "No IntelFPGA tools found ($DO_ROOT)!" && exit 1
+		# added to allow modelsim binary to run
+		LIB32_PATH="${DO_ROOT}/modelsim_ase/linux"
+		[ -d "$LIB32_PATH" ] && export LD_LIBRARY_PATH="$LIB32_PATH"
+		if [ "$1" == "" ] ; then
+			# start a shell
+			exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		else
+			target=$1 ; shift
+			[ "$target" == "sch" ] && quartus $@
+			[ "$target" == "sim" ] && vsim $@
+		fi
+		;;
 	XILINX)
-	XILINX_VERS=${XILINX_VERS:="10.1"}
-	XILINX_PATH=${XILINX_PATH:="/home/share/appx/xilinx-${XILINX_VERS}"}
-	ARCH_BITS="32"
-	BIN_TYPE=$(file -L /bin/bash)
-	[ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] &&
-		ARCH_BITS="64"
-	XILINX_ARCH=${XILINX_ARCH:="$ARCH_BITS"}
-	XILINX_CONF=${XILINX_CONF:="${XILINX_PATH}/ISE/settings${XILINX_ARCH}.sh"}
-	XILEDK_CONF=${XILEDK_CONF:="${XILINX_PATH}/EDK/settings${XILINX_ARCH}.sh"}
-	PATH_ARCH=""
-	[ "$XILINX_ARCH" == "64" ] && PATH_ARCH=$XILINX_ARCH
-	if [ -r $XILINX_CONF ] ; then
-		. $XILINX_CONF
-	else
-		echo "Cannot find xilinx config ($XILINX_CONF)!"
-		exit 1
-	fi
-	[ -r $XILEDK_CONF ] && . $XILEDK_CONF
-	# allow ISE/EDK to use the USB Cable Driver
-	# - no longer need this since 11.1?
-	#export XIL_IMPACT_USE_LIBUSB=1
-	# added to override usage of system's tcl library
-	# - no longer need this on slack13.0 (tcl8.5.7)
-	#export LD_PRELOAD=${XILINX}/lib/${PLATFORM}/libtcl8.4.so
-	# added to use xilinx usb jtag cable
-	USB_DRIVER="/home/share/tool/lib${PATH_ARCH}/libusb-driver.so"
-	[ -r "$USB_DRIVER" ] && export LD_PRELOAD="$LD_PRELOAD $USB_DRIVER"
-	# added to use digilent usb jtag cable
-	DIGILENT_PATH="/usr/lib${PATH_ARCH}/digilent/adept"
-	LIBUSB_PATH="/home/share/tool/lib${PATH_ARCH}/libusb1/lib"
-	[ -d $DIGILENT_PATH -a -d $LIBUSB_PATH ] &&
-		LD_LIBRARY_PATH="$LIBUSB_PATH:$DIGILENT_PATH:$LD_LIBRARY_PATH"
-	THISPATH="$XILINX_PATH/EDK/gnu/microblaze/lin${PATH_ARCH}/bin"
-	THISPATH="$THISPATH:$XILINX_PATH/EDK/gnu/powerpc-eabi/lin${PATH_ARCH}/bin"
-	export PATH="$THISPATH:$PATH"
-	if [ "$1" == "" ] ; then
-		# start a shell
-		exec env PS1="(XILINX-EXEC) \u@\h:\w$ " $(which bash)
-	else
-		target=$1
-		shift
-		[ "$target" == "edk" ] && QT_PLUGIN_PATH= xps $@
-		[ "$target" == "ise" ] && QT_PLUGIN_PATH= ise $@
-		[ "$target" == "cgn" ] && QT_PLUGIN_PATH= coregen $@
-		[ "$target" == "imp" ] && QT_PLUGIN_PATH= impact $@
-		[ "$target" == "tcl" ] && QT_PLUGIN_PATH= xtclsh $@
-	fi
-	;;
-	*)
-	echo "Unknown work '$1'! Aborting!"
-	exit 1
-	;;
+		ELBL=${ELBL:="XILINX-EXEC"}
+		XILINX_VERS=${XILINX_VERS:="10.1"}
+		XILINX_PATH=${XILINX_PATH:="/home/share/appx/xilinx-${XILINX_VERS}"}
+		XIL_ARCH="32"
+		BIN_TYPE=$(file -L /bin/bash)
+		[ "$(echo $BIN_TYPE | grep 'ELF 32-bit LSB executable')" == "" ] &&
+			XIL_ARCH="64"
+		ISE_PATH=${XILINX_PATH}/ISE
+		ISE_CONF=${ISE_CONF:="${ISE_PATH}/settings${XIL_ARCH}.sh"}
+		EDK_PATH=${XILINX_PATH}/EDK
+		EDK_CONF=${EDK_CONF:="${EDK_PATH}/settings${XIL_ARCH}.sh"}
+		[ "$XIL_ARCH" == "64" ] && CHK_ARCH=$XIL_ARCH || CHK_ARCH=
+		[ ! -r "$ISE_CONF" ] &&
+			echo "Cannot find xilinx config ($ISE_CONF)!" && exit 1
+		. $ISE_CONF
+		[ -r $EDK_CONF ] && . $EDK_CONF
+		# allow ISE/EDK to use the USB Cable Driver
+		# - no longer need this since 11.1?
+		#export XIL_IMPACT_USE_LIBUSB=1
+		# added to override usage of system's tcl library
+		# - no longer need this on slack13.0 (tcl8.5.7)
+		#export LD_PRELOAD=${XILINX_PATH}/lib/${PLATFORM}/libtcl8.4.so
+		# added to use xilinx usb jtag cable
+		USB_DRIVER="/home/share/tool/lib${CHK_ARCH}/libusb-driver.so"
+		[ -r "$USB_DRIVER" ] && export LD_PRELOAD="$LD_PRELOAD $USB_DRIVER"
+		# added to use digilent usb jtag cable
+		DIGILENT_PATH="/usr/lib${CHK_ARCH}/digilent/adept"
+		LIBUSB_PATH="/home/share/tool/lib${CHK_ARCH}/libusb1/lib"
+		[ -d $DIGILENT_PATH -a -d $LIBUSB_PATH ] &&
+			LD_LIBRARY_PATH="$LIBUSB_PATH:$DIGILENT_PATH:$LD_LIBRARY_PATH"
+		THISPATH="${EDK_PATH}/gnu/microblaze/lin${CHK_ARCH}/bin"
+		THISPATH="$THISPATH:${EDK_PATH}/gnu/powerpc-eabi/lin${CHK_ARCH}/bin"
+		export PATH="$THISPATH:$PATH"
+		if [ "$1" == "" ] ; then
+			# start a shell
+			exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		else
+			target=$1
+			shift
+			[ "$target" == "edk" ] && QT_PLUGIN_PATH= xps $@
+			[ "$target" == "ise" ] && QT_PLUGIN_PATH= ise $@
+			[ "$target" == "cgn" ] && QT_PLUGIN_PATH= coregen $@
+			[ "$target" == "imp" ] && QT_PLUGIN_PATH= impact $@
+			[ "$target" == "tcl" ] && QT_PLUGIN_PATH= xtclsh $@
+		fi
+		;;
+	*) echo "Unknown work '$1'! Aborting!" ; exit 1 ;;
 esac
 
 exit 0
