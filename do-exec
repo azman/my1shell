@@ -21,8 +21,7 @@ case $WORK in
 		ICEPATH=${ICEPATH:="/home/share/tool/icestorm"}
 		[ ! -d "$ICEPATH" ] && echo "** Path $ICEPATH not found!" && exit 1
 		LIBPATH=$ICEPATH/lib
-		[ ! -d "$LIBPATH" ] && echo "** Path $LIBPATH not found!" && exit 1
-		export LD_LIBRARY_PATH="$LIBPATH"
+		[ -d "$LIBPATH" ] && export LD_LIBRARY_PATH="$LIBPATH"
 		export PATH=$ICEPATH/bin:$PATH
 		exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
 		;;
