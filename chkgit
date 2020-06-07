@@ -3,7 +3,7 @@
 # chkgit
 # - written by azman@my1matrix.org
 # - browse folders in current path and check git repos
-# - create project from a git bundle
+# - extract/create git bundle
 
 MY1TOOL=`basename $0 .sh`
 MY1PATH=`dirname $0`
@@ -195,12 +195,9 @@ chkgit_cleanup()
 	chkgit_isclean --silent
 	chk_value=$?
 	[ $chk_value -eq 0 ] && echo "Clean!" && return
-	[ $chk_value -eq 1 ] && echo "Not a git repo!" && return
-	[ $chk_value -eq 2 ] && echo "Repo not clean! Skipped!" && return
-	[ $chk_value -eq 3 ] && echo "Repo is ahead!" && return
 	# reset to HEAD
 	echo -n "Cleaning up... "
-	$GIT_BIN clean -ffdx >/dev/null
+	$GIT_BIN clean -fdx >/dev/null
 	if [ $? -ne 0 ] ; then echo "something is wrong?! ($?)"
 	else echo "done!" ; fi
 }
