@@ -155,6 +155,7 @@ go_loadpack()
 	local pkg_temp="$TOOL_TEMP/$pkg_repo"
 	local pkg_sums="CHECKSUMS.md5"
 	local pkg_md5f="$pkg_path/$pkg_file.md5"
+	[ "$pkg_rsrc" = "." ] && pkg_rsrc=
 	# obtain checksum
 	go_loadsums $pkg_root $pkg_repo
 	# prepare pack path for checksum
@@ -166,7 +167,7 @@ go_loadpack()
 	[ $? -ne 0 ] &&
 		echo "Cannot create checksum for '$pkg_file'!" && exit 1
 	# fix path in checksum file
-	sed -i "s|${pkg_rsrc}||g" $pkg_md5f
+	[ "$pkg_rsrc" != "" ] && sed -i "s|${pkg_rsrc}||g" $pkg_md5f
 	cd - >/dev/null
 	# go to package path
 	cd $pkg_path
@@ -391,6 +392,7 @@ go_findpack() #DONE
 	local path=`echo "$text" | grep "^$labs"`
 	path=`echo "$path" | sed "s/$labs[[:space:]]*//"`
 	path=`echo "$path" | sed 's/^.\(.*\)$/\1/'`
+	[ "$path" = "" ] && path="."
 	# assign!
 	pack="$file:$path"
 }
@@ -412,6 +414,8 @@ do_findthat() #DONE
 	local root_slx="http://download.salixos.org/$SLACKARCH/$SLACKVERS"
 	# rlworkman's packages
 	local root_rlw="http://rlworkman.net/pkgs/$SLACKVERS/$SLACKARCH"
+	# ponce's packages
+	local root_pon="http://ponce.cc/slackware/$SLACKFULL/packages"
 	# find url
 	local root rawp=0
 	case "$repo" in
@@ -420,6 +424,7 @@ do_findthat() #DONE
 		slack) root="$root_slk" ;;
 		salix) root="$root_slx" ;;
 		rwork) root="$root_rlw" ; rawp=1 ;;
+		ponce) root="$root_pon" ;;
 		*) echo "Unknown repo '$repo'!" && exit 1 ;;
 	esac
 	#echo "[DEBUG] |$root|$repo|$name|$rawp|"
@@ -465,6 +470,7 @@ create_list() #DONE
 			--slack) repo="slack" ;;
 			--salix) repo="salix" ;;
 			--rwork) repo="rwork" ;;
+			--ponce) repo="ponce" ;;
 			-*) echo "Unknown repo '$1'!" && exit 1 ;;
 			*) [ -z "$list" ] && list="$repo:$1" || list="$list;$repo:$1" ;;
 		esac
@@ -488,6 +494,7 @@ do_execthat() #DONE
 			--slack) repo="$1" ;;
 			--salix) repo="$1" ;;
 			--rwork) repo="$1" ;;
+			--ponce) repo="$1" ;;
 			--reset) temp="" ;;
 			--office) temp="$temp $pick_office" ;;
 			--xfburn) temp="$temp $pick_xfburn" ;;
