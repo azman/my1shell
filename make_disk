@@ -15,6 +15,29 @@ source_libmy1slack()
 }
 source_libmy1slack
 
+show_help()
+{
+	local help
+	read -r -d '' help <<EOF
+To create bootable single FAT32 partition (MBR)
+- make_disk boot_dos /dev/sdx
+
+To create bootable dual (boot+extra) partition (MBR)
+- make_disk boot_duo /dev/sdx <p1-size> <p2-type>
+- default: p1 = 2g ntfs, p2 = <the_rest> linux
+- note: use fdisk notation for size and type
+
+To create bootable triple (efi+root+extra) partition (GPT+EFI)
+- make_disk boot_gpt /dev/sdx <p2-size> <p3-type>
+- default: p1 = 511M efi, p2 = 2g linux, p3 = <the_rest> linux
+- note: use gdisk notation for size and type
+
+To create a disk image (requires qemu-img)
+- make_disk image <name> <size>
+EOF
+	echo -ne "\n${help}\n\n"
+}
+
 make_disk_image()
 {
 	local disk=$1 # disk name
@@ -28,14 +51,6 @@ make_disk_image()
 	$full create -f raw $disk $size >/dev/null
 	[ $? -ne 0 ] && error_exit "failure!\n\n"
 	info_msg --no-tag "done!\n"
-}
-
-prompt_to_continue()
-{
-	read -p "Continue? [y/N] " -n 1 what && echo
-	[ "$what" = "y" ] && what="Y"
-	[ -z "$what" -o "$what" != "Y" ] && what="N"
-	[ "$what" = "N" ] && exit 0
 }
 
 make_disk_dos_single()
@@ -77,7 +92,7 @@ make_disk_dos_double()
 	info_msg "Create DOS partition table on $disk (ALL DATA WILL BE LOST!)\n"
 	prompt_to_continue
 	info_msg "-- Creating 2-partition disk and flag first as bootable... "
-	$full $disk >/dev/null 2>&1 <<EOF
+	$full $disk >/dev/null <<EOF
 o
 n
 p
@@ -162,10 +177,11 @@ EOF
 	info_msg --no-tag "done!\n"
 }
 
+[ "$1" = "" ] && show_help && exit 0
 case "$1" in
 	image) shift ; make_disk_image $@ ;;
 	boot_dos) shift ; make_disk_dos_single $@ ;;
 	boot_duo) shift ; make_disk_dos_double $@ ;;
 	boot_gpt) shift ; make_disk_gpt_triple $@ ;;
-	*) [ "$1" != "" ] && info_msg "Unknown option '$1'!\n" ;;
+	*) info_msg "Unknown option '$1'!\n" ;;
 esac
