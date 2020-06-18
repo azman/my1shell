@@ -8,6 +8,7 @@
 MY1TOOL=`basename $0 .sh`
 MY1PATH=`dirname $0`
 CURPATH=`pwd`
+[ -d "$HOME/Slack" ] && CHKHOME=$HOME/Slack || CHKHOME=$HOME
 
 # look for config file
 for conffile in "$CURPATH/.$MY1TOOL" "$HOME/.$MY1TOOL" ; do
@@ -21,8 +22,8 @@ AHEAD_MSG="is ahead of"
 # tool & env setup
 GIT_BIN=${GIT_BIN:="$(which git 2>/dev/null)"}
 [ "$GIT_BIN" = "" ] && echo "git binary NOT found! Aborting!" && exit 1
-PATH2GHUB=${PATH2GHUB:="$HOME/archive/github"}
-PATH2BUND=${PATH2BUND:="$HOME/archive/project"}
+PATH2GHUB=${PATH2GHUB:="$CHKHOME/archive/github"}
+PATH2BUND=${PATH2BUND:="$CHKHOME/archive/project"}
 PATH2PROJ=${PATH2PROJ:="$CURPATH"}
 PROJ_NAME=${PROJ_NAME:=""}
 PROJ_COPY=${PROJ_COPY:=""}
