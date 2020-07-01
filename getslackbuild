@@ -36,6 +36,7 @@ Usage:
 Task:
   help      : Show this help message
   list      : List all local scripts
+  find      : Finds a package in list (and optionally all deps)
   update    : Updates package list in work path
   fetch     : Fetch a package (and optionally all deps)
   build     : Build a package (and optionally all deps)
@@ -199,8 +200,9 @@ do_list_local() #DONE
 do_find_list() #DONE
 {
 	local func="do_find_list()"
-	local work=$1
-	local name=$2
+	local work=$1 ; shift
+	local name=$1 ; shift
+	local opts=$@
 	local temp
 	search_list $name $work
 	[ -z "$temp" ] &&
@@ -214,6 +216,15 @@ do_find_list() #DONE
 	head_msg "Package: $name ($vers)"
 	[ -f "$file" ] && head_msg ", Build: {"`basename $file`"}"
 	echo ; [ "$deps" != "" ] && warn_msg --no-tag "-- Requires: $deps\n"
+	# iterate through dependencies, if requested
+	temp=`find_opts --depends $opts`
+	if [ "$temp" != "" ]; then
+		deps=`echo $deps | tr ',' ' '`
+		local that
+		for that in $deps ; do
+			do_find_list $work $that $opts
+		done
+	fi
 }
 
 do_list_update() #DONE
@@ -603,7 +614,7 @@ process_command()
 	case "$task" in
 		help) echo "$TOOL_HELP" ;;
 		list) do_list_local $work ;;
-		find) do_find_list $work $name ;;
+		find) do_find_list $work $name $optf ;;
 		update) do_list_update $work $optf ;;
 		fetch) do_fetch_build $work $name $pack $optf ;;
 		build) do_run_build $work $name $opts ;;
