@@ -266,10 +266,18 @@ go_fetch_ware() #DONE
 	local site=$BUILD_URL
 	load=$site/$load # do this earlier? in info_build?
 	local test=`dirname $load`
-	local path=$2
+	local what=$2 # file from find_build
+	local path=`dirname $what`
 	# check if tarball available?
 	local file=`echo "$info" | cut -d';' -f4`
 	local fil2=`echo "$info" | cut -d';' -f5`
+	if [ -f "$what" ] ; then
+		local temp
+		info_build $what
+		file=`echo "$temp" | cut -d';' -f4`
+		fil2=`echo "$temp" | cut -d';' -f5`
+		unset temp
+	fi
 	if [ "$file" != "${file//,/}" ] ; then # multiple files?
 		local list=`echo $file | tr ',' ' '`
 		local temp that
@@ -347,7 +355,7 @@ go_fetch() #DONE
 	[ "$vers" == "" -o "$vers" != "$test" ] && go_fetch_ball $info $pack
 	file=`find_build $work $name`
 	[ "$file" = "" ] && error_exit "$func: Failed to fetch $name?\n\n"
-	go_fetch_ware $info `dirname $file`
+	go_fetch_ware $info $file
 }
 
 do_fetch_build() #DONE
