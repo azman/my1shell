@@ -96,8 +96,6 @@ do_hibernate()
 {
 	local curr=$1
 	local test=$2
-	local exec="xfce4-session-logout"
-	local that=`which $exec 2>/dev/null`
 	# default is 100%
 	[ -z "$test" ] && test=100
 	local warn=$((test+1))
@@ -105,8 +103,12 @@ do_hibernate()
 		local info="Critical Battery Voltage (<$test)"
 		local mesg="[$curr] Hibernate!"
 		notify-send "$info" "$mesg" --icon=battery -u critical
+		#local exec="xfce4-session-logout"
+		local exec="loginctl"
+		local that=`which $exec 2>/dev/null`
 		[ -z "$that" ] && return
-		$that --hibernate
+		#$that --hibernate
+		$that hibernate
 	elif [ $curr -lt $warn ] ; then
 		local info="Low Battery Voltage (~$test)"
 		local mesg="[$curr] Please Recharge/Hibernate/Shutdown"

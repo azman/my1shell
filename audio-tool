@@ -49,4 +49,4 @@ echo "Output: $OFILE"
 # do that thing you do...
 echo -n "Mixing volume ($SHOW_)... "
 ${DEXEC} -i ${IFILE} ${AOPTS} ${OFILE} 2>/dev/null
-echo "done."
+[ $? -eq 0 ] && echo "done." || echo "error?!"
