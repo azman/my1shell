@@ -15,7 +15,7 @@ source_lib()
 source_lib libmy1slack
 source_lib libmy1echo
 
-for file in `find $FIND_PATH -not -path '*/\.*' -type f` ; do
+for file in `find $FIND_PATH -not -path '*/\.*' -type f | sort` ; do
 	temp=`cat $file | grep $FIND_TEXT`
 	[ "$temp" = "" ] && continue
 	head_msg "\n==> $file\n"
