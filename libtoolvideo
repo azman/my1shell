@@ -155,7 +155,7 @@ video_convert_mp4()
 				vopt="$vopt -bufsize 1500k -vf scale=-2:360" ;;
 			--mini)
 				vopt="-b:v 450k -minrate 400k -maxrate 900k"
-				vopt="$vopt -bufsize 900k -vf scale=-2:240" ;;
+				vopt="$vopt -bufsize 900k -vf scale=-2:280" ;;
 			--log) dlog="$ovid.log" ;;
 			-*|*) echo -ne "\n[ABORT] Unknown param '$1'!\n\n" && exit 1
 		esac
