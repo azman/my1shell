@@ -8,8 +8,8 @@ echo "DiskFile:$DISK_FILE"
 MAKE_EXEC="$2"
 [ "$MAKE_EXEC" == "-x" ] && MAKE_EXEC="YES" || MAKE_EXEC="NO"
 
-#DISK_SIZE=`ls -lh "$DISK_FILE" | cut -d ' ' -f 5`
-#echo "DiskSize:$DISK_SIZE"
+DISK_SIZE=`ls -lh "$DISK_FILE" | cut -d ' ' -f 5`
+echo "DiskSize:$DISK_SIZE"
 
 # must run as root
 [ $UID -ne 0 ] && echo "Must run as root!" && exit 1
@@ -23,12 +23,14 @@ clean_exit()
 
 # --partscan @ -P
 LOOP_DISK=`losetup -P --show -f "$DISK_FILE"`
+[ $? -ne 0 ] && echo "-- losetup failed!" && exit 1
+[ "$LOOP_DISK" = "" ] && echo "-- Cannot get loop device!" && exit 1
 echo "LoopDisk:$LOOP_DISK"
 
 # show disk
 TEST_THAT=`lsblk ; sync ; sync ; sync`
-#LOOP_SIZE=`lsblk -l -p | grep "$LOOP_DISK " | tr -s ' ' | cut -d ' ' -f 4`
-#echo "LoopSize:$LOOP_SIZE"
+LOOP_SIZE=`lsblk -l -p | grep "$LOOP_DISK " | tr -s ' ' | cut -d ' ' -f 4`
+echo "LoopSize:$LOOP_SIZE"
 
 # get loop device for boot partition
 PART_BOOT=`lsblk -l -p -f | grep "$LOOP_DISK" | grep "boot" | tr -s ' '`
