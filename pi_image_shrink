@@ -26,6 +26,7 @@ LOOP_DISK=`losetup -P --show -f "$DISK_FILE"`
 [ $? -ne 0 ] && echo "-- losetup failed!" && exit 1
 [ "$LOOP_DISK" = "" ] && echo "-- Cannot get loop device!" && exit 1
 echo "LoopDisk:$LOOP_DISK"
+# try modprobe loop if failed to get a loop device!
 
 # show disk
 TEST_THAT=`lsblk ; sync ; sync ; sync`
