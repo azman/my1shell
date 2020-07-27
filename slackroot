@@ -134,24 +134,24 @@ do_pack_list()
 rootfs_create()
 {
 	local pkg_opts="CORE" # default package set
-	local chk_path=`pwd` # parent path for chk_name
-	local chk_temp="chroot"
+	local chk_root=`pwd`
 	local chk_file chk_exec chk_arch
 	# get defaults from running system
+	local chk_path="/home"
 	local chk_name=`find_slackname`
 	local chk_vers=`find_slackvers`
 	# check parameters
 	while [ "$1" != "" ]; do
 		case "$1" in
+			--root) shift ; chk_root=$1 ;;
 			--path) shift ; chk_path=$1 ;;
-			--name) shift ; chk_temp=$1 ;;
 			--arch) shift ; chk_arch=$1 ;;
 			--vers) shift ; chk_vers=$1 ;;
 			--file) shift ; chk_file=$1 ; pkg_opts="FILE" ;;
 			--core) pkg_opts="CORE" ;;
 			--console) pkg_opts="CONS" ;;
 			--desktop) pkg_opts="DESK" ;;
-			--execute|-x) chk_exec="--exec" ;;
+			--execute|--exec|-x) chk_exec="--exec" ;;
 			-*|*) error_exit "Unknown parameter '$1'!\n\n" ;;
 		esac
 		shift
@@ -165,16 +165,14 @@ rootfs_create()
 		esac
 	fi
 	local chk_full="$chk_name-$chk_vers"
-	local chk_tree=`find_slacktree $chk_full`
+	local chk_tree=`find_slacktree $chk_full $chk_path`
 	[ ! -d "$chk_tree" ] && error_exit "Cannot find tree for '$chk_full'!\n\n"
 	# check paths
 	local pkg_path="$chk_tree/$chk_name"
 	local pkg_list pkg_temp tmp_list pkg_name pkg_base
 	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!\n\n"
-	[ ! -d "$chk_path" ] && error_exit "Invalid path '$chk_path'!\n\n"
-	chk_path=`cd $chk_path ; pwd`
-	local chk_root="$chk_path/$chk_temp"
-	[ -d "$chk_root" ] && error_exit "Existing root path '$chk_root'!\n\n"
+	[ ! -d "$chk_root" ] && error_exit "Cannot find root path '$chk_root'!\n\n"
+	chk_root=`cd $chk_root ; pwd`
 	# provide info
 	info_msg "Source path: '$pkg_path'\n"
 	info_msg "Target path: '$chk_root'\n"
