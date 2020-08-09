@@ -7,6 +7,7 @@ CHK_THIS=`basename $0 | sed 's|do-||'`
 CHK_PATH=`pwd`
 CHK_CONF="$CHK_PATH/.$CHK_THIS"
 [ -f "$CHK_CONF" ] && . $CHK_CONF
+DO_DEBUG="NO"
 
 HDD_PATH=${HDD_PATH:="$CHK_PATH"}
 HDD_FILE=${HDD_FILE:="$HDD_PATH/disk.qcow2"}
@@ -54,6 +55,7 @@ while [ "$1" != "" ] ; do
 		--sound) MAIN_OPT="${MAIN_OPT} -soundhw ac97" ;;
 		--amd64) QEMU_BIN="qemu-system-x86_64" ;;
 		--snapshot) CHK_SNAP="-snapshot" ;;
+		--debug) DO_DEBUG="YES" ;;
 		-* ) echo "Unknown option? ($1)" ; exit 1 ;;
 		* ) echo "Unknown parameter? ($1)" ; exit 1 ;;
 	esac
@@ -77,5 +79,5 @@ CHK_MORE=
 QEMU_OPT="-m $QEMU_MEM $MAIN_OPT $CHK_BOOT $CHK_DISK"
 [ -f "$ISO_LOAD" ] && QEMU_OPT="$QEMU_OPT -cdrom $ISO_LOAD"
 
-echo "[DEBUG] Running '$QEMU_BIN $QEMU_OPT'"
+[ "$DO_DEBUG" = "YES" ] && echo "[DEBUG] Running '$QEMU_BIN $QEMU_OPT'"
 $QEMU_BIN $QEMU_OPT

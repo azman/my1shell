@@ -5,6 +5,14 @@
 # - prepare shell for work on specific task
 
 WORK=`echo $1 | tr [a-z] [A-Z]` ; shift
+if [ -z "$WORK" ] ; then
+	ELBL=${ELBL:="my1shell"}
+	CHKPATH=`dirname $0`
+	CHKPATH=`cd $CHKPATH;pwd`
+	export PATH=$PATH:$CHKPATH
+	exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+fi
+
 case $WORK in
 	LATEX)
 		ELBL=${ELBL:="LATEX"}
