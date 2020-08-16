@@ -3,7 +3,7 @@
 THIS_TASK=$1 ; shift
 THIS_BDEV=""
 LUKS_NAME=${LUKS_NAME:="MY1LUKS"}
-LUKS_PATH=${LUKS_PATH:="/mnt/$LUKS_NAME"}
+LUKS_PATH=${LUKS_PATH:="/mnt"}
 
 while [ "$1" != "" ] ; do
 	case $1 in
@@ -21,17 +21,20 @@ while [ "$1" != "" ] ; do
 	esac
 	shift
 done
+LUKS_FULL=${LUKS_PATH}/${LUKS_NAME}
 
 [ -z "$THIS_TASK" ] && echo "No task given!" && exit 1
 case $THIS_TASK in
-	create) cryptsetup luksFormat $THIS_BDEV ;;
+	create)
+		cryptsetup luksFormat $THIS_BDEV
+		cryptsetup config $THIS_BDEV --label $LUKS_NAME ;;
 	open) cryptsetup luksOpen $THIS_BDEV $LUKS_NAME ;;
 	status) cryptsetup -v status $LUKS_NAME ;;
 	dump) cryptsetup luksDump $THIS_BDEV ;;
 	close) cryptsetup luksClose $LUKS_NAME ;;
 	mount)
-		[ ! -d "$LUKS_PATH" ] && mkdir $LUKS_PATH
-		mount /dev/mapper/$LUKS_NAME $LUKS_PATH ;;
+		[ ! -d "$LUKS_FULL" ] && mkdir $LUKS_FULL
+		mount /dev/mapper/$LUKS_NAME $LUKS_FULL ;;
 	unmount) umount $LUKS_PATH ;;
 	*) echo "Unknown task '$1'!" && exit 1 ;;
 esac
