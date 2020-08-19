@@ -331,9 +331,11 @@ elif [ "$do_command" == "bundle" ]; then
 		[ -z "$FULL_FIND" ] && FULL_PATH=$PROJ_NAME
 		echo "Bundle '$FULL_PATH' not found!" && exit 1
 	fi
+	CHKBRANCH=`git branch -a | grep "* "`
+	CHKBRANCH=${CHKBRANCH#* }
 	echo "Bundle: $FULL_PATH"
-	echo -n "Updating $PROJ_THIS from $PROJ_NAME master branch... "
-	$GIT_BIN pull $FULL_PATH master 2>/dev/null
+	echo -n "Updating $PROJ_THIS from $PROJ_NAME $CHKBRANCH branch... "
+	$GIT_BIN pull $FULL_PATH $CHKBRANCH 2>/dev/null
 	[ $? -ne 0 ] && echo "something went wrong!"
 elif [ "$do_command" == "archive" ]; then
 	[ ! -d "$PATH2BUND" ] &&
