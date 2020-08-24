@@ -4,39 +4,62 @@
 # - written by azman@my1matrix.org
 
 TOOL_NAME=`basename $0 .sh`
-PICK_VERS="5.4.25"
+PICK_VERS=
 PICK_EXEC=0
 
-while [ ! -z "$1" ] ; do
+while [ -n "$1" ] ; do
 	case $1 in
 		-x|--exec) PICK_EXEC=1 ;;
-		-*) echo "Unknown option $1!" && exit 1 ;;
+		-s|--stable) PICK_VERS="stable" ;;
+		-l|--longterm) PICK_VERS="longterm" ;;
+		-*) echo "** Unknown option $1!" && exit 1 ;;
 		[0-9]*) PICK_VERS=$1 ;;
-		*) echo "Unknown param $1!" && exit 1
+		*) echo "** Unknown param $1!" && exit 1 ;;
 	esac
 	shift
 done
 
-get_latest_longterm()
+get_latest_grep()
 {
-	local test=`curl -s -L http://www.kernel.org | grep longterm -A2 -m1`
-	[ -z "$test" ] && return
-	local vers=`echo "$test" | sed -n 2p | sed -e 's/^[ \t]*//'`
+	local what=$1 ; shift
+	local temp=`echo "$@"| grep $what -A2 -m1`
+	local vers=`echo "$temp" | sed -n 2p | sed -e 's/^[ \t]*//'`
 	vers=`echo $vers | sed -e 's|^[^>]*>[^>]*>\([^<]*\)<.*$|\1|'`
-	local when=`echo "$test" | sed -n 3p | sed -e 's/^[ \t]*//'`
+	local when=`echo "$temp" | sed -n 3p | sed -e 's/^[ \t]*//'`
 	when=`echo $when | sed -e 's|^[^>]*>\([^<]*\)<.*$|\1|'`
 	echo -n "$vers:$when"
 }
 
-show_latest_longterm()
+get_latest()
 {
-	local that=`get_latest_longterm`
+	local pick=$1
+	local test=`curl -s -L http://www.kernel.org`
+	[ -z "$test" ] && return
+	[ -z "$pick" -o "$pick" = "stable" ] && get_latest_grep stable "$test"
+	[ -z "$pick" ] && echo -n ":"
+	[ -z "$pick" -o "$pick" = "longterm" ] && get_latest_grep longterm "$test"
+}
+
+show_latest()
+{
+	local that=`get_latest`
 	[ -z "$that" ] && echo "Cannot get info - offline?" && return
 	local vers=`echo $that | cut -d':' -f1`
 	local when=`echo $that | cut -d':' -f2`
+	echo "-- Latest stable version: $vers ($when)"
+	vers=`echo $that | cut -d':' -f3`
+	when=`echo $that | cut -d':' -f4`
 	echo "-- Latest longterm version: $vers ($when)"
 }
-show_latest_longterm
+[ -z "$PICK_VERS" ] && show_latest && exit 0
+
+case $PICK_VERS in
+	stable|longterm)
+		echo -n "-- Looking for latest $PICK_VERS... "
+		PICK_VERS=`get_latest $PICK_VERS | cut -d':' -f1`
+		echo "=> {$PICK_VERS}"
+		;;
+esac
 
 check_kernel_version()
 {
@@ -59,18 +82,24 @@ check_kernel_version()
 	[ $? -ne 0 ] && echo -n "ko-file;$full" || echo -n "ok;$full"
 }
 
-PICK_THAT=`check_kernel_version $PICK_VERS`
-PICK_TEST=`echo $PICK_THAT | cut -d';' -f1`
-PICK_FULL=`echo $PICK_THAT | cut -d';' -f2`
-PICK_PATH=`dirname $PICK_FULL`
-PICK_FILE=`basename $PICK_FULL`
-case $PICK_TEST in
-	offline) echo "[ERROR] Are we offline? Aborting!" ; exit 1 ;;
-	ko-path) echo "[ERROR] Invalid pick? ($PICK_PATH)" ; exit 1 ;;
-	ko-file) echo "[ERROR] Not found? ($PICK_FULL)" ; exit 1 ;;
-	ok) echo "-- Requested kernel: $PICK_FILE" ;;
-	*) echo "[ERROR] Unknown response? $PICK_THAT" ; exit 1 ;;
-esac
+setup_kernel_version()
+{
+	local vers=$1
+	local that=`check_kernel_version $vers`
+	local test=`echo $that | cut -d';' -f1`
+	local full=`echo $that | cut -d';' -f2`
+	local path=`dirname $full`
+	local file=`basename $full`
+	case $test in
+		offline) echo "** Are we offline? Aborting!" ; exit 1 ;;
+		ko-path) echo "** Invalid pick? ($path)" ; exit 1 ;;
+		ko-file) echo "** Not found? ($full)" ; exit 1 ;;
+		ok) echo "-- Requested kernel: $file" ;;
+		*) echo "** Unknown response? $that" ; exit 1 ;;
+	esac
+	PICK_FULL=$full
+}
+setup_kernel_version $PICK_VERS
 
 get_kernel()
 {
