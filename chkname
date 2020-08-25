@@ -35,8 +35,8 @@ function chk_name()
 	# change lowercase... IF requested
 	[ "$DO_LOWER" == "YES" ] &&
 		tconv="$(echo "$tconv"|tr '[A-Z]' '[a-z]')"
-	# remove double underscore OR underscore-dash pair
-	#tconv="$(echo "$tconv"|sed 's|__|_|g'|sed 's|_-|-|g')"
+	# remove double underscore OR underscores beside hyphen
+	tconv="$(echo "$tconv"|sed 's|__|_|g'|sed 's|_-_|-|g')"
 	# remove underscore at end of name
 	#tconv="$(echo "$tconv"|sed 's|^\(.*\)_$|\1|g')"
 	# spit it out
