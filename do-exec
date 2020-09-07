@@ -14,6 +14,13 @@ if [ -z "$WORK" ] ; then
 fi
 
 case $WORK in
+	--HERE)
+		CURR=`pwd`
+		BASE=`basename $CURR`
+		ELBL=${ELBL:="$BASE"}
+		export PATH=$CURR:$PATH
+		exec env PS1="($ELBL) \u@\h:\w$ " `which bash 2>/dev/null` --norc
+		;;
 	LATEX)
 		ELBL=${ELBL:="LATEX"}
 		TL_VERS=${TL_VERS:="2020"}
