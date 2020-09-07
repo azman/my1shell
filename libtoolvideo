@@ -216,11 +216,12 @@ video_cut()
 {
 	local ivid=$1 ; shift
 	# default video length is 1 minute
-	local vchk vlen="1:00"
+	local ovid vchk vlen="1:00"
 	while [ "$1" != "" ]; do
 		case $1 in
 			--vlen) shift ; vlen=$1 ;;
 			--init) shift ; vchk=$1 ;;
+			--output|-o) shift ; ovid=$1 ;;
 			*) echo -ne "\n[ABORT] Unknown param '$1'!\n\n" && exit 0
 		esac
 		shift
@@ -228,7 +229,7 @@ video_cut()
 	[ ! -z "$vchk" ] && vchk="-ss $vchk"
 	vlen="-t $vlen"
 	video_must_have_input $ivid
-	ovid=`video_prepare_output $ivid $ovid`
+	[ -z "$ovid" ] && ovid=`video_prepare_output $ivid $ovid`
 	video_check_output $ovid
 	echo "Input: $ivid"
 	echo -n "Cutting (init:$vchk,time:$vlen) into $ovid... "
