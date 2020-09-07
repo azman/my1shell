@@ -171,8 +171,10 @@ rootfs_create()
 	local pkg_path="$chk_tree/$chk_name"
 	local pkg_list pkg_temp tmp_list pkg_name pkg_base
 	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!\n\n"
-	[ ! -d "$chk_root" ] && error_exit "Cannot find root path '$chk_root'!\n\n"
-	chk_root=`cd $chk_root ; pwd`
+	[ -d "$chk_root" ] && error_exit "Root path '$chk_root' exists!\n\n"
+	if [ "${chk_root:0:1}" != "/" ] ; then
+		chk_root=`pwd`"$chk_root"
+	fi
 	# provide info
 	info_msg "Source path: '$pkg_path'\n"
 	info_msg "Target path: '$chk_root'\n"
@@ -181,8 +183,8 @@ rootfs_create()
 	info_msg "Creating root filesystem...\n"
 	# if package list given, use it!
 	if [ "$pkg_opts" == "FILE" ]; then
-		[ ! -r $chk_file ] &&
-			error_msg "Cannot open package file '$chk_file'!\n" && return
+		[ ! -r $chk_file ] && error_exit "Cannot open file '$chk_file'!\n\n"
+
 		ifs_save=$IFS
 		IFS=$'\n'
 		tmp_list=($(cat $chk_file))
