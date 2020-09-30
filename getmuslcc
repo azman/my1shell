@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# getmuslcc
+# - written by azman@my1matrix.org
+
+PICK_EXEC=0
+PICK_ARCH=`uname -m`
+PICK_PLAT="linux"
+PICK_LIBC="musl"
+MUSLC_URL="https://musl.cc"
+
+while [ -n "$1" ] ; do
+	case $1 in
+		-x|--exec) PICK_EXEC=1 ;;
+		-a|--arch) PICK_ARCH=$1 ;;
+		-p|--plat) PICK_PLAT=$1 ;;
+		-l|--libc) PICK_LIBC=$1 ;;
+		-*) echo "** Unknown option $1!" && exit 1 ;;
+		*) echo "** Unknown param $1!" && exit 1 ;;
+	esac
+	shift
+done
+
+chk_tools()
+{
+	local pick=$1
+	local list=`curl -s $MUSLC_URL`
+	[ -z "$list" ] && return
+	local that=`echo "$list" | grep $pick`
+	echo -n "$that"
+}
+PICK_WHAT="$PICK_ARCH-$PICK_PLAT-$PICK_LIBC-native"
+echo -n "-- Looking for $PICK_WHAT... "
+PICK_THAT=`chk_tools $PICK_WHAT`
+PICK_BASE=`basename $PICK_THAT`
+echo "{$PICK_BASE}"
+
+get_tools()
+{
+	local full=$1
+	local file=`basename $full`
+	[ -f "$file" ] && echo "## File '$file' found." && return
+	local name=`basename $file .tgz`
+	echo -ne "\nDownloading $name:     "
+	local opts="--continue --no-use-server-timestamps --progress=dot"
+	wget $opts $full 2>&1 | \
+		grep --line-buffered "%" | sed -u -e "s,\.,,g" | \
+		awk '{printf("\b\b\b\b%4s", $2)}'
+	[ ! -r "$file" ] &&
+		echo -e "\n** Cannot download source $file!\n" ||
+		echo -e "\b\b\b\b DONE!\n"
+}
+[ $PICK_EXEC -ne 0 ] && get_tools $PICK_THAT
+
+exit 0

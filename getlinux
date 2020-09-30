@@ -3,7 +3,6 @@
 # getlinux
 # - written by azman@my1matrix.org
 
-TOOL_NAME=`basename $0 .sh`
 PICK_VERS=
 PICK_EXEC=0
 LINUX_URL="https://www.kernel.org"
