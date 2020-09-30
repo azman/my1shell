@@ -6,6 +6,7 @@
 TOOL_NAME=`basename $0 .sh`
 PICK_VERS=
 PICK_EXEC=0
+LINUX_URL="https://www.kernel.org"
 
 while [ -n "$1" ] ; do
 	case $1 in
@@ -33,7 +34,7 @@ get_latest_grep()
 get_latest()
 {
 	local pick=$1
-	local test=`curl -s -L http://www.kernel.org`
+	local test=`curl -s -L $LINUX_URL`
 	[ -z "$test" ] && return
 	[ -z "$pick" -o "$pick" = "stable" ] && get_latest_grep stable "$test"
 	[ -z "$pick" ] && echo -n ":"
@@ -57,17 +58,15 @@ case $PICK_VERS in
 	stable|longterm)
 		echo -n "-- Looking for latest $PICK_VERS... "
 		PICK_VERS=`get_latest $PICK_VERS | cut -d':' -f1`
-		echo "=> {$PICK_VERS}"
 		;;
 esac
 
 check_kernel_version()
 {
 	local vers=$1
-	local http="https://www.kernel.org/pub/"
-	local that="${http}linux/kernel/"
+	local that="${LINUX_URL}/pub/linux/kernel"
 	local pick=`echo $vers | cut -d'.' -f1`
-	local path="${that}v${pick}.x/"
+	local path="${that}/v${pick}.x/"
 	local file="linux-${vers}.tar.xz"
 	local full="${path}${file}"
 	local test_url="http://www.google.com"
@@ -91,11 +90,11 @@ setup_kernel_version()
 	local path=`dirname $full`
 	local file=`basename $full`
 	case $test in
-		offline) echo "** Are we offline? Aborting!" ; exit 1 ;;
-		ko-path) echo "** Invalid pick? ($path)" ; exit 1 ;;
-		ko-file) echo "** Not found? ($full)" ; exit 1 ;;
-		ok) echo "-- Requested kernel: $file" ;;
-		*) echo "** Unknown response? $that" ; exit 1 ;;
+		offline) echo -e "\n** Are we offline? Aborting!" ; exit 1 ;;
+		ko-path) echo -e "\n** Invalid pick? ($path)" ; exit 1 ;;
+		ko-file) echo -e "\n** Not found? ($full)" ; exit 1 ;;
+		ok) echo "{$file}" ;;
+		*) echo -e "\n** Unknown response? $that" ; exit 1 ;;
 	esac
 	PICK_FULL=$full
 }
@@ -105,6 +104,7 @@ get_kernel()
 {
 	local full=$1
 	local file=`basename $full`
+	[ -f "$file" ] && echo "## File '$file' found." && return
 	local name=`basename $file .tar.xz`
 	echo -ne "\nDownloading $name:     "
 	local opts="--continue --no-use-server-timestamps --progress=dot"
@@ -112,7 +112,7 @@ get_kernel()
 		grep --line-buffered "%" | sed -u -e "s,\.,,g" | \
 		awk '{printf("\b\b\b\b%4s", $2)}'
 	[ ! -r "$file" ] &&
-		echo -e "\nCannot download source $file!\n" ||
+		echo -e "\n** Cannot download source $file!\n" ||
 		echo -e "\b\b\b\b DONE!\n"
 }
 [ $PICK_EXEC -ne 0 ] && get_kernel $PICK_FULL
