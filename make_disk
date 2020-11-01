@@ -32,8 +32,10 @@ To create bootable triple (efi+root+extra) partition (GPT+EFI)
 - default: p1 = 511M efi, p2 = 2g linux, p3 = <the_rest> linux
 - note: use gdisk notation for size and type
 
-To create a disk image (requires qemu-img)
+To create a FAT32 formatted disk image
 - make_disk image <name> <size>
+- note: size is in sector count (using dd)
+- note: partition size will be 1MB less (offset 2048x512)
 EOF
 	echo -ne "\n${help}\n\n"
 }
@@ -42,15 +44,49 @@ make_disk_image()
 {
 	local disk=$1 # disk name
 	[ -z "$disk" ] && disk="disk.img"
-	local size=$2 # disk size - e.g. 512M
-	[ -z "$size" ] && size="512M"
-	local temp="qemu-img"
-	must_have_exec $temp
-	local full=`find_binary $temp`
-	info_msg "-- Creating disk '$disk' @ '$size'"
-	$full create -f raw $disk $size >/dev/null
+	local temp="${disk}_temp"
+	local size=$2 # disk size - e.g. 1K => 1M
+	[ -z "$size" ] && size="256K"
+	local tool="fdisk"
+	must_have_exec $tool
+	local full=`find_binary $tool`
+	info_msg "-- Creating disk '$disk' @ '$size'... "
+	dd if=/dev/zero of=$disk bs=1024 count=$size conv=notrunc >/dev/null 2>&1
+	[ $? -ne 0 ] && error_exit "dd failure!\n\n"
+	info_msg --no-tag "done! {$(fdisk -s $disk)}\n"
+	info_msg "-- Creating single partition disk and flag as bootable... "
+	$full $disk >/dev/null 2>&1 <<EOF
+o
+n
+p
+1
+
+
+t
+c
+a
+w
+EOF
 	[ $? -ne 0 ] && error_exit "failure!\n\n"
 	info_msg --no-tag "done!\n"
+	# prepare temporary FAT32 partition
+	local part=$(($(fdisk -s $disk)-1024))
+	info_msg "-- Creating temp partition '$temp' ($part)... "
+	dd if=/dev/zero of=$temp bs=1024 count=$part 2>/dev/null
+	[ $? -ne 0 ] && error_exit "failure!\n\n"
+	info_msg --no-tag "done!\n"
+	# create FAT32
+	info_msg "-- Creating FAT32... "
+	mkdosfs -F 32 -n "MY1FAT32" $temp >/dev/null 2>&1
+	[ $? -ne 0 ] && error_exit "failure!\n\n"
+	info_msg --no-tag "done!\n"
+	# place in target image
+	info_msg "-- Place FAT32 partition on '$disk'... "
+	local opts="conv=notrunc seek=1024"
+	dd if=$temp of=$disk bs=1024 count=$part $opts 2>/dev/null
+	[ $? -ne 0 ] && error_exit "failure!\n\n"
+	info_msg --no-tag "done!\n"
+	rm $temp
 }
 
 make_disk_dos_single()
