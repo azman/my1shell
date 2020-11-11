@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SSR_SCR=${SSR_SCR:="3"}
+SSR_SCR=${SSR_SCR:="2"}
 SSR_COL=${SSR_COL:="400"} # width
 SSR_ROW=${SSR_ROW:="300"} # height
 SSR_CAM="mplayer"
