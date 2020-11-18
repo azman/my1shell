@@ -196,7 +196,7 @@ if [ "$CHKPATCH" == "YES" ]; then
 				if [ -f "$CHK_FILE" ] ; then
 					echo "Patch file '${CHK_FILE}' exists."
 				else
-					git --no-pager diff >${CHK_FILE}
+					git --no-pager diff master >${CHK_FILE}
 					echo "Patch file '${CHK_FILE}' created."
 				fi
 			fi
