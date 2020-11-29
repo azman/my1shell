@@ -15,6 +15,7 @@ source_lib libtoolvideo
 
 TOOL_TASK="$1" ; shift
 case "$TOOL_TASK" in
+	help) video_help $@ ;;
 	convert) video_convert $@ ;;
 	convert-mp4) video_convert_mp4 $@ ;;
 	split-video) video_split_video $@ ;;

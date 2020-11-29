@@ -21,6 +21,15 @@ video_prepare_output()
 	echo -n $ovid
 }
 
+video_prepare_output_task()
+{
+	local task=$1
+	local ivid=$2
+	local ovid=$3
+	[ -z "$ovid" ] && ovid="${ivid%.*}_${task}.${ivid##*.}"
+	echo -n $ovid
+}
+
 video_prepare_audio()
 {
 	local ivid=$1
@@ -229,7 +238,7 @@ video_cut()
 	[ ! -z "$vchk" ] && vchk="-ss $vchk"
 	vlen="-t $vlen"
 	video_must_have_input $ivid
-	[ -z "$ovid" ] && ovid=`video_prepare_output $ivid $ovid`
+	[ -z "$ovid" ] && ovid=`video_prepare_output_task cut $ivid $ovid`
 	video_check_output $ovid
 	echo "Input: $ivid"
 	echo -n "Cutting (init:$vchk,time:$vlen) into $ovid... "
@@ -283,4 +292,26 @@ video_play()
 	play=`which $exec 2>/dev/null`
 	[ $? -ne 0 ] && echo "Cannot execute $exec!" && exit 1
 	${play} -ss ${init} -endpos ${time} ${ivid} >/dev/null 2>&1
+}
+
+video_help()
+{
+	local help_full=$(cat <<FULLHELPMSG
+Usage:
+  $TOOL_NAME <command> <input> [options]
+Commands:
+	convert     : convert video to AVI format
+	convert-mp4 : convert video to MP4 format
+	split-video : split video into separate audio/video files
+	split-audio : extract audio from video file
+	merge-audio : merge audio file with video file
+	cut         : cut video file (--init && --vlen)
+	join-mp4    : join multiple MP4 video files
+	play        : play a video file
+Options:
+	... coming soon ...
+FULLHELPMSG
+)
+	#local task=$1 ; shift
+	echo "$help_full"
 }
