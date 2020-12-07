@@ -10,8 +10,19 @@ TGT_HOST="$1"
 DO_FORCE=${DO_FORCE:=""}
 
 DATE=`date $DATE_FMT`
-CURR_IP=`ifconfig | grep -v 127.0.0.1 | grep 'inet '`
-CURR_IP=`echo $CURR_IP | sed 's/.*inet \([^\s]*\)\s.*/\1/'`
+TOOL=`which ifconfig 2>/dev/null`
+if [ ! -z "$TOOL" ] ; then
+	CURR_IP=`ifconfig | grep -v 127.0.0.1 | grep 'inet '`
+	CURR_IP=`echo $CURR_IP | sed 's/.*inet \([^\s]*\)\s.*/\1/'`
+else
+	TOOL=`which ip 2>/dev/null`
+	if [ -z "$TOOL" ] ; then
+		echo "** No tools to find IP address!"
+		exit 1
+	fi
+	CURR_IP=`ip a | grep -v 127.0.0.1 | grep 'inet '`
+	CURR_IP=`echo $CURR_IP | sed 's/.*inet \([^\/]*\)\/.*/\1/'`
+fi
 BASE_IP=`echo $CURR_IP | sed 's/\.[0-9]*$//'`
 
 cd $WORKPATH
