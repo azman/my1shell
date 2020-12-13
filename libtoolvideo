@@ -197,7 +197,7 @@ video_split_video()
 	local ivid=$1
 	local vout=$2
 	video_must_have_input $ivid
-	vout=`video_prepare_output $ivid $ovid`
+	vout=`video_prepare_output_task split $ivid $ovid`
 	video_check_output $vout
 	echo "Input: $ivid"
 	echo -n "Extracting video to '$vout'..."
@@ -254,7 +254,11 @@ video_mp4join()
 	local list=$1
 	local ovid=$2
 	video_must_have_input $list
-	ovid=`video_prepare_output $list $ovid`
+	if [ -z "$ovid" ] ; then
+		local base=`basename $list`
+		local extf=${base##*.}
+		ovid=${base%.${extf}}_join.mp4
+	fi
 	video_check_output $ovid
 	echo "List: $list"
 	echo -n "Joining video into '$ovid'... "
