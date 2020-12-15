@@ -2,7 +2,8 @@
 
 # getslackbuild
 # - written by azman@my1matrix.org
-# - get/execute slackbuild scripts from SlackBuilds.org (supports dependencies)
+# - get/execute slackbuild scripts from SlackBuilds.org
+#   = also build/install dependencies IF requested
 
 TOOL_NAME=`basename $0 .sh`
 TOOL_PATH=`dirname $0`
@@ -368,8 +369,9 @@ do_fetch_build() #DONE
 	local deps=`find_opts --depbuild $opts`
 	# update list
 	[ "$deps" = "" ] && do_list_update $work && echo
+	local fnew=`find_opts --new $opts`
 	# go for it...
-	go_fetch $work $name $pack
+	go_fetch $work $name $pack $fnew
 	# check!
 	local file=`find_build $work $name`
 	[ "$file" = "" ] && error_exit "$func: Failed to fetch $name?!\n\n"
