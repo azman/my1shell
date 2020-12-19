@@ -16,16 +16,15 @@ ISO_PATH=${ISO_PATH:="$CHK_PATH"}
 ISO_LOAD=${ISO_LOAD:=""}
 
 MAIN_OPT="${MAIN_OPT} -enable-kvm"
-MAIN_OPT="${MAIN_OPT} -rtc base=utc"
 MAIN_OPT="${MAIN_OPT} -usb -device usb-tablet"
+# system clock settings
+SCLK_OPT=${SCLK_OPT:="-rtc base=localtime"}
 # for config files to override
 XTRA_OPT=${XTRA_OPT:=""}
 # network settings - configurable
 INET_DEF="-netdev user,id=net0,hostfwd=tcp::2222-:22"
 INET_DEF="$INET_DEF -device e1000,netdev=net0"
 INET_OPT=${INET_OPT:="$INET_DEF"}
-# put into main opt
-MAIN_OPT="$MAIN_OPT $INET_OPT"
 
 must_have_file()
 {
@@ -56,6 +55,7 @@ while [ "$1" != "" ] ; do
 		--cdrom) shift ; ISO_LOAD="$ISO_PATH/$1" ; must_have_file $ISO_LOAD ;;
 		--boot-cd) CHK_BOOT="$CHK_BOOT,once=d" ;;
 		--vga-res) VGA_MAIN="-device virtio-vga,xres=640,yres=480" ;;
+		--utc) SCLK_OPT="-rtc base=utc" ;;
 		--vga) MAIN_OPT="${MAIN_OPT} -vga cirrus" ;;
 		--sound) MAIN_OPT="${MAIN_OPT} -device AC97" ;;
 		--amd64) QEMU_BIN="qemu-system-x86_64" ;;
@@ -66,6 +66,8 @@ while [ "$1" != "" ] ; do
 	esac
 	shift
 done
+# put opts into main opt
+MAIN_OPT="$MAIN_OPT $SCLK_OPT $INET_OPT"
 
 must_have_file $HDD_FILE
 must_have_exec $QEMU_BIN
