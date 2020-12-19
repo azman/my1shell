@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# video conversion examples
+#
+# quick one
+# > video-tool convert <file> --var
+# slightly larger, better quality
+# > video-tool convert <file> --var6
+# smaller size
+# > video-tool convert <file> --2pass --vbit 450k
+# small mp4 (360p)
+# > video-tool convert-mp4 <file>
+
 TOOL_NAME=`basename $0`
 TOOL_PATH=`dirname $0`
 TOOL_PATH=`cd $TOOL_PATH;pwd`
