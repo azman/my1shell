@@ -146,6 +146,9 @@ OPTS="-e"
 if [ -f $TEST_FILE ] ; then
 	[ "$MAKE_EXEC" = "NO" ] && echo "[CMDLINE]" && cat $TEST_FILE
 	PART_UUID=`lsblk -l -p -o NAME,LABEL,PARTUUID | grep "$LOOP_ROOT"`
+	[ "$MAKE_EXEC" = "NO" ] && echo "PartUUIDraw1=$PART_UUID"
+	PART_UUID=`echo "$PART_UUID" | sed -n 's/  */ /gp'`
+	[ "$MAKE_EXEC" = "NO" ] && echo "PartUUIDraw2=$PART_UUID"
 	PART_UUID=`echo "$PART_UUID" | cut -d ' ' -f 3`
 	[ "$MAKE_EXEC" = "NO" ] && echo "PartUUID=$PART_UUID"
 	[ "$MAKE_EXEC" = "YES" ] && OPTS="-i -e"
