@@ -35,7 +35,7 @@ case $THIS_TASK in
 	mount)
 		[ ! -d "$LUKS_FULL" ] && mkdir $LUKS_FULL
 		mount /dev/mapper/$LUKS_NAME $LUKS_FULL ;;
-	unmount) umount $LUKS_PATH ;;
+	unmount) umount $LUKS_FULL ;;
 	*) echo "Unknown task '$1'!" && exit 1 ;;
 esac
 
