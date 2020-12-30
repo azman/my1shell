@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# dotpro
+# - written by azman@my1matrix.org
+# - manipulate hidden dot-files
+
+MY1TOOL=`basename $0`
+MY1PATH=`dirname $0`
+
+show_help()
+{
+	echo "Usage: $MY1TOOL <task> [options]"
+	echo "Tasks:"
+	echo "  help   : Show this help"
+	exit 0
+}
+
+dots_view()
+{
+	local name="$1" ; shift
+	[ -z "$name" ] && echo "** No dot-name given!" && exit 1
+	local path=`pwd`
+	local full="${path}/.${name}"
+	[ ! -f "$full" ] && echo "** '.$name' not found!" && exit 1
+	echo "-- Viewing '$full':"
+	cat $full
+}
+
+dots_link()
+{
+	local name="$1" ; shift
+	[ -z "$name" ] && echo "** No dot-name given!" && exit 1
+	local path=`pwd`
+	local full="${path}/.${name}"
+	[ ! -f "$full" ] && echo "** '.$name' not found!" && exit 1
+	local link="${path}/dot-${name}"
+	[ -L "$link" ] && echo "** Link '$link' exists!" && exit 1
+	echo -n "-- Creating $(basename $link) -> $(basename $full)... "
+	ln -sf $full $link
+	[ $? -eq 0 ] && echo "done." || echo "error?"
+}
+
+that_path()
+{
+	[ -z "$1" ] && echo "** No path provided!" && exit 1
+	[ ! -d $1 ] && echo "** Invalid path '$1'!" && exit 1
+}
+
+dots_save()
+{
+	# backup dot-file
+	local name="$1" ; shift
+	[ -z "$name" ] && echo "** No dot-name given!" && exit 1
+	local path=`pwd`
+	local full="${path}/.${name}"
+	[ ! -f "$full" ] && echo "** '.$name' not found!" && exit 1
+	local save=$path
+	local ride=0
+	while [ ! -z "$1" ] ; do
+		case $1 in
+			-s|--save) shift ; that_path $1 ; save=`cd $1;pwd` ;;
+			-f|--force) ride=1 ;;
+			-*|*) echo "** Unknown parameter '$1'!" ; exit 1 ;;
+		esac
+		shift
+	done
+	local test="${save}/dot-${name}"
+	[ -f "$test" -a $ride -eq 0 ] &&
+		echo "** File '$test' exists!" && exit 1
+	echo -n "-- Creating $test from $(basename $full)... "
+	cp $full $test
+	[ $? -eq 0 ] && echo "done." || echo "error?"
+}
+
+dots_make()
+{
+	# restore dot-file
+	local name="$1" ; shift
+	[ -z "$name" ] && echo "** No dot-source given!" && exit 1
+	[ ! -f "$name" ] && echo "** Source '$name' not found!" && exit 1
+	local from=`dirname $name`
+	from=`cd $from;pwd`
+	local base=`basename $name`
+	name=${base#dot-}
+	[ "$name" = "$base" ] && echo "** Invalid source name?! ($base)!" && exit 1
+	local full="${from}/${base}"
+	[ ! -f "$full" ] && echo "** Source '$full' not found!" && exit 1
+	local path=`pwd`
+	local ride=0
+	while [ ! -z "$1" ] ; do
+		case $1 in
+			-f|--force) ride=1 ;;
+			-*|*) echo "** Unknown parameter '$1'!" ; exit 1 ;;
+		esac
+		shift
+	done
+	local test="${path}/.${name}"
+	[ -f "$test" -a $ride -eq 0 ] &&
+		echo "** File '$test' exists!" && exit 1
+	echo -n "-- Creating $(basename $test) from $full... "
+	cp $full $test
+	[ $? -eq 0 ] && echo "done." || echo "error?"
+}
+
+DOTTASK=$1 ; shift
+case "$DOTTASK" in
+	help) show_help ;;
+	view) dots_view $@ ;;
+	link) dots_link $@ ;;
+	save) dots_save $@ ;;
+	make) dots_make $@ ;;
+	*) echo "** Unknown task '$DOTTASK'!" ;;
+esac
+
+exit 0
