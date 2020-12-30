@@ -14,14 +14,17 @@ umask 0022
 
 add_path()
 {
-	local that=$1
-	[ -d "\$that" ] && export PATH=\$PATH:\$that
+	local pref=0
+	[ "\$1" = "--prefix" ] && pref=1
+	while [ ! -z "\$1" ] ; do
+		[ ! -d \$1 ] && shift && continue
+		[ \$pref -ne 0 ] && export PATH=\$1:\$PATH || export PATH=\$PATH:\$1
+		shift
+	done
 }
 
-add_path /usr/sbin
-add_path /sbin
-add_path $MY1PATH
-add_path \$HOME/.local/bin
+add_path --prefix /sbin /usr/sbin
+add_path \$HOME/.local/my1shell \$HOME/.local/bin
 
 [ -f ~/.bashrc ] && source ~/.bashrc
 [ -n "\$SSH_CLIENT" ] && export PS1="(SSH) \$PS1"
