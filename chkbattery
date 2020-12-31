@@ -95,7 +95,10 @@ BATT_FULL="$BATT_FULL [${BATT_NAME}]"
 do_hibernate()
 {
 	local curr=$1
-	local test=$2
+	shift ; shift # value & --vbatt
+	local exec=$1
+	[ "$exec" == "--exec" ] && shift || return
+	local test=$1
 	# default is 100%
 	[ -z "$test" ] && test=100
 	local warn=$((test+1))
@@ -119,7 +122,7 @@ do_hibernate()
 case "$1" in
 	--basic) echo "$CHK_BASIC" ;;
 	--state) echo "$CHK_STATE" ;;
-	--vbatt) echo -e "Vbatt\n[${CHK_VBATT}%]" ; do_hibernate $CHK_VBATT $2 ;;
+	--vbatt) echo -e "Vbatt\n[${CHK_VBATT}%]" ; do_hibernate $CHK_VBATT $@ ;;
 	*) echo "$BATT_FULL" ;;
 esac
 
