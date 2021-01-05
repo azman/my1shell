@@ -6,8 +6,10 @@ THISHOST=`hostname`
 WORKPATH="/tmp"
 WORKFILE="${THISHOST}_ip"
 LOG_FILE=`basename $0 .sh`.log
+DO_FORCE="NO"
+[ "$1" = "-f" ] && DO_FORCE="yes" && shift
 TGT_HOST="$1"
-DO_FORCE=${DO_FORCE:=""}
+SSH_PORT="$2"
 
 DATE=`date $DATE_FMT`
 TOOL=`which ifconfig 2>/dev/null`
@@ -33,7 +35,8 @@ if [ "$CURR_IP" != "$PREV_IP" -o "$DO_FORCE" == "yes" ] ; then
 		echo "[$DATE]: IP CHANGE LOG FILE CREATED" >> $LOG_FILE
 	echo "[$DATE]: IP CHANGED {$PREV_IP} -> {$CURR_IP}" >> $LOG_FILE
 	if [ "$TGT_HOST" != "" ]; then
-		scp ${WORKFILE} ${TGT_HOST}
+		[ ! -z "$SSH_PORT" ] && SSH_PORT=" -P $SSH_PORT"
+		scp ${SSH_PORT} ${WORKFILE} ${TGT_HOST}
 	else
 		echo "[$DATE]: IP CHANGED {$PREV_IP} -> {$CURR_IP}"
 	fi
