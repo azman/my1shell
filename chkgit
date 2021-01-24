@@ -158,7 +158,7 @@ chkgit_remote()
 		chk_sedpat="s/$chk_srcpat/$chk_base: \2 (\1)/g"
 		chk_remote=`$GIT_BIN remote -v | grep \(fetch\)`
 		if [ "$chk_remote" != "" ]; then
-			echo $chk_remote | sed "$chk_sedpat"
+			echo "$chk_remote" | sed "$chk_sedpat"
 		else
 			[ "$B_VERBOSE" == "YES"  ] &&
 				echo "$chk_base: No remote repo found!"
