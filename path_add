@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# path_add
+# - written by azman@my1matrix.org
+# - simple script to add current/specified path to PATH
+
+CURR=`pwd`
+BASE=`basename $CURR`
+PICK=
+EXEC=1
+POST=0
+
+check_path()
+{
+	[ ! -d "$1" ] && echo "** Invalid path '$1'!" && return
+	local path=$(cd $1;pwd)
+	[ "$PICK" = "" ] && PICK=$path || PICK="${PICK}:$path"
+}
+
+# check parameters for command
+while  [ "$1" != "" ]; do
+	case $1 in
+		--pick|--path) shift ; check_path $1 ;;
+		--postfix|--post) POST=1 ;;
+		--show) EXEC=0 ;;
+		-*) echo "** Unknown parameter '$1'" ; exit 1 ;;
+		*) echo "** Unknown command {$1}!" ; exit 1 ;;
+	esac
+	shift
+done
+[ -z "$PICK" ] && PICK=`pwd`
+
+echo "-- Picked path(s) :{$PICK}"
+echo "## Current:{$PATH}"
+if [ $EXEC -ne 0 ] ; then
+# assume PATH is never null!
+[ $POST -eq 0 ] && PATH=$PICK:$PATH || PATH=$PATH:$PICK
+export PATH
+echo "## Changed:{$PATH}"
+fi
