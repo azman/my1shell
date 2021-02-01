@@ -91,12 +91,34 @@ do_root_install()
 	[ "$chk_exec" = "YES" ] && make_path "$chk_root"
 	local chk_logs=$chk_root/install.logs
 	# install packages in list to given root
+	local pkg_file pkg_base pkg_name
+	local chk_path=$(pwd)
+	local chk_inst=`which installpkg 2>/dev/null`
 	for pkg_file in $pkg_list; do
 		# use {grep -E -- "^-- "} to view these lines
-		echo -n "-- Installing $(basename $pkg_file)..."
-		[ "$chk_exec" == "YES" ] &&
-			installpkg --root $chk_root $pkg_file >>$chk_logs
-		echo " done!"
+		pkg_base=$(basename $pkg_file)
+		pkg_name=$(basename $(dirname $pkg_file))
+		pkg_name=${pkg_name}-${pkg_base%.*}
+		echo -n "-- Installing ${pkg_base}... "
+		if [ "$chk_exec" == "YES" ] ; then
+			if [ -z "$chk_inst" ] ; then
+				echo -n "[tar]... "
+				cd $chk_root
+				tar xf $pkg_file >>$chk_logs 2>>&1
+				[ $? -ne 0 ] && echo -n "<???>... "
+				if [ -d install ] ; then
+					mv install install-${pkg_name}
+					mkdir -p tmp/${TOOL_NAME}
+					rm -rf tmp/${TOOL_NAME}/install-${pkg_name}
+					mv install-${pkg_name} tmp/${TOOL_NAME}/
+				fi
+				cd $chk_path
+			else
+				echo -n "[pkg]... "
+				installpkg --root $chk_root $pkg_file >>$chk_logs
+			fi
+		fi
+		echo "done!"
 	done
 }
 
@@ -164,6 +186,7 @@ rootfs_create()
 			# ignore the rest!
 		esac
 	fi
+	[ -z "$chk_vers" ] && chk_vers="current"
 	local chk_full="$chk_name-$chk_vers"
 	local chk_tree=`find_slacktree $chk_full $chk_path`
 	[ ! -d "$chk_tree" ] && error_exit "Cannot find tree for '$chk_full'!\n\n"
@@ -171,10 +194,9 @@ rootfs_create()
 	local pkg_path="$chk_tree/$chk_name"
 	local pkg_list pkg_temp tmp_list pkg_name pkg_base
 	[ ! -d "$pkg_path" ] && error_exit "Cannot find pkg path '$pkg_path'!\n\n"
-	[ -d "$chk_root" ] && error_exit "Root path '$chk_root' exists!\n\n"
-	if [ "${chk_root:0:1}" != "/" ] ; then
-		chk_root=`pwd`"$chk_root"
-	fi
+	[ -d "${chk_root}" -a -f "${chk_root}/etc/slackware-version" ] &&
+		error_exit "Found an installation in '$chk_root'!\n\n"
+	[ "${chk_root:0:1}" != "/" ]  && chk_root=`pwd`"$chk_root"
 	# provide info
 	info_msg "Source path: '$pkg_path'\n"
 	info_msg "Target path: '$chk_root'\n"
@@ -184,7 +206,6 @@ rootfs_create()
 	# if package list given, use it!
 	if [ "$pkg_opts" == "FILE" ]; then
 		[ ! -r $chk_file ] && error_exit "Cannot open file '$chk_file'!\n\n"
-
 		ifs_save=$IFS
 		IFS=$'\n'
 		tmp_list=($(cat $chk_file))
