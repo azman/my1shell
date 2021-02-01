@@ -55,10 +55,10 @@ Options:
   --new          : Force fresh download of everything
   (*)            : First option without '-' is considered a package name
 SETHELPMSG`
-TOOL_PDIR=`dirname $TOOL_PATH`
+CURR_PATH=`pwd -P`
+TOOL_PDIR="${TOOL_PIR:="$CURR_PATH"}"
 WORK_PATH="$TOOL_PDIR/slackbuilds" # default slackbuilds path
 PACK_PATH="test-pack" # default package path
-CURR_PATH=`pwd -P`
 BUILDLIST="SLACKBUILDS.TXT"
 BUILDPATH="$TOOL_TEMP"
 # setup default BUILD_URL
@@ -617,7 +617,10 @@ process_command()
 		esac
 		shift
 	done
-	# check if work path is valid
+	# create work path if not existing
+	[ ! -d $work ] &&
+		info_msg --no-tag "## Creating path '$work'\n" &&
+		mkdir -p $work
 	must_have_path $work "Slackbuilds path '$work' not found!"
 	info_msg --no-tag "Slackbuilds path: $work\n\n"
 	# execute task
