@@ -12,9 +12,9 @@ MUSLC_URL="https://musl.cc"
 while [ -n "$1" ] ; do
 	case $1 in
 		-x|--exec) PICK_EXEC=1 ;;
-		-a|--arch) PICK_ARCH=$1 ;;
-		-p|--plat) PICK_PLAT=$1 ;;
-		-l|--libc) PICK_LIBC=$1 ;;
+		-a|--arch) shift ; PICK_ARCH=$1 ;;
+		-p|--plat) shift ; PICK_PLAT=$1 ;;
+		-l|--libc) shift ; PICK_LIBC=$1 ;;
 		-*) echo "** Unknown option $1!" && exit 1 ;;
 		*) echo "** Unknown param $1!" && exit 1 ;;
 	esac
