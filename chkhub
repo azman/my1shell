@@ -9,6 +9,11 @@ TOOL_NAME=`basename $0`
 TOOL_PATH=`dirname $0`
 CURR_PATH=`pwd`
 
+THAT_NAME=curl
+THAT_EXEC=$(which $THAT_NAME 2>/dev/null)
+[ ! -x "$THAT_EXEC" ] &&
+	echo "** Cannot find ${TOOL_NAME}!" && exit 1
+
 # look for config file
 for conf in "$CURR_PATH/.$TOOL_NAME" "$HOME/.$TOOL_NAME" ; do
 	[ -f $conf ] &&  . $conf && break
@@ -27,41 +32,20 @@ DO_CHECK=0
 
 while [ "$1" != "" ] ; do
 	case $1 in
-		--clone | --exec )
-			DO_CLONE="YES"
-			;;
-		--local )
-			shift
+		--clone|--exec) DO_CLONE="YES" ;;
+		--local) shift
 			[ ! -f "$1" ] &&
 				echo "Local list file '$1' not found! Aborting..." && exit 1
 			LISTNAME=$1
 			DO_LOCAL="YES"
 			;;
-		--list )
-			shift
-			LISTNAME=$1
-			;;
-		--count )
-			shift
-			DO_COUNT="$1"
-			;;
-		--user )
-			shift
-			USERNAME="$1"
-			;;
-		--orgs )
-			shift
-			ORGSNAME="$1"
-			;;
-		--verbose )
-			DO_QUIET="NO"
-			;;
-		--https )
-			MAIN_URL="$HTTP_URL"
-			;;
-		* )
-			echo "Unknown parameter ($1)!" && exit 1
-			;;
+		--list) shift ; LISTNAME=$1 ;;
+		--count) shift ; DO_COUNT="$1" ;;
+		--user) shift ; USERNAME="$1" ;;
+		--orgs) shift ; ORGSNAME="$1" ;;
+		--verbose) DO_QUIET="NO" ;;
+		--https) MAIN_URL="$HTTP_URL" ;;
+		*) echo "Unknown parameter ($1)!" && exit 1 ;;
 	esac
 	shift
 done
@@ -76,10 +60,10 @@ if [ "$DO_LOCAL" != "YES" ] ; then
 		USRS_URL="${USRS_URL}?per_page=$DO_COUNT"
 		ORGS_URL="${ORGS_URL}?per_page=$DO_COUNT"
 	fi
-	CHK_LIST=`curl -i $USRS_URL 2>/dev/null|grep full_name`
+	CHK_LIST=`$TOOL_EXEC -i $USRS_URL 2>/dev/null|grep full_name`
 	echo "$CHK_LIST" | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
 	if [ "$ORGSNAME" != "" ] ; then
-		CHK_LIST=`curl -i $ORGS_URL 2>/dev/null|grep full_name`
+		CHK_LIST=`$TOOL_EXEC -i $ORGS_URL 2>/dev/null|grep full_name`
 		echo "$CHK_LIST" | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
 	fi
 	echo -n "Repository list saved "
@@ -104,4 +88,3 @@ done
 [ $DO_CHECK -eq 0 ] && echo "Found local copies for ALL repo ($REPO_CNT)."
 
 exit 0
-

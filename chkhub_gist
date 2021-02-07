@@ -9,6 +9,11 @@ MY1TOOL="$(basename $0 .sh)"
 MY1PATH="$(dirname $0)"
 CURPATH="$(pwd)"
 
+THAT_NAME=curl
+THAT_EXEC=$(which $THAT_NAME 2>/dev/null)
+[ ! -x "$THAT_EXEC" ] &&
+	echo "** Cannot find ${TOOL_NAME}!" && exit 1
+
 # look for config file
 for conffile in "$CURPATH/.$MY1TOOL" "$HOME/.$MY1TOOL" ; do
 	[[ ! -f $conffile ]] && continue
@@ -22,28 +27,16 @@ DO_COUNT="50"
 
 while [ "$1" != "" ] ; do
 	case $1 in
-		--local )
-			shift
+		--local) shift
 			[ ! -f "$1" ] &&
 				echo "Local list file '$1' not found! Aborting..." && exit 1
 			LISTNAME=$1
 			DO_LOCAL="YES"
 			;;
-		--list )
-			shift
-			LISTNAME=$1
-			;;
-		--count )
-			shift
-			DO_COUNT="$1"
-			;;
-		--user )
-			shift
-			USERNAME="$1"
-			;;
-		* )
-			echo "Unknown parameter ($1)!" && exit 1
-			;;
+		--list) shift ; LISTNAME=$1 ;;
+		--count) shift ; DO_COUNT="$1" ;;
+		--user) shift ; USERNAME="$1" ;;
+		*) echo "Unknown parameter ($1)!" && exit 1 ;;
 	esac
 	shift
 done
@@ -55,7 +48,7 @@ if [ "$DO_LOCAL" != "YES" ] ; then
 	USRS_URL="https://api.github.com/users/$USERNAME/gists"
 	[ "$DO_COUNT" != "" ] && USRS_URL="${USRS_URL}?per_page=$DO_COUNT"
 	CHK_GIST="git_pull_url|created_at|description"
-	CHK_LIST="$(curl -i $USRS_URL 2>/dev/null|grep -E "$CHK_GIST")"
+	CHK_LIST="$($TOOL_EXEC -i $USRS_URL 2>/dev/null|grep -E "$CHK_GIST")"
 	echo "$CHK_LIST"|sed 's/^.*\": \"\(.*\)\".*$/\1/' >>$LISTNAME
 	echo "Repository list saved in '$LISTNAME'."
 else
