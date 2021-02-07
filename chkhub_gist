@@ -48,7 +48,7 @@ if [ "$DO_LOCAL" != "YES" ] ; then
 	USRS_URL="https://api.github.com/users/$USERNAME/gists"
 	[ "$DO_COUNT" != "" ] && USRS_URL="${USRS_URL}?per_page=$DO_COUNT"
 	CHK_GIST="git_pull_url|created_at|description"
-	CHK_LIST="$($TOOL_EXEC -i $USRS_URL 2>/dev/null|grep -E "$CHK_GIST")"
+	CHK_LIST="$($THAT_EXEC -i $USRS_URL 2>/dev/null|grep -E "$CHK_GIST")"
 	echo "$CHK_LIST"|sed 's/^.*\": \"\(.*\)\".*$/\1/' >>$LISTNAME
 	echo "Repository list saved in '$LISTNAME'."
 else

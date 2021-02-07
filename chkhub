@@ -60,10 +60,10 @@ if [ "$DO_LOCAL" != "YES" ] ; then
 		USRS_URL="${USRS_URL}?per_page=$DO_COUNT"
 		ORGS_URL="${ORGS_URL}?per_page=$DO_COUNT"
 	fi
-	CHK_LIST=`$TOOL_EXEC -i $USRS_URL 2>/dev/null|grep full_name`
+	CHK_LIST=`$THAT_EXEC -i $USRS_URL 2>/dev/null|grep full_name`
 	echo "$CHK_LIST" | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
 	if [ "$ORGSNAME" != "" ] ; then
-		CHK_LIST=`$TOOL_EXEC -i $ORGS_URL 2>/dev/null|grep full_name`
+		CHK_LIST=`$THAT_EXEC -i $ORGS_URL 2>/dev/null|grep full_name`
 		echo "$CHK_LIST" | sed 's/^.*: \"\(.*\)\".*$/\1/' >>$LISTNAME
 	fi
 	echo -n "Repository list saved "
