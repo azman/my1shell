@@ -45,7 +45,7 @@ echo -n "" >$KEEP_LIST
 USRS_URL="https://codeberg.org/api/v1/users/$USER_NAME/repos"
 THAT_OPTS="--request GET --url $USRS_URL"
 CHK_LIST=$($THAT_EXEC $THAT_OPTS 2>/dev/null | grep -Po '"ssh_url":.*?[^\\]",')
-echo "$CHK_LIST" | sed 's/^.*:\"\(.*\)\".*$/\1/' >>$KEEP_LIST
+echo "$CHK_LIST" | sed 's/^.*:\"\(.*\)\".*$/\1/' | sort >>$KEEP_LIST
 
 echo -n "Repository list saved "
 REPO_CNT=`cat $KEEP_LIST | wc -l`
