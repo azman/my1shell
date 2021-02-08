@@ -1,6 +1,0 @@
-#!/bin/bash
-
-# to trim colorized output of other scripts
-# - e.g. getslackbuild | trim_color
-
-sed -e "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"
